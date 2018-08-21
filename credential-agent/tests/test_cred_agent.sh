@@ -1,8 +1,8 @@
 #!/bin/sh
-agent_conf_file="/opt/dhsm2/share/credential_agent.ini"
-agent_commandline_tool="/opt/dhsm2/bin/credential_agent_tool"
+agent_conf_file="__PREFIX__/etc/credential_agent.ini"
+agent_commandline_tool="__PREFIX__/bin/credential_agent_tool"
 
-readonly UTIL_SCRIPT="/opt/dhsm2/bin/common_utils"
+readonly UTIL_SCRIPT="__PREFIX__/bin/credential-agent/common_utils"
 
 if [ -f $UTIL_SCRIPT ]; then
 	source $UTIL_SCRIPT
