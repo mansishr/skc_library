@@ -10,5 +10,3 @@ stm_kpt_la_SOURCES = \
     init.c
 
 stm_kpt_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS)
-
-

@@ -21,7 +21,7 @@
 } while(0)
 
 #define k_domain_log(domain, level, args...) do { \
-	g_log(domain, level, args); \
+	g_log_structured(domain, level, "MESSAGE", args); \
 } while(0)
 
 #define  k_log(level, args...) do { \
@@ -35,7 +35,7 @@
 #define k_critical_error(err) do {\
 	k_critical_msg("%s(%d): %s: (%s,%d)", \
 		__FILE__, __LINE__, \
-		err->message, g_quark_to_string(err->domain), err->code); \
+		(err)->message, g_quark_to_string((err)->domain), (err)->code); \
 } while(0);
 
 #define k_fatal_msg(fmt...) do {\
@@ -45,7 +45,7 @@
 #define k_fatal_error(err) do {\
 	k_fatal_msg("%s(%d): %s: (%s,%d)", \
 		__FILE__, __LINE__, \
-		err->message, g_quark_to_string(err->domain), err->code); \
+		(err)->message, g_quark_to_string((err)->domain), (err)->code); \
 } while(0);
 
 #define k_info_msg(fmt...) do {\
@@ -55,7 +55,7 @@
 #define k_info_error(err) do {\
 	k_info_msg("%s(%d): %s: (%s,%d)", \
 		__FILE__, __LINE__, \
-		err->message, g_quark_to_string(err->domain), err->code); \
+		(err)->message, g_quark_to_string((err)->domain), (err)->code); \
 } while(0);
 
 #define k_debug_msg(fmt...) do {\
@@ -65,7 +65,7 @@
 #define k_debug_error(err) do {\
 	k_debug_msg("%s(%d): %s: (%s,%d)", \
 		__FILE__, __LINE__, \
-		err->message, g_quark_to_string(err->domain), err->code); \
+		(err)->message, g_quark_to_string((err)->domain), (err)->code); \
 } while(0);
 
 #endif

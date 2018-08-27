@@ -3,7 +3,8 @@
 #include <glib.h>
 #include <errno.h>
 
-void 
-xnpm_init(keyagent_npm *npm, GError **err)
+const char *
+xnpm_init(char *config_directory, GError **err)
 {
+    return "KMIP";
 }

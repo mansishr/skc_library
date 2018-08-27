@@ -7,12 +7,6 @@
 #include "key-agent/stm/stm.h"
 #include <gmodule.h>
 
-typedef struct {
-	gpointer stm_object;
-	gpointer npm_object;
-} keyagent_key;
-
-
 typedef enum {
 	KEYAGENT_ERROR = 1,
 } ErrorClass;
@@ -22,37 +16,62 @@ typedef enum {
 	KEYAGENT_ERROR_KEYINIT,
 	KEYAGENT_ERROR_KEYCONF,
 	KEYAGENT_ERROR_NPMKEYINIT,
+	KEYAGENT_ERROR_STMLOAD,
 } KeyAgentErrors;
 
 typedef struct {
+    keyagent_module npm;
     GString         *module_name;
-    keyagent_npm    npm;
     GModule         *module;
     gint            initialized:1;
 	GQueue			*key_queue;
-} local_npm;
+	npm_ops         ops;
+} keyagent_real_npm;
 
 typedef struct {
+    keyagent_module  stm;
     GString         *module_name;
-    keyagent_stm    stm;
     GModule         *module;
     gint            initialized:1;
-} local_stm;
-
-typedef struct {
-	local_npm 			*npm;
-	keyagent_npm_key	*npm_key;
-} local_key;
+	keyagent_buffer_ptr		session;
+	stm_ops         ops;
+} keyagent_real_stm;
 
 typedef struct {
     char *npm_directory;
     char *key_directory;
     GHashTable *npm_hash;
     GHashTable *stm_hash;
-} local_key_agent;
+} xxlocal_key_agent;
 
-extern local_key_agent key_agent;
 
-void load_keys(GError **err);
+#ifdef  __cplusplus
+
+namespace keyagent {
+    extern GString *configdirectory;
+	extern GString *configfilename;
+	extern void *config;
+	extern GString *npm_directory;
+	extern GString *stm_directory;
+    extern GString *key_directory;
+    extern GString *cert;
+    extern GString *certkey;
+    extern GHashTable *npm_hash;
+    extern GHashTable *stm_hash;
+}
+#endif
+
+#define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
+	if (!g_module_symbol ((MODULE), (FUNCNAME), (gpointer *)&(RET))) \
+    { \
+		g_set_error (&tmp_error, KEYAGENT_ERROR, (ERRCLASS), \
+                   "%s: %s", filename, g_module_error ()); \
+		goto errexit; \
+    } \
+} while (0)
+
+extern "C" void initialize_stm(gpointer data, gpointer user_data);
+extern "C" void initialize_npm(gpointer data, gpointer user_data);
+
 
 #endif

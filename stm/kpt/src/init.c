@@ -3,7 +3,8 @@
 #include <glib.h>
 #include <errno.h>
 
-void 
-stm_init(keyagent_stm *stm, GError **err)
+const char *
+stm_init(const char *config_directory, stm_mode mode, GError **err)
 {
+	return "KPT2";
 }

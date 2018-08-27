@@ -1,15 +1,17 @@
-
-AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) -std=c++11
 
 lib_LTLIBRARIES = \
     libkey_agent.la
 
 libkey_agent_la_SOURCES = \
-    init.c \
-	key_init.c
+    intf.cpp \
+    curl.cpp \
+    cert.cpp \
+	utils.cpp \
+	../npm/npm_init.cpp \
+	../stm/stm_init.cpp \
+	key_init.cpp
 
 libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ $(GLIB_LIBS) $(GMODULE_LIBS) \
-	$(top_srcdir)/config-file/src/libkey_configfile.la \
-	$(top_srcdir)/credential-agent/src/libcredential_agent.la
-
+	$(top_srcdir)/config-file/src/libkey_configfile.la
 

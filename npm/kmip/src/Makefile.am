@@ -1,4 +1,3 @@
-
 AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS)
 
 libdir = $(prefix)/lib/npm-modules
@@ -10,5 +9,3 @@ npm_kmip_la_SOURCES = \
     init.c
 
 npm_kmip_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS)
-
-

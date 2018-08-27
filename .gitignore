@@ -29,3 +29,16 @@ stamp-h1
 tests/test_*
 log
 
+.gdbinit
+.idea/
+CMakeCache.txt
+CMakeFiles
+*/CMakeFiles/*
+cmake-build-debug/
+cmake_install.cmake
+*.so
+*.cbp
+*.a
+doit
+install_manifest.txt
+key-agent/cli/keyagent-cli

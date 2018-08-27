@@ -14,6 +14,7 @@ define([PACKAGE_SUFFIX], [])
 define([_VERSION_CURRENT], [2])
 define([_VERSION_AGE], [1])
 define([_VERSION_REVISION], [0])
+define([AM_CXXFLAGS], [-std=c++0x])
 
 ##################
 #                #
@@ -72,6 +73,13 @@ AC_DEFINE_UNQUOTED(
 	[Use C++11 compiler]
 )
 
+
+AC_DEFINE_UNQUOTED(
+	[HAVE_CXX14],
+	[1],
+	[Use C++14 compiler]
+)
+
 # Generate the libtool script and install script
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
@@ -90,6 +98,7 @@ AC_CONFIG_FILES([
 	credential-agent/reference/tests/Makefile
 	key-agent/Makefile
 	key-agent/src/Makefile
+	key-agent/cli/Makefile
 	key-agent/tests/Makefile
 	npm/Makefile
 	npm/kms/Makefile
@@ -106,5 +115,7 @@ AC_CONFIG_FILES([
 	stm/kpt/src/Makefile
 	stm/kpt/tests/Makefile
 ])
+
+#	testserver/Makefile
 
 AC_OUTPUT
