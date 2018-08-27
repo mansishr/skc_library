@@ -60,7 +60,8 @@ void get_keysession_method_handler( const shared_ptr< Session > session )
 
         k_debug_msg("%.*s", ( int ) body.size( ), body.data( ) );
         char *swk = NULL;
-        std::unique_ptr<std::string> http_data = std::make_unique<std::string>(String::to_string(body));
+        //std::unique_ptr<std::string> http_data = std::make_unique<std::string>(String::to_string(body));
+        std::string http_data = String::to_string(body);
         Json::Value jsondata = parse_data(http_data);
         std::string challenge = jsondata["challenge"].asString();
         Json::Value result;
@@ -166,7 +167,8 @@ void get_keytransfer_method_handler( const shared_ptr< Session > session )
                 };
 
         int http_code = 2;
-        std::unique_ptr<std::string> http_data = std::make_unique<std::string>(String::to_string(body));
+        //std::unique_ptr<std::string> http_data = std::make_unique<std::string>(String::to_string(body));
+        std::string http_data = String::to_string(body);
 
         if (!key_info) {
             val = get_challenge_info(keyid, &http_code);

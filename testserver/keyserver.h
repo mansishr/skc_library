@@ -21,7 +21,8 @@ extern void get_keysession_method_handler( const shared_ptr< Session > session )
 //extern void wrapkey(EVP_PKEY *priv_key, DhsmWPKRSAFormat *_wpk);
 
 void json_print(Json::Value &val);
-Json::Value parse_data(std::unique_ptr<std::string> &httpData);
+//Json::Value parse_data(std::unique_ptr<std::string> &httpData);
+Json::Value parse_data(std::string httpData);
 gchar * generate_checksum(gchar *data, int size);
 void debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size);
 keyagent_key_attributes_ptr convert_key_to_attr_hash();

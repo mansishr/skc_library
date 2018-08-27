@@ -98,6 +98,9 @@ AC_CONFIG_FILES([
 	key-agent/cli/Makefile
 	key-agent/tests/Makefile
 	npm/Makefile
+	npm/reference/Makefile
+	npm/reference/src/Makefile
+	npm/reference/tests/Makefile
 	npm/kms/Makefile
 	npm/kms/src/Makefile
 	npm/kms/tests/Makefile
@@ -111,6 +114,7 @@ AC_CONFIG_FILES([
 	stm/kpt/Makefile
 	stm/kpt/src/Makefile
 	stm/kpt/tests/Makefile
+	testserver/Makefile
 ])
 
 #	testserver/Makefile

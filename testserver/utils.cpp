@@ -87,12 +87,12 @@ void json_print(Json::Value &val)
     }
 }
 
-Json::Value parse_data(std::unique_ptr<std::string> &httpData)
+Json::Value parse_data(std::string httpData)
 {
     Json::Value jsonData;
     Json::Reader jsonReader;
 
-    if (jsonReader.parse(*httpData, jsonData))
+    if (jsonReader.parse(httpData, jsonData))
     {
         k_debug_msg("Successfully parsed JSON data");
         k_debug_msg("SON data received:");

@@ -1,1 +1,1 @@
-SUBDIRS = kms kmip
+SUBDIRS = reference kms kmip

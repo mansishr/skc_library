@@ -1,4 +1,3 @@
-#	testserver
 
 SUBDIRS = \
 	config-file \
