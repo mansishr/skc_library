@@ -14,4 +14,3 @@ libkey_agent_la_SOURCES = \
 
 libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ $(GLIB_LIBS) $(GMODULE_LIBS) \
 	$(top_srcdir)/config-file/src/libkey_configfile.la
-

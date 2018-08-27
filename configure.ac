@@ -91,11 +91,8 @@ AC_CONFIG_FILES([
 	config-file/src/Makefile
 	config-file/tests/Makefile
 	credential-agent/Makefile
-	credential-agent/src/Makefile
+	credential-agent/commandline_tool/Makefile
 	credential-agent/tests/Makefile
-	credential-agent/reference/Makefile
-	credential-agent/reference/src/Makefile
-	credential-agent/reference/tests/Makefile
 	key-agent/Makefile
 	key-agent/src/Makefile
 	key-agent/cli/Makefile
