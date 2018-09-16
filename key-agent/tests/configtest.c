@@ -63,8 +63,8 @@ void test_init(void)
 	g_autoptr(GError) err = NULL;
 	GString *filename = generate_testfile_name("key-agent.ini");
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
-	g_assert_true(key_agent_init(filename->str, &err));
-	key_agent_listnpms();
+	g_assert_true(keyagent_init(filename->str, &err));
+	keyagent_npm_showlist();
 }
 
 static void

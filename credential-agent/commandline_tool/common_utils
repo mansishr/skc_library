@@ -38,6 +38,7 @@ readonly LOG_DEBUG=3
 
 #DEFAULT_LOGGING
 declare FLAG_VERBOSE=$FLAG_DISABLE
+declare LOG_FILE=""
 #=====================================================================================================================
 #VARIABLES
 declare SELF_PID=$$
@@ -56,12 +57,29 @@ log_msg()
 	#if [ $FLAG_VERBOSE -eq $FLAG_ENABLE ] || [ $log_level -eq $LOG_ERROR ]; then
 	if [ $FLAG_VERBOSE -eq $FLAG_ENABLE ]; then
 		to_stderr echo -e "${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}"
+		if [ ! -z "$LOG_FILE" ] && [ -f $LOG_FILE ]; then
+			echo -e "CREDENTIAL_AGENT [$(date +'%Y-%m-%d %H:%M:%S')]\$ ${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}" >> "$LOG_FILE"
+			#echo -e "$LOG_FILE"
+		fi
 	fi
+}
+get_log()
+{
+	echo $FLAG_VERBOSE
 }
 
 set_log()
 {
 	FLAG_VERBOSE=$1
+}
+set_log_file()
+{
+	if [ ! -z "$1" -a "$1" != " " ]; then
+	    LOG_FILE=$1
+		touch $LOG_FILE
+		chmod 755 $LOG_FILE
+		log_msg $LOG_DEBUG "LOG_FILE:$LOG_FILE"
+	fi
 }
 
 send_status()

@@ -1,10 +1,11 @@
+
 include $(top_srcdir)/glib-tap.mk
 
 test_programs = \
    test_configfile \
    test_errors
 
-AM_CPPFLAGS = -I$(top_srcdir)/$(COMMON_FLAGS)
+AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) -std=c++11
 
 test_configfile_SOURCES = \
     configtest.c

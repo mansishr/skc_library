@@ -1,2 +1,5 @@
-include $(top_srcdir)/glib-tap.mk
-#test_configfile_LDADD = $(top_srcdir)/credential-agent/src/libcredential_agent.la
+bindir = $(prefix)/test
+bin_SCRIPTS = test_cred_agent.sh
+
+install-exec-hook:
+	$(SED) -i "s|__PREFIX__|@prefix@|" $(DESTDIR)$(bindir)/test_cred_agent.sh
