@@ -60,6 +60,7 @@ test_vals (MyTestFixture *fixture,
 {
 	char *strval;
 	int intval;
+	g_test_log_set_fatal_handler (fatal_handler, NULL);
 	g_assert_nonnull(fixture->cfile);
 	g_autoptr(GError) err = NULL;
 	g_assert_nonnull(key_config_get_string(fixture->cfile, "section1", "name1", &err));
@@ -99,7 +100,6 @@ int main(int argc, char** argv)
 	int i;
 
     g_test_init(&argc, &argv, NULL, "no_g_set_prgname", NULL);
-
   	g_option_context_add_main_entries (context, entries, "configfile");
   	if (!g_option_context_parse (context, &argc, &argv, &error))
     {
@@ -107,8 +107,19 @@ int main(int argc, char** argv)
       ; //exit (1);
     }
 	if (!testdir) {
-		set_testdir(NULL,dirname((char *)programname), NULL, NULL);
+        char *tmp = dirname(strdup(programname));
+        char *tmp1 = basename(strdup(tmp));
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp); //dirname((char *)programname));
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp1); //dirname((char *)programname));
+        if (!strcmp(basename(tmp), ".libs"))
+            tmp = dirname(tmp);
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp); //dirname((char *)programname));
+        
+		//g_log_structured(G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, "MESSAGE", "%s", tmp); //dirname((char *)programname));
+		set_testdir(NULL,tmp, NULL, NULL);
 	}
+
+    g_test_set_nonfatal_assertions ();
 
     g_test_add_func("/key_configfile/test_badfiles", bad_files);
   	g_test_add ("/key_configfile/test_vals", MyTestFixture, "test1.ini",

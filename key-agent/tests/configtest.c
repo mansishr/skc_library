@@ -75,19 +75,6 @@ test_vals (MyTestFixture *fixture,
 	int intval;
 	g_assert_nonnull(fixture->cfile);
 	g_autoptr(GError) err = NULL;
-
-/*
-	g_assert_nonnull(key_config_get_value(fixture->cfile, "section1", "name1", &err));
-	g_assert_null(err);
-	g_assert_null(key_config_get_value(fixture->cfile, "section1", "name1x", &err));
-	g_assert_nonnull(err);
-	g_clear_error(&err);
-	g_assert_cmpstr(key_config_get_value_optional(fixture->cfile, "section1", "name1x", "defaulttest1"), ==,  "defaulttest1");
-	g_assert_cmpint(key_config_get_integer(fixture->cfile, "section2", "Val2", &err), ==,  19);
-	g_assert_null(err);
-	g_assert_cmpint(key_config_get_integer_optional(fixture->cfile, "section2", "Val2", 0), ==,  19);
-	g_assert_cmpint(key_config_get_integer_optional(fixture->cfile, "section2", "Foo", 23), ==,  23);
-*/
 }
 
 gboolean set_testdir(const gchar *option_name,
@@ -122,16 +109,23 @@ int main(int argc, char** argv)
       g_print ("option parsing failed: %s\n", error->message);
       exit (1);
     }
+
+
+    GLogLevelFlags fatal_mask = (GLogLevelFlags) g_log_set_always_fatal ((GLogLevelFlags) (G_LOG_FATAL_MASK & ~G_LOG_LEVEL_WARNING));
+
 	if (!testdir) {
-		set_testdir(NULL,dirname((char *)programname), NULL, NULL);
+        char *tmp = dirname(strdup(programname));
+        char *tmp1 = basename(strdup(tmp));
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp); //dirname((char *)programname));
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp1); //dirname((char *)programname));
+        if (!strcmp(basename(tmp), ".libs"))
+            tmp = dirname(tmp);
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp); //dirname((char *)programname));
+		set_testdir(NULL,tmp, NULL, NULL);
 	}
 
+    g_test_set_nonfatal_assertions ();
     g_test_add_func("/key_agent/test_init", test_init);
 
-/*
-  	g_test_add ("/key_agent/test_vals", MyTestFixture, "key-agent.ini",
-              my_object_fixture_set_up, test_vals,
-              my_object_fixture_tear_down);
-*/
     return g_test_run();
 }
