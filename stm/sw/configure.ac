@@ -11,8 +11,8 @@ define([_VERSION_MINOR], [0])
 define([_VERSION_FIX], [0])
 define([PACKAGE_SUFFIX], [])
 
-define([_VERSION_CURRENT], [2])
-define([_VERSION_AGE], [1])
+define([_VERSION_CURRENT], [0])
+define([_VERSION_AGE], [0])
 define([_VERSION_REVISION], [0])
 define([AM_CXXFLAGS], [-std=c++0x])
 
@@ -24,12 +24,12 @@ define([AM_CXXFLAGS], [-std=c++0x])
 
 # Init
 AC_PREREQ(2.61)
-AC_INIT([DHSM2],[_VERSION_MAJOR._VERSION_MINOR._VERSION_FIX[]PACKAGE_SUFFIX])
+AC_INIT([SW-STM],[_VERSION_MAJOR._VERSION_MINOR._VERSION_FIX[]PACKAGE_SUFFIX])
 #LT_INIT([shared disable-static])
 AC_CONFIG_AUX_DIR([configout])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([Makefile.am])
-AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_MACRO_DIR([../../m4])
 AM_INIT_AUTOMAKE(foreign)
 
 # Version info for the library
@@ -42,23 +42,10 @@ AC_PROG_CXX
 
 GLIB_TESTS
 
-TOPDIR=${ac_pwd}
 AC_SUBST(TOPDIR)
-export TOPDIR
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.49.1])
-PKG_CHECK_MODULES([GMODULE], [gmodule-2.0 >= 2.49.1])
-
-COMMON_FLAGS="-I${TOPDIR}/include -I${TOPDIR} -I. -g $GLIB_CFLAGS -DG_LOG_USE_STRUCTURED"
-COMMON_LDFLAGS="$GLIB_LIBS"
 AC_SUBST(COMMON_FLAGS)
 AC_SUBST(COMMON_LDFLAGS)
-export COMMON_FLAGS
-export COMMON_LDFLAGS
-AC_SUBST(GLIB_FLAGS)
-AC_SUBST(GLIB_LIBS)
-export GLIB_FLAGS
-export GLIB_LIBS
 
 # Define some variables for the code
 AC_DEFINE_UNQUOTED(
@@ -92,17 +79,9 @@ AC_PROG_LIBTOOL
 # Generate the makefiles
 AC_CONFIG_FILES([
 	Makefile
-	credential-agent/Makefile
-	credential-agent/commandline_tool/Makefile
-	credential-agent/tests/Makefile
-	testserver/Makefile
+	src/Makefile
+	tests/Makefile
 ])
 
-AC_CONFIG_SUBDIRS([
-    config-file
-    key-agent
-    stm/sw
-    npm/reference
-])
 
 AC_OUTPUT

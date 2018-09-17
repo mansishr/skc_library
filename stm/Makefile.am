@@ -1,1 +1,0 @@
-SUBDIRS = sw kpt

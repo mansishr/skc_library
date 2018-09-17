@@ -12,5 +12,5 @@ libkey_agent_la_SOURCES = \
 	../stm/stm_init.cpp \
 	key_init.cpp
 
-libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ -lcurl -lcrypto $(GLIB_LIBS) $(GMODULE_LIBS) \
-	$(top_srcdir)/config-file/src/libkey_configfile.la
+libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ -lcurl -lcrypto $(COMON_LDFLAGS) $(GMODULE_LIBS) \
+	$(TOPDIR)/config-file/src/libkey_configfile.la

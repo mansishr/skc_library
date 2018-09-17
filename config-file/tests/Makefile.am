@@ -1,4 +1,4 @@
-include $(top_srcdir)/glib-tap.mk
+include ../glib-tap.mk
 
 test_programs = \
    test_configfile
