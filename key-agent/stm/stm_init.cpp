@@ -17,7 +17,7 @@ initialize_stm(gpointer data, gpointer user_data)
 {
     GError **err = (GError **)user_data;
     const char *filename = (const char *)data;
-    keyagent_real_stm *stm = g_new0(keyagent_real_stm, 1);
+    keyagent_stm_real *stm = g_new0(keyagent_stm_real, 1);
     stm->module_name = g_string_new(filename);
     const char *name = NULL;
 
@@ -38,7 +38,6 @@ initialize_stm(gpointer data, gpointer user_data)
 
     stm->initialized = 1;
     g_hash_table_insert(keyagent::stm_hash, keyagent_get_module_label(stm), stm);
-    keyagent_stm_set_session((keyagent_module *)stm, NULL);
     return;
     errexit:
     if (stm->module)
@@ -55,7 +54,7 @@ initialize_stm(gpointer data, gpointer user_data)
 static void
 show_stms(gpointer key, gpointer data, gpointer user_data)
 {
-    keyagent_real_stm *stm = (keyagent_real_stm *)data;
+    keyagent_stm_real *stm = (keyagent_stm_real *)data;
     g_print("STM - %s (%s) - %s\n",keyagent_get_module_label(stm),
             (stm->initialized ? "Initialized" : "Failed"),
             stm->module_name->str);
@@ -71,7 +70,7 @@ keyagent_stm_showlist()
 static void
 get_stm_names(gpointer key, gpointer data, gpointer user_data)
 {
-    keyagent_real_stm *stm = (keyagent_real_stm *)data;
+    keyagent_stm_real *stm = (keyagent_stm_real *)data;
     GString *names = (GString *)user_data;
 
     if (names->len)
@@ -87,68 +86,68 @@ keyagent_stm_get_names()
     return names;
 }
 
-extern "C" keyagent_module *
-keyagent_stm_get_by_name(const char *name)
+extern "C" gboolean
+keyagent_stm_get_by_name(const char *name, keyagent_module **module)
 {
-    keyagent_real_stm *stm = (keyagent_real_stm *)g_hash_table_lookup(keyagent::stm_hash, name);
-    return &stm->stm;
+    g_return_val_if_fail((name && module), FALSE);
+    keyagent_stm_real *stm;
+    if ((stm = (keyagent_stm_real *)g_hash_table_lookup(keyagent::stm_hash, name)) == NULL)
+        return FALSE;
+    
+    *module = &stm->stm;
+    return TRUE;
 }
-
-extern "C" void
-keyagent_stm_set_session(keyagent_module *stm, keyagent_buffer_ptr session)
-{
-    g_autoptr(GError) error = NULL;
-    keyagent_real_stm *lstm = (keyagent_real_stm *)stm;
-    if (!session) {
-       gchar *encoded_session = (gchar *)key_config_get_string(keyagent::config, keyagent_get_module_label(stm), "session", NULL);
-       if (!encoded_session) return;
-       gsize outlen;
-       guchar *decoded_session = g_base64_decode(encoded_session, &outlen);
-       lstm->session = keyagent_buffer_alloc((void *)decoded_session, (int)outlen);
-       g_free(encoded_session);
-    } else {
-        lstm->session = keyagent_buffer_ref(session);
-        gchar *tmp = g_base64_encode(keyagent_buffer_data(session), keyagent_buffer_length(session));
-        g_key_file_set_string((GKeyFile *) keyagent::config, keyagent_get_module_label(stm), "session", tmp);
-        if (!g_key_file_save_to_file((GKeyFile *) keyagent::config, keyagent::configfilename->str, &error))
-            k_critical_error(error);
-        g_free(tmp);
-    }
-
-    STM_MODULE_OP(lstm,set_session)(lstm->session);
-
-    if (lstm->session)
-        keyagent_debug_with_checksum("CLIENT:SESSION", keyagent_buffer_data(lstm->session), keyagent_buffer_length(lstm->session));
-
-}
-
-extern "C" keyagent_buffer_ptr
-keyagent_stm_get_challenge(keyagent_module *stm)
-{
-    keyagent_real_stm *lstm = (keyagent_real_stm *)stm;
-    return STM_MODULE_OP(lstm,create_challenge)();
-}
-
-extern "C" keyagent_buffer_ptr
-keyagent_stm_challenge_verify(keyagent_module *stm, keyagent_buffer_ptr quote)
-{
-    keyagent_real_stm *lstm = (keyagent_real_stm *)stm;
-    return STM_MODULE_OP(lstm,challenge_verify)(quote);
-}
-
-extern "C" keyagent_key_attributes_ptr
-keyagent_stm_wrap_key(keyagent_module *stm, keyagent_keytype type, keyagent_key_attributes_ptr key_attrs)
-{
-    keyagent_real_stm *lstm = (keyagent_real_stm *)stm;
-    keyagent_key_attributes_ptr wrapped_attrs = STM_MODULE_OP(lstm,wrap_key)(type, key_attrs);
-    return wrapped_attrs;
-}
-
 
 extern "C" gboolean
-keyagent_stm_load_key(keyagent_key *key)
+keyagent_stm_set_session(keyagent_session *session, GError **error)
 {
-    keyagent_real_stm *lstm = (keyagent_real_stm *)key->stm;
-    gboolean ret = STM_MODULE_OP(lstm,load_key)(key->type, key->attributes);
-    return ret;
+    g_return_val_if_fail(session != NULL, FALSE);
+    keyagent_stm_real *lstm = NULL;
+    keyagent_stm_get_by_name(keyagent_session_get_stmname(session, error), (keyagent_module **)&lstm);
+
+    g_return_val_if_fail(lstm != NULL, FALSE);
+
+    lstm->session = (keyagent_session_real *)session;
+    STM_MODULE_OP(lstm,set_session)(session->swk, error);
+
+    if (lstm->session)
+        keyagent_debug_with_checksum("CLIENT:SESSION", keyagent_buffer_data(lstm->session->swk), keyagent_buffer_length(lstm->session->swk));
+
+    return TRUE;
+}
+
+extern "C" gboolean
+keyagent_stm_get_challenge(const char *name, keyagent_buffer_ptr *challenge, GError **error)
+{
+    g_return_val_if_fail(name && challenge, FALSE);
+    keyagent_stm_real *lstm = NULL;
+    keyagent_stm_get_by_name(name, (keyagent_module **)&lstm);
+    g_return_val_if_fail(lstm != NULL, FALSE);
+    return STM_MODULE_OP(lstm,create_challenge)(challenge, error);
+}
+
+extern "C" gboolean
+keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **error)
+{
+    g_return_val_if_fail(name && quote && challenge_attrs, FALSE);
+    keyagent_stm_real *lstm = NULL;
+    keyagent_stm_get_by_name(name, (keyagent_module **)&lstm);
+    g_return_val_if_fail(lstm != NULL, FALSE);
+    return STM_MODULE_OP(lstm,challenge_verify)(quote, challenge_attrs, error);
+}
+
+extern "C" gboolean
+keyagent_stm_load_key(keyagent_key *_key, GError **error)
+{
+    keyagent_key_real *key = (keyagent_key_real *)_key;
+    g_return_val_if_fail(key, FALSE);
+    if (!key->session) {
+        k_set_error (error, KEYAGENT_ERROR_KEYINIT,
+            "%s: %s", __func__, "The key has no active session");
+        return FALSE;
+    }
+    keyagent_stm_real *lstm = NULL;
+    keyagent_stm_get_by_name(keyagent_key_get_stmname(_key, error), (keyagent_module **)&lstm);
+    g_return_val_if_fail(lstm != NULL, FALSE);
+    return STM_MODULE_OP(lstm,load_key)(key->type, key->attributes, error);
 }

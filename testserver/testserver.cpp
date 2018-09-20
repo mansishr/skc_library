@@ -13,11 +13,13 @@
 namespace server {
     GHashTable *uuid_hash_table;
     GHashTable *key_hash_table;
+    GHashTable *session_hash_table;
+
     gboolean debug;
     gboolean verbose;
     gchar *configfile;
     GString *configdirectory;
-    //keyagent_real_stm *stm = NULL;
+    //keyagent_stm_real *stm = NULL;
     keyagent_module *stm;
 }
 
@@ -65,10 +67,10 @@ class CustomLogger : public Logger
         }
 };
 
-keyagent_real_stm *
+keyagent_stm_real *
 server_initialize_stm(const char *filename, GError **err )
 {
-    keyagent_real_stm *stm = g_new0(keyagent_real_stm, 1);
+    keyagent_stm_real *stm = g_new0(keyagent_stm_real, 1);
     stm->module_name = g_string_new(filename);
     const char *name = NULL;
 
@@ -83,9 +85,6 @@ server_initialize_stm(const char *filename, GError **err )
         goto errexit;
     }
     LOOKUP_STM_INTERFACES(stm, KEYAGENT_ERROR_STMLOAD);
-    //KEYAGENT_MODULE_LOOKUP(stm->module, "stm_challenge_generate_request", stm->challange_generate_request_func, KEYAGENT_ERROR_STMLOAD);
-    //KEYAGENT_MODULE_LOOKUP(stm->module, "stm_challenge_verify", stm->challenge_verify_func, KEYAGENT_ERROR_STMLOAD);
-
 
     name = STM_MODULE_OP(stm,init)(server::configdirectory->str, KEYSERVER_STM_MODE, &tmp_error);
     if (!name) {
@@ -121,7 +120,7 @@ static GOptionEntry entries[] =
         };
 
 
-KEYAGENT_DEFINE_KEY_ATTRIBUTES()
+KEYAGENT_DEFINE_ATTRIBUTES()
 
 
 
@@ -132,6 +131,8 @@ int main(int argc, char** argv)
 
     server::uuid_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, challenge_info_free);
     server::key_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, key_info_free);
+    server::session_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
     server::debug = FALSE;
 
     context = g_option_context_new ("- key-agent cli");
@@ -150,11 +151,6 @@ int main(int argc, char** argv)
     if (server::debug) {
         setenv("G_MESSAGES_DEBUG", "all", 1);
     }
-
-
-    k_debug_msg("iv %d %s", KEYAGENT_ATTR_IV, g_quark_to_string(KEYAGENT_ATTR_IV));
-    k_debug_msg("rsad %d %s", KEYAGENT_ATTR_RSA_D, g_quark_to_string(KEYAGENT_ATTR_RSA_D));
-    k_debug_msg("rsaP %d %s", KEYAGENT_ATTR_RSA_P, g_quark_to_string(KEYAGENT_ATTR_RSA_P));
 
 
     server::configdirectory = g_string_new(g_path_get_dirname(server::configfile));

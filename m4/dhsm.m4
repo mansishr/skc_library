@@ -1,0 +1,26 @@
+# Increment this whenever this file is changed.
+#serial 1
+
+dnl DHSM_SETUP
+dnl
+
+AC_DEFUN([DHSM_SETUP],
+[
+    PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.49.1])
+    PKG_CHECK_MODULES([GMODULE], [gmodule-2.0 >= 2.49.1])
+
+    VERSION_INFO="_VERSION_CURRENT:_VERSION_REVISION:_VERSION_AGE"
+    AC_SUBST(VERSION_INFO)
+
+    GLIB_TESTS
+    TOPDIR="$srcdir/$1"
+    TOPDIR=`cd "$srcdir/$1" && pwd -P`
+    AC_SUBST(TOPDIR)
+    COMMON_FLAGS="-I${TOPDIR}/include -I${TOPDIR} -I. -g -O0 $GLIB_CFLAGS -DG_LOG_USE_STRUCTURED"
+    COMMON_LDFLAGS="$GLIB_LIBS"
+    AC_SUBST(COMMON_FLAGS)
+    AC_SUBST(COMMON_LDFLAGS)
+    AC_SUBST(GLIB_FLAGS)
+    AC_SUBST(GLIB_LIBS)
+])
+

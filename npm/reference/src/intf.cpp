@@ -36,12 +36,13 @@ namespace reference_npm {
 typedef struct {
     int tries;
     keyagent_module *stm;
-	keyagent_key *key;
+    keyagent_session *session;
+	keyagent_url url;
 } loadkey_info;
 
 
 extern "C" const char * 
-npm_init(char *config_directory, GError **err)
+npm_init(const char *config_directory, GError **err)
 {
     reference_npm::configfile = g_string_new(g_build_filename(config_directory, "reference_npm.ini", NULL));
     void *config = key_config_openfile(reference_npm::configfile->str, err);
@@ -67,7 +68,7 @@ npm_init(char *config_directory, GError **err)
 }
 
 extern "C" gboolean
-npm_register(keyagent_url url)
+npm_register(keyagent_url url, GError **err)
 {
 	return TRUE;
 }
@@ -119,9 +120,10 @@ decode64_json_attr(Json::Value json_data, const char *name)
 	}
 }
 
-gboolean
-start_session(loadkey_info *info, Json::Value &transfer_data)
+static gboolean
+start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 {
+
 	GString *session_url  = g_string_new(transfer_data["link"]["challenge-replyto"]["href"].asCString());
 	GString *session_method  = g_string_new(transfer_data["link"]["challenge-replyto"]["method"].asCString());
 
@@ -130,8 +132,11 @@ start_session(loadkey_info *info, Json::Value &transfer_data)
 	g_ptr_array_add (headers, (gpointer) "Accept: application/octet-stream");
 	g_ptr_array_add (headers, (gpointer) "Content-Type: application/json");
 
-	info->stm = keyagent_stm_get_by_name("SGX");
-	keyagent_buffer_ptr challenge = keyagent_stm_get_challenge(info->stm);
+	if (!keyagent_stm_get_by_name("SW", &info->stm))
+        return FALSE;
+	keyagent_buffer_ptr challenge = NULL;
+	if (!keyagent_stm_get_challenge(keyagent_get_module_label(info->stm), &challenge, error))
+	    return FALSE;
 
 	keyagent_debug_with_checksum("NPM:CHALLENGEl:REAL", keyagent_buffer_data(challenge), keyagent_buffer_length(challenge));
 
@@ -161,9 +166,10 @@ start_session(loadkey_info *info, Json::Value &transfer_data)
     if (res_status != 200) return FALSE;
 
     keyagent_buffer_ptr protected_swk = decode64_json_attr(session_return_data, "swk");
-	keyagent_stm_set_session(info->stm, protected_swk);
-#
-	return TRUE;
+
+	info->session =  keyagent_session_create(keyagent_get_module_label(info->stm), protected_swk, -1, error);
+
+	return (info->session ? TRUE : FALSE);
 }
 
 #define SET_KEY_ATTR(DATA, ATTRS, NAME) do { \
@@ -174,14 +180,13 @@ start_session(loadkey_info *info, Json::Value &transfer_data)
 
 
 static gboolean
-__npm_loadkey(loadkey_info *info)
+__npm_loadkey(loadkey_info *info, GError **err)
 {
-
 	if (info->tries > 1) return FALSE;
 	info->tries += 1;
 
 	gboolean ret = FALSE;
-	gchar *keyid = g_path_get_basename (info->key->url->str);
+	gchar *keyid = g_path_get_basename (info->url);
 	GString *stm_names = keyagent_stm_get_names();
 	GString *url = g_string_new(reference_npm::server_url->str);
 	g_string_append(url,"/keys/transfer");
@@ -191,11 +196,12 @@ __npm_loadkey(loadkey_info *info)
 	headers = g_ptr_array_new ();
 	g_ptr_array_add (headers, (gpointer) "Accept: application/json");
 	g_ptr_array_add (headers, (gpointer) "Content-Type: application/json");
-	g_ptr_array_add (headers, (gpointer) "foo-Type: json");
 
-	GString *accept_challenge_header = g_string_new("Accept-Challenge: "); 
-	g_string_append(accept_challenge_header, stm_names->str);
-	g_ptr_array_add (headers, (gpointer) accept_challenge_header->str);
+    if (!info->session) {
+	    GString *accept_challenge_header = g_string_new("Accept-Challenge: "); 
+	    g_string_append(accept_challenge_header, stm_names->str);
+	    g_ptr_array_add (headers, (gpointer) accept_challenge_header->str);
+    }
 
 	GString *keyid_header = g_string_new("KeyId: "); 
 	g_string_append(keyid_header, keyid);
@@ -216,50 +222,38 @@ __npm_loadkey(loadkey_info *info)
 		const std::string status = transfer_data["status"].asString();
 		const std::string type = transfer_data["faults"]["type"].asString();
 		if (status == "failure" && type == "not-authorized") {
-		    if (start_session(info, transfer_data))
-				ret = __npm_loadkey(info);
+		    if (start_session(info, transfer_data, err))
+				ret = __npm_loadkey(info, err);
 		}
 
 	} else if ((res_status & 200) == 200) {
 
-		keyagent_key_attributes_ptr attrs = keyagent_key_alloc_attributes();
+		keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
+		keyagent_keytype keytype = (transfer_data["algorithm"].asString() == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECCKEY);
 
 		try {
-			SET_KEY_ATTR(transfer_data, attrs, RSA_N);
-			SET_KEY_ATTR(transfer_data, attrs, RSA_E);
-			SET_KEY_ATTR(transfer_data, attrs, RSA_D);
-			SET_KEY_ATTR(transfer_data, attrs, RSA_P);
-			SET_KEY_ATTR(transfer_data, attrs, RSA_Q);
-			SET_KEY_ATTR(transfer_data, attrs, RSA_DP);
-			SET_KEY_ATTR(transfer_data, attrs, RSA_DQ);
-			SET_KEY_ATTR(transfer_data, attrs, RSA_QINV);
+
+			SET_KEY_ATTR(transfer_data, attrs, KEYDATA);
 			SET_KEY_ATTR(transfer_data, attrs, IV);
             SET_KEY_ATTR(transfer_data, attrs, STM_DATA);
-
+            SET_KEY_ATTR(transfer_data, attrs, STM_TEST_DATA);
+            SET_KEY_ATTR(transfer_data, attrs, STM_TEST_SIG);
         } catch (...){
 				k_critical_msg("Invalid key!");
+                return FALSE;
 		}
 
-        //int tlen = transfer_data["taglen"].asInt();
-
-		keyagent_key_set_type(info->key, KEYAGENT_RSAKEY, attrs);
-        k_debug_msg("info stm %p", info->stm);
-
-        keyagent_key_set_stm(info->key, info->stm);
-
-        ret = TRUE;
+		ret = (keyagent_key_create(info->url, keytype, attrs, info->session, -1, err) != NULL ? TRUE : FALSE);
 	}
 	return ret;
 }
 
 extern "C" gboolean
-npm_key_load(keyagent_key *key, GError **err)
+npm_key_load(keyagent_url url, GError **error)
 {
     loadkey_info info = {0, NULL, NULL};
-    info.key = key;
-	// HACK!! FIX! need to figure out how to ppopulate this for catched sessions
-    info.stm = keyagent_stm_get_by_name("SGX");
-    k_debug_msg("info stm %p", info.stm);
-	gboolean ret = __npm_loadkey(&info);
+    info.url = url;
+    info.session = keyagent_session_lookup("SW");
+	gboolean ret = __npm_loadkey(&info, error);
 	return ret;
 }

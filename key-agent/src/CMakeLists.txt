@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library (key_agent SHARED intf.cpp curl.cpp cert.cpp key_init.cpp utils.cpp ../stm/stm_init.cpp ../npm/npm_init.cpp)
+add_library (key_agent SHARED intf.cpp curl.cpp cert.cpp key_init.cpp utils.cpp ../stm/stm_init.cpp ../npm/npm_init.cpp cache-common.cpp cache-init.cpp cache-session.cpp session.cpp)
 find_library(OpenSSL_LIB  crypto)
 find_library(CURL_LIB  curl)
 #find_library(JSONCPP_LIB jsoncpp )

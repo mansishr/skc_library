@@ -17,6 +17,7 @@ typedef enum {
 	KEYAGENT_ERROR_KEYCONF,
 	KEYAGENT_ERROR_NPMKEYINIT,
 	KEYAGENT_ERROR_STMLOAD,
+	KEYAGENT_ERROR_KEY_CREATE_PARAMS,
 } KeyAgentErrors;
 
 typedef struct {
@@ -26,24 +27,37 @@ typedef struct {
     gint            initialized:1;
 	GQueue			*key_queue;
 	npm_ops         ops;
-} keyagent_real_npm;
+} keyagent_npm_real;
+
+typedef struct {
+	gint id;
+	gint cached:1;
+} keyagent_cache_state;
+
+typedef struct {
+    keyagent_buffer_ptr		swk;
+    GString                 *name;
+	keyagent_cache_state	cache_state;
+} keyagent_session_real;
 
 typedef struct {
     keyagent_module  stm;
     GString         *module_name;
     GModule         *module;
     gint            initialized:1;
-	keyagent_buffer_ptr		session;
 	stm_ops         ops;
-} keyagent_real_stm;
+	keyagent_session_real    *session;
+} keyagent_stm_real;
 
 typedef struct {
-    char *npm_directory;
-    char *key_directory;
-    GHashTable *npm_hash;
-    GHashTable *stm_hash;
-} xxlocal_key_agent;
+    GString  *url;
+    keyagent_keytype type;
+    keyagent_session *session;
+    keyagent_attributes_ptr attributes;
+    keyagent_cache_state	cache_state;
+} keyagent_key_real;
 
+#define DECLARE_KEYAGENT_REAL_PTR(VAR,TYPE,SRC) TYPE##_real *VAR = (TYPE##_real *)SRC
 
 #ifdef  __cplusplus
 
@@ -58,7 +72,23 @@ namespace keyagent {
     extern GString *certkey;
     extern GHashTable *npm_hash;
     extern GHashTable *stm_hash;
+    extern GHashTable *session_hash;
+    extern GHashTable *session_id_hash;
+    extern GHashTable *key_hash;
+    extern GRWLock rwlock;
 }
+
+namespace keyagent {
+    namespace localcache {
+        extern gpointer connection_pointer;
+        extern gboolean cache_sessions;
+        extern gboolean cache_keys;
+        extern GRWLock cache_rwlock;
+    }
+}
+
+#define GPOINTER_TO_GDA_CONNECTION(p) ((GdaConnection *)(p))
+
 #endif
 
 #define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
@@ -70,8 +100,38 @@ namespace keyagent {
     } \
 } while (0)
 
-extern "C" void initialize_stm(gpointer data, gpointer user_data);
-extern "C" void initialize_npm(gpointer data, gpointer user_data);
+#ifdef  __cplusplus
+extern "C" {
+#endif
 
+void initialize_stm(gpointer data, gpointer user_data);
+void initialize_npm(gpointer data, gpointer user_data);
+gboolean keyagent_cache_init(GError **err);
+
+void keyagent_session_hash_key_free(gpointer data);
+void keyagent_session_hash_value_free(gpointer data);
+void keyagent_key_hash_key_free(gpointer data);
+void keyagent_key_hash_value_free(gpointer data);
+
+gboolean keyagent_cache_loadsessions(GError **error);
+gboolean keyagent_cache_session(keyagent_session *session, GError **error);
+const char *keyagent_session_get_stmname(keyagent_session *session, GError **error);
+const char *keyagent_key_get_stmname(keyagent_key *key, GError **error);
+
+gboolean keyagent_cache_loadkeys(GError **error);
+gboolean keyagent_cache_key(keyagent_key *key, GError **error);
+
+void keyagent_session_set_cache_id(keyagent_session *, gint id);
+gint keyagent_session_get_cache_id(keyagent_session *d);
+void keyagent_key_set_cache_id(keyagent_key *, gint id);
+gint keyagent_key_get_cache_id(keyagent_key *);
+gint keyagent_key_get_session_cache_id(keyagent_key *);
+keyagent_session *keyagent_session_id_lookup(gint id);
+gint keyagent_cache_generate_fake_id();
+
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif

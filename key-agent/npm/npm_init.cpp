@@ -17,7 +17,7 @@ initialize_npm(gpointer data, gpointer user_data)
 {
     GError **err = (GError **)user_data;
     const char *filename = (const char *)data;
-    keyagent_real_npm *npm = g_new0(keyagent_real_npm, 1);
+    keyagent_npm_real *npm = g_new0(keyagent_npm_real, 1);
     npm->key_queue = g_queue_new();
     npm->module_name = g_string_new(filename);
 
@@ -54,7 +54,7 @@ initialize_npm(gpointer data, gpointer user_data)
 static void
 show_npms(gpointer key, gpointer data, gpointer user_data)
 {
-    keyagent_real_npm *npm = (keyagent_real_npm *)data;
+    keyagent_npm_real *npm = (keyagent_npm_real *)data;
     g_print("NPM - %s (%s) - %s\n", keyagent_get_module_label(npm),
             (npm->initialized ? "Initialized" : "Failed"),
             npm->module_name->str);

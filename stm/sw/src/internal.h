@@ -18,6 +18,8 @@ extern "C" {
 
 void application_stm_init(const char *config_directory, GError **err);
 void server_stm_init(const char *config_directory, GError **err);
+gboolean application_stm_activate(GError **err);
+gboolean server_stm_activate(GError **err);
 
 static inline void stm_log_openssl_error(const char *label)
 {
@@ -26,6 +28,8 @@ static inline void stm_log_openssl_error(const char *label)
     ERR_error_string(ERR_get_error(), err);
     k_critical_msg("%s: %s", label, err);
 }
+
+#define STM_ISSUER_SIZE 100
 
 #ifdef  __cplusplus
 };

@@ -4,6 +4,7 @@
 #include <glib.h>
 #include <stdlib.h>
 #include <string.h>
+#include "k_errors.h"
 
 typedef struct {
     GString *label;
@@ -16,20 +17,16 @@ typedef struct {
 } while(0)
 
 typedef gchar * keyagent_url;
-typedef GQuark keyagent_keyid;
-
-#define keyagent_keyid_from_url(url) g_quark_from_string ((url))
 
 typedef struct {
 	GByteArray *bytes;
+    gint ref_count;
 } keyagent_buffer;
 
 typedef keyagent_buffer *	keyagent_buffer_ptr;
 
 #define keyagent_buffer_data(PTR) (PTR)->bytes->data
 #define keyagent_buffer_length(PTR) (PTR)->bytes->len
-
-
 
 static inline void
 keyagent_buffer_append(keyagent_buffer_ptr buf, void *data, int size)
@@ -41,6 +38,7 @@ static inline keyagent_buffer_ptr
 keyagent_buffer_alloc(void *data, int size)
 {
     keyagent_buffer_ptr buf = g_new0(keyagent_buffer, 1);
+    buf->ref_count = 1;
     buf->bytes = g_byte_array_sized_new(size);
 
     if (!data) {
@@ -55,6 +53,7 @@ static inline keyagent_buffer_ptr
 keyagent_buffer_ref(keyagent_buffer_ptr buf)
 {
     g_byte_array_ref(buf->bytes);
+    g_atomic_int_inc (&buf->ref_count);
     return buf;
 }
 
@@ -62,9 +61,22 @@ static inline void
 keyagent_buffer_unref(keyagent_buffer_ptr buf)
 {
 	g_byte_array_unref(buf->bytes);
+    if (g_atomic_int_dec_and_test (&buf->ref_count))
+        g_free(buf);
 }
 
+static inline gboolean
+keyagent_buffer_equal(keyagent_buffer_ptr buf1, keyagent_buffer_ptr buf2)
+{
+    if (keyagent_buffer_length(buf1) != keyagent_buffer_length(buf2)) return FALSE;
 
+    return (memcmp(keyagent_buffer_data(buf1),keyagent_buffer_data(buf2), keyagent_buffer_length(buf1)) ? FALSE: TRUE);
+}
+
+typedef struct {
+    keyagent_buffer_ptr		swk;
+    GString                 *name;
+} keyagent_session;
 
 typedef enum {
     KEYAGENT_RSAKEY = 1,
@@ -81,18 +93,45 @@ typedef struct {
 
 typedef struct {
 	GHashTable *hash;
-} keyagent_key_attributes;
+    gint ref_count;
+} keyagent_attributes;
 
-typedef keyagent_key_attributes *	keyagent_key_attributes_ptr;
+typedef keyagent_attributes *	keyagent_attributes_ptr;
+
+static inline void
+keyagent_attribute_free(gpointer _data)
+{
+    keyagent_buffer_ptr data = (keyagent_buffer_ptr)_data;
+    keyagent_buffer_unref(data);
+}
+
+static inline  keyagent_attributes_ptr
+keyagent_attributes_alloc() {
+    keyagent_attributes_ptr ptr = g_new0(keyagent_attributes, 1);
+    ptr->ref_count = 1;
+    ptr->hash = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, keyagent_attribute_free);
+    return ptr;
+}
+
+static inline keyagent_attributes_ptr
+keyagent_attributes_ref(keyagent_attributes_ptr attrs)
+{
+    g_hash_table_ref(attrs->hash);
+    g_atomic_int_inc (&attrs->ref_count);
+    return attrs;
+}
+
+static inline void
+keyagent_attributes_unref(keyagent_attributes_ptr attrs)
+{
+    g_hash_table_unref(attrs->hash);
+    if (g_atomic_int_dec_and_test (&attrs->ref_count))
+        g_free(attrs);
+}
 
 typedef struct {
-	keyagent_keyid id;
-    keyagent_keytype type;
-    //keyagent_buffer_ptr iv;
     GString  *url;
-    //int tag_length;
-    keyagent_module *stm;
-	keyagent_key_attributes_ptr attributes;
+    keyagent_keytype type;
 } keyagent_key;
 
 #define KEYAGENT_DEFINE_ATTR_QUARK(QN)                                         \
@@ -123,45 +162,67 @@ KEYAGENT_ATTR_NAME_FROM_STR(const char *name)
 #endif
 
 #define KEYAGENT_DEFINE_KEY_ATTRIBUTES() \
+    	KEYAGENT_DEFINE_ATTR_QUARK(KEYDATA)
+
+#define KEYAGENT_DEFINE_ATTRIBUTES() \
+        KEYAGENT_DEFINE_KEY_ATTRIBUTES() \
     	KEYAGENT_DEFINE_ATTR_QUARK(IV) \
-    	KEYAGENT_DEFINE_ATTR_QUARK(RSA_N) \
-    	KEYAGENT_DEFINE_ATTR_QUARK(RSA_E) \
-    	KEYAGENT_DEFINE_ATTR_QUARK(RSA_D) \
-    	KEYAGENT_DEFINE_ATTR_QUARK(RSA_P) \
-    	KEYAGENT_DEFINE_ATTR_QUARK(RSA_Q) \
-    	KEYAGENT_DEFINE_ATTR_QUARK(RSA_DP) \
-    	KEYAGENT_DEFINE_ATTR_QUARK(RSA_DQ) \
-    	KEYAGENT_DEFINE_ATTR_QUARK(RSA_QINV) \
-        KEYAGENT_DEFINE_ATTR_QUARK(STM_DATA)
+        KEYAGENT_DEFINE_ATTR_QUARK(STM_TEST_DATA) \
+        KEYAGENT_DEFINE_ATTR_QUARK(STM_TEST_SIG) \
+        KEYAGENT_DEFINE_ATTR_QUARK(STM_DATA) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(SWK) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(CHALLENGE_KEYTYPE) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(CHALLENGE_ECC_PUBLIC_KEY) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(CHALLENGE_RSA_PUBLIC_KEY) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(SW_ISSUER) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(SGX_ENCLAVE_ISSUER) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(SGX_ENCLAVE_ISSUER_PRODUCT_ID) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(SGX_ENCLAVE_ISSUER_EXTENDED_PRODUCT_ID) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(SGX_ENCLAVE_MEASUREMENT) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(SGX_ENCLAVE_SVN_MINIMUM_SGX_CONFIG_ID) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(SGX_CONFIG_ID_SVN) \
+    	KEYAGENT_DEFINE_ATTR_QUARK(KPT_ISSUER)
 
 
 #define KEYAGENT_ATTR_IV	    KEYAGENT_DECLARE_KEY_ATTR(IV)
-#define KEYAGENT_ATTR_RSA_N	    KEYAGENT_DECLARE_KEY_ATTR(RSA_N)
-#define KEYAGENT_ATTR_RSA_E	    KEYAGENT_DECLARE_KEY_ATTR(RSA_E)
-#define KEYAGENT_ATTR_RSA_D	    KEYAGENT_DECLARE_KEY_ATTR(RSA_D)
-#define KEYAGENT_ATTR_RSA_P	    KEYAGENT_DECLARE_KEY_ATTR(RSA_P)
-#define KEYAGENT_ATTR_RSA_Q	    KEYAGENT_DECLARE_KEY_ATTR(RSA_Q)
-#define KEYAGENT_ATTR_RSA_DP	KEYAGENT_DECLARE_KEY_ATTR(RSA_DP)
-#define KEYAGENT_ATTR_RSA_DQ	KEYAGENT_DECLARE_KEY_ATTR(RSA_DQ)
-#define KEYAGENT_ATTR_RSA_QINV	KEYAGENT_DECLARE_KEY_ATTR(RSA_QINV)
+#define KEYAGENT_ATTR_KEYDATA	KEYAGENT_DECLARE_KEY_ATTR(KEYDATA)
+#define KEYAGENT_ATTR_STM_TEST_DATA	KEYAGENT_DECLARE_KEY_ATTR(STM_TEST_DATA)
+#define KEYAGENT_ATTR_STM_TEST_SIG	KEYAGENT_DECLARE_KEY_ATTR(STM_TEST_SIG)
 #define KEYAGENT_ATTR_STM_DATA	KEYAGENT_DECLARE_KEY_ATTR(STM_DATA)
-
+#define KEYAGENT_ATTR_SWK	                                    KEYAGENT_DECLARE_KEY_ATTR(SWK)
+#define KEYAGENT_ATTR_CHALLENGE_KEYTYPE	                        KEYAGENT_DECLARE_KEY_ATTR(CHALLENGE_KEYTYPE)
+#define KEYAGENT_ATTR_CHALLENGE_ECC_PUBLIC_KEY	                KEYAGENT_DECLARE_KEY_ATTR(CHALLENGE_ECC_PUBLIC_KEY)
+#define KEYAGENT_ATTR_CHALLENGE_RSA_PUBLIC_KEY	                KEYAGENT_DECLARE_KEY_ATTR(CHALLENGE_RSA_PUBLIC_KEY)
+#define KEYAGENT_ATTR_SW_ISSUER	                                KEYAGENT_DECLARE_KEY_ATTR(SW_ISSUER)
+#define KEYAGENT_ATTR_SGX_ENCLAVE_ISSUER	                    KEYAGENT_DECLARE_KEY_ATTR(SGX_ENCLAVE_ISSUER)
+#define KEYAGENT_ATTR_SGX_ENCLAVE_ISSUER_PRODUCT_ID	            KEYAGENT_DECLARE_KEY_ATTR(SGX_ENCLAVE_ISSUER_PRODUCT_ID)
+#define KEYAGENT_ATTR_SGX_ENCLAVE_ISSUER_EXTENDED_PRODUCT_ID	KEYAGENT_DECLARE_KEY_ATTR(SGX_ENCLAVE_ISSUER_EXTENDED_PRODUCT_ID)
+#define KEYAGENT_ATTR_SGX_ENCLAVE_MEASUREMENT	                KEYAGENT_DECLARE_KEY_ATTR(SGX_ENCLAVE_MEASUREMENT)
+#define KEYAGENT_ATTR_SGX_ENCLAVE_SVN_MINIMUM_SGX_CONFIG_ID	    KEYAGENT_DECLARE_KEY_ATTR(SGX_ENCLAVE_SVN_MINIMUM_SGX_CONFIG_ID)
+#define KEYAGENT_ATTR_SGX_CONFIG_ID_SVN	                        KEYAGENT_DECLARE_KEY_ATTR(SGX_CONFIG_ID_SVN)
+#define KEYAGENT_ATTR_KPT_ISSUER	                            KEYAGENT_DECLARE_KEY_ATTR(KPT_ISSUER)
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
 GQuark KEYAGENT_ATTR_IV;
-GQuark KEYAGENT_ATTR_RSA_N;
-GQuark KEYAGENT_ATTR_RSA_E;
-GQuark KEYAGENT_ATTR_RSA_D;
-GQuark KEYAGENT_ATTR_RSA_P;
-GQuark KEYAGENT_ATTR_RSA_Q;
-GQuark KEYAGENT_ATTR_RSA_DP;
-GQuark KEYAGENT_ATTR_RSA_DQ;
-GQuark KEYAGENT_ATTR_RSA_QINV;
+GQuark KEYAGENT_ATTR_KEYDATA;
+GQuark KEYAGENT_ATTR_STM_TEST_DATA;
+GQuark KEYAGENT_ATTR_STM_TEST_SIG;
 GQuark KEYAGENT_ATTR_STM_DATA;
-
+GQuark KEYAGENT_ATTR_SWK;
+GQuark KEYAGENT_ATTR_CHALLENGE_KEYTYPE;
+GQuark KEYAGENT_ATTR_CHALLENGE_ECC_PUBLIC_KEY;
+GQuark KEYAGENT_ATTR_CHALLENGE_RSA_PUBLIC_KEY;
+GQuark KEYAGENT_ATTR_SW_ISSUER;
+GQuark KEYAGENT_ATTR_SGX_ENCLAVE_ISSUER;
+GQuark KEYAGENT_ATTR_SGX_ENCLAVE_ISSUER_PRODUCT_ID;
+GQuark KEYAGENT_ATTR_SGX_ENCLAVE_ISSUER_EXTENDED_PRODUCT_ID;
+GQuark KEYAGENT_ATTR_SGX_ENCLAVE_MEASUREMENT;
+GQuark KEYAGENT_ATTR_SGX_ENCLAVE_SVN_MINIMUM_SGX_CONFIG_ID;
+GQuark KEYAGENT_ATTR_SGX_CONFIG_ID_SVN;
+GQuark KEYAGENT_ATTR_KPT_ISSUER;
 
 #ifdef  __cplusplus
 }
@@ -176,7 +237,7 @@ GQuark KEYAGENT_ATTR_STM_DATA;
 
 #define KEYAGENT_KEY_GET_BYTEARRAY_ATTR(ATTRS, NAME, DEST) do { \
     const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##NAME ); \
-    DEST = (keyagent_buffer_ptr)g_hash_table_lookup(attrs->hash, keyname); \
+    DEST = (keyagent_buffer_ptr)g_hash_table_lookup((ATTRS)->hash, keyname); \
 } while(0)
 
 #define ENCRYPT_ATTR_HASH(VAL, SRC_ATTR, DEST_ATTRS, KEY, IV, ENCRYPT_FUNC) do { \
@@ -216,15 +277,21 @@ GQuark KEYAGENT_ATTR_STM_DATA;
 #define EVP_CTRL_AEAD_SET_TAG 	0x11
 #define AES_256_KEY_SIZE 		32
 
+#ifdef  __cplusplus
+#define DHSM_EXTERN extern "C"
+#else
+#define DHSM_EXTERN extern
+#endif
+
 #define DECLARE_KEYAGENT_INTERFACE(SUBTYPE, NAME, RETURNTYPE, ARGS) \
-    typedef RETURNTYPE (* SUBTYPE##_##NAME##_func) ARGS
+    typedef RETURNTYPE (* SUBTYPE##_##NAME##_func) ARGS; \
+    DHSM_EXTERN RETURNTYPE SUBTYPE##_##NAME ARGS
 
 #define DECLARE_KEYAGENT_OP(SUBTYPE,NAME) \
     SUBTYPE##_##NAME##_func SUBTYPE##_func_##NAME
 
 #define INIT_KEYAGENT_INTERFACE(SUBTYPE,MODULE,NAME,ERROR) \
     KEYAGENT_MODULE_LOOKUP((MODULE)->module, #SUBTYPE"_"#NAME, (MODULE)->ops.SUBTYPE##_func_##NAME, (ERROR))
-
 
 #define KEYAGENT_MODULE_OP(SUBTYPE,MODULE,NAME)  (MODULE)->ops.SUBTYPE##_func_##NAME
 

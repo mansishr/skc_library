@@ -56,12 +56,12 @@ key_config_get_string_list(void *config, const char *section, const char *key, G
 }
 
 char *
-key_config_get_string_optional(void *config, const char *section, const char *key, char *default_val)
+key_config_get_string_optional(void *config, const char *section, const char *key, const char *default_val)
 {
 	g_autoptr(GError) err = NULL;
 	char *val = key_config_get_string(config, section, key, &err);
 	if (err != NULL)
-		val = default_val;
+		val = (char *)g_strdup(default_val);
 	return val;
 }
 

@@ -124,7 +124,6 @@ log_level_to_priority(GLogLevelFlags log_level) {
     return "5";
 }
 
-
 static void
 test_logging_errors(gconstpointer test_data) {
     ulong log_level = (ulong) GPOINTER_TO_INT(test_data);
@@ -200,7 +199,6 @@ int main(int argc, char **argv)
     context = g_option_context_new ("- test keyagent");
 
     programname = argv[0];
-
     g_test_init(&argc, &argv, NULL, "no_g_set_prgname", NULL);
 
     g_option_context_add_main_entries (context, entries, "keyagent");

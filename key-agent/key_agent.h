@@ -16,35 +16,32 @@ void keyagent_npm_showlist();
 void keyagent_stm_showlist();
 
 GString *keyagent_stm_get_names();
-keyagent_module * keyagent_stm_get_by_name(const char *name);
-void keyagent_stm_set_session(keyagent_module *stm, keyagent_buffer_ptr swk);
-keyagent_buffer_ptr  keyagent_stm_get_challenge(keyagent_module *stm);
+gboolean keyagent_stm_get_by_name(const char *name, keyagent_module **);
 
-keyagent_buffer_ptr keyagent_stm_challenge_verify(keyagent_module *stm, keyagent_buffer_ptr quote);
+keyagent_session * keyagent_session_create(const char *name, keyagent_buffer_ptr swk, gint cache_id, GError **);
+gboolean keyagent_stm_set_session(keyagent_session *, GError **);
+
+gboolean  keyagent_stm_get_challenge(const char *name, keyagent_buffer_ptr *challenge, GError **);
+
+gboolean keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **);
 
 int keyagent_curlsend(GString *url, GPtrArray *headers, GString *postdata, keyagent_buffer_ptr returndata, keyagent_curl_ssl_opts *ssl_opts, gboolean verbose);
 gboolean keyagent_get_certificate_files(GString *cert_filename, GString *certkey_filename, GError **err);
 
-keyagent_keyid keyagent_loadkey(keyagent_url, GError **err);
-
-static inline  keyagent_key_attributes_ptr
-keyagent_key_alloc_attributes() {
-    keyagent_key_attributes_ptr ptr = g_new0(keyagent_key_attributes, 1);
-    ptr->hash = g_hash_table_new (g_str_hash, g_str_equal);
-    return ptr;
-}
+keyagent_key * keyagent_loadkey(keyagent_url, GError **err);
 
 gchar *keyagent_generate_checksum(gchar *data, int size);
 void keyagent_debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size);
 
 keyagent_buffer_ptr keyagent_aes_gcm_data_decrypt(keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv);
 
-void keyagent_key_set_type(keyagent_key *, keyagent_keytype type, keyagent_key_attributes_ptr attributes);
-void keyagent_key_set_stm(keyagent_key *, keyagent_module *stm);
+gboolean keyagent_stm_load_key(keyagent_key *key, GError **error);
+keyagent_session * keyagent_session_lookup(const char *label);
+keyagent_key * keyagent_key_lookup(const char *url);
+gboolean keyagent_key_free(keyagent_key *);
 
-keyagent_key_attributes_ptr keyagent_stm_wrap_key(keyagent_module *stm, keyagent_keytype type, keyagent_key_attributes_ptr key_attrs);
+keyagent_key * keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_session *session, gint cache_id, GError **error);
 
-gboolean keyagent_stm_load_key(keyagent_key *key);
 
 #ifdef  __cplusplus
 }

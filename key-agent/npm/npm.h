@@ -11,8 +11,8 @@
 #define INIT_NPM_INTERFACE(MODULE,NAME,ERROR) INIT_KEYAGENT_INTERFACE(npm,MODULE,NAME,ERROR)
 
 DECLARE_NPM_INTERFACE(init, const gchar *, (const char *config_directory, GError **err));
-DECLARE_NPM_INTERFACE(register, gboolean, (keyagent_url));
-DECLARE_NPM_INTERFACE(key_load, gboolean, (keyagent_key *key, GError **err));
+DECLARE_NPM_INTERFACE(register, gboolean, (keyagent_url, GError **));
+DECLARE_NPM_INTERFACE(key_load, gboolean, (keyagent_url , GError **err));
 
 typedef struct {
     DECLARE_NPM_OP(init);

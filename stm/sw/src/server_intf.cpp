@@ -23,14 +23,24 @@
 #include <openssl/buffer.h>
 
 using namespace std;
+using BIO_MEM_ptr = std::unique_ptr<BIO, decltype(&::BIO_free)>;
 
-namespace server_sgx_stm {
-    keyagent_buffer_ptr swk;
+
+namespace server_sw_stm {
+    keyagent_buffer_ptr CHALLENGE_KEYTYPE;
 }
 
 extern "C" void
 server_stm_init(const char *config_directory, GError **err)
 {
+    server_sw_stm::CHALLENGE_KEYTYPE = keyagent_buffer_alloc(NULL, strlen("RSA")+1);
+    strcpy((char *)keyagent_buffer_data(server_sw_stm::CHALLENGE_KEYTYPE), "RSA");
+}
+
+extern "C" gboolean
+server_stm_activate(GError **err)
+{
+    return TRUE;
 }
 
 typedef struct {
@@ -83,95 +93,42 @@ uuid_generate_v4 (stm_uuid *uuid)
   uuid_set_version (uuid, 4);
 }
 
-extern "C" const gchar *
-stm_challenge_generate_request()
+extern "C" gboolean
+stm_challenge_generate_request(const gchar **request, GError **error)
 {
-  stm_uuid uuid;
-  uuid_generate_v4 (&uuid);
-  return uuid_to_string (&uuid);
+    g_return_val_if_fail(request != NULL, FALSE);
+    stm_uuid uuid;
+    uuid_generate_v4 (&uuid);
+    *request = uuid_to_string (&uuid);
+    return TRUE;
 }
 
-extern "C" keyagent_buffer_ptr
-stm_challenge_verify(keyagent_buffer_ptr quote)
+extern "C" gboolean
+stm_challenge_verify(keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **error)
 {
+    gboolean ret = FALSE;
+    *challenge_attrs = keyagent_attributes_alloc();
     BIO* bio = BIO_new_mem_buf(keyagent_buffer_data(quote), keyagent_buffer_length(quote));
+    keyagent_buffer_ptr SW_ISSUER = keyagent_buffer_alloc(NULL, STM_ISSUER_SIZE);
+    BIO_read(bio, keyagent_buffer_data(SW_ISSUER), keyagent_buffer_length(SW_ISSUER));
     EVP_PKEY *pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
     RSA *rsa = EVP_PKEY_get1_RSA(pkey);
     BIO_free(bio);
-
-    keyagent_buffer_ptr encrypted_swk = NULL;
-    int encrypt_len;
-
-   	if (server_sgx_stm::swk) keyagent_buffer_unref(server_sgx_stm::swk);
-    server_sgx_stm::swk = keyagent_buffer_alloc(NULL, AES_256_KEY_SIZE);
-
-    if (!RAND_bytes((unsigned char *)keyagent_buffer_data(server_sgx_stm::swk), keyagent_buffer_length(server_sgx_stm::swk))) {
-        k_critical_msg("RAND_bytes error: %s", strerror(errno));
-        goto errexit;
-    }
-
-    // Encrypt the swk
-    encrypted_swk = keyagent_buffer_alloc(NULL, RSA_size(rsa));
-    encrypt_len = RSA_public_encrypt(keyagent_buffer_length(server_sgx_stm::swk), keyagent_buffer_data(server_sgx_stm::swk), keyagent_buffer_data(encrypted_swk), rsa, RSA_PKCS1_OAEP_PADDING);
-
-    if (encrypt_len != -1)
-        goto out;
-
-    stm_log_openssl_error("Error encrypting message");
-    errexit:
-    if (encrypted_swk) keyagent_buffer_unref(encrypted_swk);
-    encrypted_swk = NULL;
-
+    BIO_MEM_ptr mbio(BIO_new(BIO_s_mem()), ::BIO_free);
+    i2d_RSAPublicKey_bio(mbio.get(), rsa);
+    BUF_MEM *mem = NULL;
+    BIO_get_mem_ptr(mbio.get(), &mem);
+    keyagent_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
+    keyagent_buffer_ptr CHALLENGE_KEYTYPE = server_sw_stm::CHALLENGE_KEYTYPE;
+    CHALLENGE_RSA_PUBLIC_KEY = keyagent_buffer_alloc(mem->data, mem->length);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, CHALLENGE_KEYTYPE);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, CHALLENGE_RSA_PUBLIC_KEY);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, SW_ISSUER);
+    if (CHALLENGE_RSA_PUBLIC_KEY) keyagent_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
+    ret = TRUE;
     out:
+    if (SW_ISSUER) keyagent_buffer_unref(SW_ISSUER);
     if (pkey) EVP_PKEY_free(pkey);
     if (rsa) RSA_free(rsa);
-
-    return encrypted_swk;
-}
-
-static
-int encrypt(keyagent_buffer_ptr plaintext, keyagent_buffer_ptr key, keyagent_buffer_ptr iv, keyagent_buffer_ptr ciphertext) {
-    EVP_CIPHER_CTX *ctx;
-    int len;
-    int ciphertext_len;
-
-    if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
-
-    assert(EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL) == 1);
-    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, keyagent_buffer_length(iv), NULL) == 1);
-    assert(EVP_EncryptInit_ex(ctx, NULL, NULL, (unsigned char *)keyagent_buffer_data(key), (unsigned  char *)keyagent_buffer_data(iv)) == 1);
-    assert(EVP_EncryptUpdate(ctx, keyagent_buffer_data(ciphertext), &len, keyagent_buffer_data(plaintext), keyagent_buffer_length(plaintext)) == 1);
-    ciphertext_len = len;
-    assert(EVP_EncryptFinal_ex(ctx, keyagent_buffer_data(ciphertext) + len, &len) == 1);
-    ciphertext_len += len;
-    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, TAG_SIZE, (unsigned char *) keyagent_buffer_data(ciphertext) + ciphertext_len) == 1);
-    EVP_CIPHER_CTX_free(ctx);
-    return ciphertext_len;
-}
-
-extern "C" keyagent_key_attributes_ptr
-stm_wrap_key(keyagent_keytype type, keyagent_key_attributes_ptr attrs)
-{
-    keyagent_key_attributes_ptr wrapped_attrs = keyagent_key_alloc_attributes();
-    keyagent_buffer_ptr iv;
-    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, IV, iv);
-
-    COPY_ATTR_HASH(IV, attrs, wrapped_attrs);
-    COPY_ATTR_HASH(RSA_E, attrs, wrapped_attrs);
-    COPY_ATTR_HASH(RSA_N, attrs, wrapped_attrs);
-    ENCRYPT_ATTR_HASH(RSA_D, attrs, wrapped_attrs, server_sgx_stm::swk, iv, encrypt);
-    ENCRYPT_ATTR_HASH(RSA_P, attrs, wrapped_attrs, server_sgx_stm::swk, iv, encrypt);
-    ENCRYPT_ATTR_HASH(RSA_Q, attrs, wrapped_attrs, server_sgx_stm::swk, iv, encrypt);
-    ENCRYPT_ATTR_HASH(RSA_DP, attrs, wrapped_attrs, server_sgx_stm::swk, iv, encrypt);
-    ENCRYPT_ATTR_HASH(RSA_DQ, attrs, wrapped_attrs, server_sgx_stm::swk, iv, encrypt);
-    ENCRYPT_ATTR_HASH(RSA_QINV, attrs, wrapped_attrs, server_sgx_stm::swk, iv, encrypt);
-
-    stm_wrap_data wrap_data;
-    wrap_data.tag_len = TAG_SIZE;
-
-    keyagent_buffer_ptr STM_DATA = keyagent_buffer_alloc(NULL, sizeof(stm_wrap_data));
-    memcpy(keyagent_buffer_data(STM_DATA), &wrap_data, sizeof(stm_wrap_data));
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(wrapped_attrs, STM_DATA);
-	keyagent_buffer_unref(STM_DATA);
-    return wrapped_attrs;
+    return ret;
 }

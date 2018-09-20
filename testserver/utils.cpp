@@ -135,52 +135,110 @@ debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size)
 	keyagent_buffer_unref(RSA_##VAL); \
 } while(0)
 
-keyagent_key_attributes_ptr convert_key_to_attr_hash()
+gboolean convert_rsa_key_to_attr_hash(keyagent_attributes_ptr attrs)
 {
     BIGNUM *bne = NULL;
     int bits = 2048;
     unsigned long  e = RSA_F4;
+    unsigned int len;
 
     bne = BN_new();
     if (BN_set_word(bne,e) != 1) {
         BN_free(bne);
-        return NULL;
+        return FALSE;
     }
 
     RSA *rsa = RSA_new();
     if (RSA_generate_key_ex(rsa, bits, bne, NULL) != 1) {
         RSA_free(rsa);
         BN_free(bne);
-        return NULL;
+        return FALSE;
     }
     BN_free(bne);
 
-    DECLARE_BIGNUM_FOR_ATTR(N);
-    DECLARE_BIGNUM_FOR_ATTR(E);
-    DECLARE_BIGNUM_FOR_ATTR(D);
-    DECLARE_BIGNUM_FOR_ATTR(P);
-    DECLARE_BIGNUM_FOR_ATTR(Q);
-    DECLARE_BIGNUM_FOR_ATTR(DP);
-    DECLARE_BIGNUM_FOR_ATTR(DQ);
-    DECLARE_BIGNUM_FOR_ATTR(QINV);
+    len = i2d_RSAPrivateKey(rsa, NULL);
+    keyagent_buffer_ptr KEYDATA = keyagent_buffer_alloc(NULL, len);
+    unsigned char *tmp = keyagent_buffer_data(KEYDATA);
+    i2d_RSAPrivateKey(rsa, &tmp);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
+	keyagent_buffer_unref(KEYDATA);
 
-    RSA_get0_key(rsa, &BIGNUM_FOR_ATTR_NAME(N), &BIGNUM_FOR_ATTR_NAME(E), &BIGNUM_FOR_ATTR_NAME(D));
-    RSA_get0_factors(rsa, &BIGNUM_FOR_ATTR_NAME(P), &BIGNUM_FOR_ATTR_NAME(Q));
-    RSA_get0_crt_params(rsa, &BIGNUM_FOR_ATTR_NAME(DP), &BIGNUM_FOR_ATTR_NAME(DQ), &BIGNUM_FOR_ATTR_NAME(QINV));
-
-    keyagent_key_attributes_ptr attrs = keyagent_key_alloc_attributes();
-
-    BN_TO_ATTR_RSA_HASH(N);
-    BN_TO_ATTR_RSA_HASH(E);
-    BN_TO_ATTR_RSA_HASH(D);
-    BN_TO_ATTR_RSA_HASH(P);
-    BN_TO_ATTR_RSA_HASH(Q);
-    BN_TO_ATTR_RSA_HASH(DP);
-    BN_TO_ATTR_RSA_HASH(DQ);
-    BN_TO_ATTR_RSA_HASH(QINV);
+    keyagent_buffer_ptr STM_TEST_DATA = keyagent_buffer_alloc(NULL, 20);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
+    keyagent_buffer_ptr STM_TEST_SIG = keyagent_buffer_alloc(NULL, RSA_size(rsa));
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
+    if (!RSA_sign(NID_sha1, keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA), 
+        keyagent_buffer_data(STM_TEST_SIG),
+        &len,
+        rsa)) {
+        k_critical_msg("RSA_sign failed ! %s \n", ERR_error_string(ERR_get_error(), NULL));
+    }
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
+    keyagent_buffer_unref(STM_TEST_SIG);
+    keyagent_buffer_unref(STM_TEST_DATA);
     RSA_free(rsa);
 
-    return attrs;
+    return TRUE;
+}
+
+gboolean convert_ecc_key_to_attr_hash(keyagent_attributes_ptr attrs)
+{
+    EC_KEY *ec_key = NULL;
+    EVP_PKEY *pkey   = NULL;
+    int eccgrp;
+    int len;
+    unsigned char *data;
+
+    OpenSSL_add_all_algorithms();
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
+
+    eccgrp = OBJ_txt2nid("secp521r1");
+    ec_key = EC_KEY_new_by_curve_name(eccgrp);
+    EC_KEY_set_asn1_flag(ec_key, OPENSSL_EC_NAMED_CURVE);
+    if (!(EC_KEY_generate_key(ec_key))) {
+        k_critical_msg("Error generating the ECC key.");
+        return FALSE;
+    }
+
+    keyagent_buffer_ptr STM_TEST_DATA = keyagent_buffer_alloc(NULL, 20);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
+    ECDSA_SIG* ec_sig = NULL;
+    if ((ec_sig = ECDSA_do_sign(keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA), ec_key)) == NULL) {
+        k_critical_msg("ECDSA_do_sign failed ! %s \n", ERR_error_string(ERR_get_error(), NULL));
+    } else {
+        len = i2d_ECDSA_SIG(ec_sig, NULL);
+        keyagent_buffer_ptr STM_TEST_SIG = keyagent_buffer_alloc(NULL, len);
+        data = (unsigned char *)keyagent_buffer_data(STM_TEST_SIG);
+        i2d_ECDSA_SIG(ec_sig, &data);
+        KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
+        keyagent_buffer_unref(STM_TEST_SIG);
+        ECDSA_SIG_free(ec_sig);
+    }
+    keyagent_buffer_unref(STM_TEST_DATA);
+    len = i2d_ECPrivateKey(ec_key, NULL);
+    keyagent_buffer_ptr KEYDATA = keyagent_buffer_alloc(NULL, len);
+    unsigned char *tmp = keyagent_buffer_data(KEYDATA);
+    i2d_ECPrivateKey(ec_key, &tmp);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
+	keyagent_buffer_unref(KEYDATA);
+    EC_KEY_free(ec_key);
+    return TRUE;
+}
+
+keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs)
+{
+    static GRand *rand = NULL;
+
+    if (!rand)
+        rand = g_rand_new();
+
+    if (g_rand_boolean(rand)) {
+        convert_rsa_key_to_attr_hash(attrs);
+        return KEYAGENT_RSAKEY;
+    }
+    convert_ecc_key_to_attr_hash(attrs);
+    return KEYAGENT_ECCKEY;
 }
 
 #undef BN_TO_ATTR_HASH
@@ -233,11 +291,14 @@ print_input_headers(const char *label, const shared_ptr< Session > session)
 const gchar *
 create_challenge(std::string keyid)
 {
+	GError *err = NULL;
     challenge_info_t *info = new challenge_info_t();
     info->keyid = keyid;
-    keyagent_real_stm *lstm = (keyagent_real_stm *)server::stm;
-    const gchar *uuid = STM_MODULE_OP(lstm,challenge_generate_request)();
-    g_hash_table_insert(server::uuid_hash_table, (gchar *)uuid, info);
+    keyagent_stm_real *lstm = (keyagent_stm_real *)server::stm;
+    const gchar *uuid = NULL;
+    STM_MODULE_OP(lstm,challenge_generate_request)(&uuid, &err);
+    if (STM_MODULE_OP(lstm,challenge_generate_request)(&uuid, &err))
+        g_hash_table_insert(server::uuid_hash_table, (gchar *)uuid, info);
     return uuid;
 }
 
@@ -271,20 +332,11 @@ key_info_free(gpointer data)
     delete info;
 }
 
-extern "C" keyagent_buffer_ptr
-keyagent_stm_challenge_verify(keyagent_module *stm, keyagent_buffer_ptr quote)
+extern "C" gboolean
+keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **error)
 {
-    keyagent_real_stm *lstm = (keyagent_real_stm *)stm;
-    return STM_MODULE_OP(lstm,challenge_verify)(quote);
-}
-
-
-extern "C" keyagent_key_attributes_ptr
-keyagent_stm_wrap_key(keyagent_module *stm, keyagent_keytype type, keyagent_key_attributes_ptr key_attrs)
-{
-    keyagent_real_stm *lstm = (keyagent_real_stm *)stm;
-    keyagent_key_attributes_ptr wrapped_attrs = STM_MODULE_OP(lstm,wrap_key)(type, key_attrs);
-    return wrapped_attrs;
+    keyagent_stm_real *lstm = (keyagent_stm_real *)server::stm;
+    return STM_MODULE_OP(lstm,challenge_verify)(quote, challenge_attrs, error);
 }
 
 extern "C"

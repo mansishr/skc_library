@@ -21,9 +21,11 @@ namespace keyagent {
     GString *certkey;
     GHashTable *npm_hash;
     GHashTable *stm_hash;
-    GHashTable *url_hash;
+    GHashTable *key_hash;
+	GHashTable *session_hash;
+	GHashTable *session_id_hash;
+    GRWLock rwlock;
 }
-
 
 /* Return GList of paths described in location string */
 static GList *
@@ -64,11 +66,13 @@ free_char_pointer(gpointer data)
 	g_free(data);
 }
 
-
-extern "C" gboolean 
-keyagent_init(const char *filename, GError **err)
+gboolean
+do_keyagent_init(const char *filename, GError **err)
 {
-	keyagent::configdirectory = g_string_new(g_path_get_dirname(filename));
+
+    g_rw_lock_init (&keyagent::rwlock);
+
+    keyagent::configdirectory = g_string_new(g_path_get_dirname(filename));
 	keyagent::configfilename = g_string_new(filename);
 	keyagent::config = key_config_openfile(filename, err);
 	if (*err != NULL)
@@ -95,7 +99,10 @@ keyagent_init(const char *filename, GError **err)
 
 	keyagent::npm_hash = g_hash_table_new (g_str_hash, g_str_equal);
 	keyagent::stm_hash = g_hash_table_new (g_str_hash, g_str_equal);
-	keyagent::url_hash = g_hash_table_new (g_direct_hash, g_direct_equal);
+	keyagent::key_hash = g_hash_table_new_full (g_str_hash, g_str_equal, keyagent_key_hash_key_free, keyagent_key_hash_value_free);
+	keyagent::session_hash = g_hash_table_new_full (g_str_hash, g_str_equal, keyagent_session_hash_key_free, keyagent_session_hash_value_free);
+	keyagent::session_id_hash = g_hash_table_new (g_direct_hash, g_direct_equal);
+
 
 	GString *pattern = g_string_new(keyagent::npm_directory->str);
 	g_string_append(pattern, "/npm_*.so");
@@ -121,55 +128,87 @@ keyagent_init(const char *filename, GError **err)
 	if (*err != NULL) {
 		return FALSE;
 	}
-	return TRUE;
+
+    if (!keyagent_cache_init(err))
+        return FALSE;
+
+
+    return TRUE;
 }
+
+
+extern "C" gboolean
+keyagent_init(const char *filename, GError **err)
+{
+    static gsize init = 0;
+    static GError *error = NULL;
+    if (g_once_init_enter (&init))
+    {
+        do_keyagent_init(filename, &error);
+        g_once_init_leave (&init, 1);
+    }
+
+    if (error != NULL)
+    {
+        g_propagate_error(err, error);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+typedef struct {
+    keyagent_url url;
+    GError **err;
+} loadkey_t;
 
 static void
 _loadkey(gpointer keyid, gpointer data, gpointer user_data)
 {
-	keyagent_real_npm *npm = (keyagent_real_npm *)data;
-	keyagent_url url = (keyagent_url)user_data;
-	GError *err = NULL;
+	keyagent_npm_real *npm = (keyagent_npm_real *)data;
+	loadkey_t *loadkey  = (loadkey_t *)user_data;
 
 	if (!npm->initialized)
 		return;
 
-	if (!NPM_MODULE_OP(npm,register)(url))
+	if (!NPM_MODULE_OP(npm,register)(loadkey->url, loadkey->err))
 		return;
 
-	keyagent_key *key = g_new0(keyagent_key, 1);
-	key->id = keyagent_keyid_from_url(url);
-	key->url = g_string_new(url);
-
-	if (NPM_MODULE_OP(npm,key_load)(key, &err) == FALSE) {
-		g_string_free(key->url, TRUE);
-		g_free(key);
+	if (NPM_MODULE_OP(npm,key_load)(loadkey->url, loadkey->err) == FALSE) {
 		return;
 	}
-
-	g_hash_table_insert(keyagent::url_hash, GINT_TO_POINTER(key->id), key);
-	k_info_msg("%s mapped to npm %s", url, keyagent_get_module_label(npm));
+	k_debug_msg("%s mapped to npm %s", loadkey->url, keyagent_get_module_label(npm));
 }
           
-extern "C" keyagent_keyid
+extern "C" keyagent_key *
 keyagent_loadkey(keyagent_url url, GError **err)
 {
-	keyagent_keyid keyid = keyagent_keyid_from_url ((const gchar *)url);
-	keyagent_key *key = (keyagent_key *)g_hash_table_lookup(keyagent::url_hash, GINT_TO_POINTER(keyid));
-	if (key)
+	keyagent_key *key = NULL;
+    loadkey_t loadkey;
+
+    loadkey.url = url;
+    loadkey.err = err;
+
+    g_rw_lock_writer_lock(&keyagent::rwlock);
+
+	if ((key = keyagent_key_lookup(url)) != NULL)
 	{
-		k_info_msg("found key %p for url %s cached!", key, url);
-		return keyid;
+		k_debug_msg("found key %p for url %s cached!", key, url);
+		goto out;
 	}
-	g_hash_table_foreach(keyagent::npm_hash, _loadkey, url);
-	key = (keyagent_key *)g_hash_table_lookup(keyagent::url_hash, GINT_TO_POINTER(keyid));
-	if (!key)
+	g_hash_table_foreach(keyagent::npm_hash, _loadkey, &loadkey);
+	if ((key = keyagent_key_lookup(url)) == NULL)
 	{
 		k_critical_msg("Not able to load key %s!", url);
-		return 0;
+        goto out;
 	}
 
-	return keyagent_stm_load_key(key);
+	if (!keyagent_stm_load_key(key, err)) {
+        keyagent_key_free(key);
+        key = NULL;
+    }
+    out:
+    g_rw_lock_writer_unlock(&keyagent::rwlock);
+    return key;
 }
 
 

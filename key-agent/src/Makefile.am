@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) -std=c++11
+AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) $(GDA_CFLAGS) -std=c++11 -DPKGDATA="\"$(prefix)\""
 
 lib_LTLIBRARIES = \
     libkey_agent.la
@@ -10,7 +10,11 @@ libkey_agent_la_SOURCES = \
 	utils.cpp \
 	../npm/npm_init.cpp \
 	../stm/stm_init.cpp \
-	key_init.cpp
+	cache-init.cpp \
+	cache-session.cpp \
+	session.cpp \
+	key.cpp \
+	cache-key.cpp
 
-libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ -lcurl -lcrypto $(COMON_LDFLAGS) $(GMODULE_LIBS) \
+libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ -lcurl -lcrypto $(COMMON_LDFLAGS) $(GMODULE_LIBS) $(GDA_LIBS) \
 	$(TOPDIR)/config-file/src/libkey_configfile.la

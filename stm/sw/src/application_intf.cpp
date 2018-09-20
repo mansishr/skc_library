@@ -5,6 +5,7 @@
 #include "k_errors.h"
 #include <glib.h>
 #include <errno.h>
+#include <unistd.h>
 #include <iostream>
 #include <memory>
 #include "internal.h"
@@ -22,10 +23,11 @@ using namespace std;
 
 using BIO_MEM_ptr = std::unique_ptr<BIO, decltype(&::BIO_free)>;
 
-namespace application_sgx_stm {
+namespace application_sw_stm {
     GString *configfile;
     gboolean debug;
     RSA *session_keypair;
+    keyagent_buffer_ptr sw_issuer;
     keyagent_buffer_ptr swk;
 
     static const gchar *private_string = \
@@ -59,57 +61,74 @@ namespace application_sgx_stm {
 "-----END PRIVATE KEY-----";
 }
 
+extern "C" void
+application_stm_init(const char *config_directory, GError **err)
+{
+    gint  init_delay = 0;
+    application_sw_stm::configfile = g_string_new(g_build_filename(config_directory, "sw_stm.ini", NULL));
+    void *config = key_config_openfile(application_sw_stm::configfile->str, err);
+    application_sw_stm::sw_issuer = keyagent_buffer_alloc(NULL, STM_ISSUER_SIZE);
+    if (config) {
+        init_delay = key_config_get_integer_optional(config, "testing", "initdelay", 0);
+        char *tmp = key_config_get_string_optional(config, "core", "issuer", "Intel-1");
+        memcpy(keyagent_buffer_data(application_sw_stm::sw_issuer), tmp, strlen(tmp));
+        g_free(tmp);
+    }
+    BIO *mem = BIO_new(BIO_s_mem());
+    BIO_write(mem, (char *)application_sw_stm::private_string, strlen(application_sw_stm::private_string));
+    EVP_PKEY *pkey = PEM_read_bio_PrivateKey(mem,NULL, NULL, NULL);
+    application_sw_stm::session_keypair = EVP_PKEY_get1_RSA(pkey); // Get the underlying RSA key
+    BIO_free(mem);
+
+    if (init_delay)
+        sleep(init_delay);
+}
+
+extern "C" gboolean
+application_stm_activate(GError **err)
+{
+    return TRUE;
+}
+
 // self validating whether quote contains a valid public key
 void
 debug_initialize_challenge_from_quote(keyagent_buffer_ptr quote)
 {
     keyagent_debug_with_checksum("CLIENT:CKSUM:PEM", keyagent_buffer_data(quote), keyagent_buffer_length(quote));
-    BIO* bio = BIO_new_mem_buf(keyagent_buffer_data(quote), keyagent_buffer_length(quote));
+    BIO* bio = BIO_new_mem_buf(keyagent_buffer_data(quote) + STM_ISSUER_SIZE, keyagent_buffer_length(quote) - STM_ISSUER_SIZE);
     EVP_PKEY *pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
     RSA *rsa = EVP_PKEY_get1_RSA(pkey);
     BIO_free(bio);
 }
 
-extern "C" keyagent_buffer_ptr
-stm_create_challenge()
+extern "C" gboolean
+stm_create_challenge(keyagent_buffer_ptr *challenge, GError **err)
 {
     BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
-    PEM_write_bio_RSA_PUBKEY(bio.get(), application_sgx_stm::session_keypair);
+    BIO_write(bio.get(), keyagent_buffer_data(application_sw_stm::sw_issuer), STM_ISSUER_SIZE);
+    PEM_write_bio_RSA_PUBKEY(bio.get(), application_sw_stm::session_keypair);
     BUF_MEM *mem = NULL;
     BIO_get_mem_ptr(bio.get(), &mem);
-    keyagent_buffer_ptr challenge = keyagent_buffer_alloc(mem->data, mem->length);
-    //debug_initialize_challenge_from_quote(challenge);
-    return challenge;
-}
 
-extern "C" void
-application_stm_init(const char *config_directory, GError **err)
-{
-    application_sgx_stm::configfile = g_string_new(g_build_filename(config_directory, "sgx_stm.ini", NULL));
-    //void *config = key_config_openfile(application_sgx_stm::configfile->str, err);
-    //gchar *server = key_config_get_string(config, "core", "server", err);
-    //BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
-    BIO *mem = BIO_new(BIO_s_mem());
-    BIO_write(mem, (char *)application_sgx_stm::private_string, strlen(application_sgx_stm::private_string));
-    EVP_PKEY *pkey = PEM_read_bio_PrivateKey(mem,NULL, NULL, NULL);
-    application_sgx_stm::session_keypair = EVP_PKEY_get1_RSA(pkey); // Get the underlying RSA key
-    BIO_free(mem);
+    *challenge = keyagent_buffer_alloc(mem->data, mem->length);
+    //debug_initialize_challenge_from_quote(challenge);
+    return TRUE;
 }
 
 
 extern "C" gboolean
-stm_set_session(keyagent_buffer_ptr session)
+stm_set_session(keyagent_buffer_ptr session, GError **error)
 {
     gboolean ret = FALSE;
     keyagent_debug_with_checksum("CLIENT:SESSION:PROTECTED", keyagent_buffer_data(session), keyagent_buffer_length(session));
 
-    application_sgx_stm::swk = keyagent_buffer_alloc(NULL, AES_256_KEY_SIZE);
+    application_sw_stm::swk = keyagent_buffer_alloc(NULL, AES_256_KEY_SIZE);
 
-    int result = RSA_private_decrypt(RSA_size(application_sgx_stm::session_keypair),
-                                     (const unsigned char *)keyagent_buffer_data(session), keyagent_buffer_data(application_sgx_stm::swk), application_sgx_stm::session_keypair,
+    int result = RSA_private_decrypt(RSA_size(application_sw_stm::session_keypair),
+                     (const unsigned char *)keyagent_buffer_data(session), keyagent_buffer_data(application_sw_stm::swk), application_sw_stm::session_keypair,
                                      RSA_PKCS1_OAEP_PADDING);
 
-    keyagent_debug_with_checksum("CLIENT:SESSION:REAL", keyagent_buffer_data(application_sgx_stm::swk), keyagent_buffer_length(application_sgx_stm::swk));
+    keyagent_debug_with_checksum("CLIENT:SESSION:REAL", keyagent_buffer_data(application_sw_stm::swk), keyagent_buffer_length(application_sw_stm::swk));
 
     if (result == -1) {
         stm_log_openssl_error("Error dencrypting message");
@@ -139,26 +158,202 @@ int decrypt(keyagent_buffer_ptr plaintext, keyagent_buffer_ptr key, keyagent_buf
     return outlen;
 }
 
+#define BIGNUM_FOR_ATTR_NAME(N) b_##N
+#define DECLARE_BIGNUM_FOR_ATTR(N) BIGNUM *BIGNUM_FOR_ATTR_NAME(N) = NULL
+#define ATTR_TO_BN_RSA_HASH(VAL) do { \
+    keyagent_buffer_ptr RSA_##VAL; \
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, RSA_##VAL, RSA_##VAL); \
+    BIGNUM_FOR_ATTR_NAME(VAL) = BN_bin2bn(keyagent_buffer_data(RSA_##VAL), keyagent_buffer_length(RSA_##VAL), NULL); \
+} while(0)
+
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+
+extern "C" {
+void RSA_get0_key(const RSA *r,
+                  const BIGNUM **n, const BIGNUM **e, const BIGNUM **d)
+{
+    if (n != NULL)
+        *n = r->n;
+    if (e != NULL)
+        *e = r->e;
+    if (d != NULL)
+        *d = r->d;
+}
+
+void RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q)
+{
+    if (p != NULL)
+        *p = r->p;
+    if (q != NULL)
+        *q = r->q;
+}
+
+void RSA_get0_crt_params(const RSA *r,
+                         const BIGNUM **dmp1, const BIGNUM **dmq1,
+                         const BIGNUM **iqmp)
+{
+    if (dmp1 != NULL)
+        *dmp1 = r->dmp1;
+    if (dmq1 != NULL)
+        *dmq1 = r->dmq1;
+    if (iqmp != NULL)
+        *iqmp = r->iqmp;
+}
+
+
+int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
+{
+    /* If the fields n and e in r are NULL, the corresponding input
+     * parameters MUST be non-NULL for n and e.  d may be
+     * left NULL (in case only the public key is used).
+     */
+    if ((r->n == NULL && n == NULL)
+        || (r->e == NULL && e == NULL))
+        return 0;
+
+    if (n != NULL) {
+        BN_free(r->n);
+        r->n = n;
+    }
+    if (e != NULL) {
+        BN_free(r->e);
+        r->e = e;
+    }
+    if (d != NULL) {
+        BN_free(r->d);
+        r->d = d;
+    }
+
+    return 1;
+}
+
+int RSA_set0_factors(RSA *r, BIGNUM *p, BIGNUM *q)
+{
+    /* If the fields p and q in r are NULL, the corresponding input
+     * parameters MUST be non-NULL.
+     */
+    if ((r->p == NULL && p == NULL)
+        || (r->q == NULL && q == NULL))
+        return 0;
+
+    if (p != NULL) {
+        BN_free(r->p);
+        r->p = p;
+    }
+    if (q != NULL) {
+        BN_free(r->q);
+        r->q = q;
+    }
+
+    return 1;
+}
+
+int RSA_set0_crt_params(RSA *r, BIGNUM *dmp1, BIGNUM *dmq1, BIGNUM *iqmp)
+{
+    /* If the fields dmp1, dmq1 and iqmp in r are NULL, the corresponding input
+     * parameters MUST be non-NULL.
+     */
+    if ((r->dmp1 == NULL && dmp1 == NULL)
+        || (r->dmq1 == NULL && dmq1 == NULL)
+        || (r->iqmp == NULL && iqmp == NULL))
+        return 0;
+
+    if (dmp1 != NULL) {
+        BN_free(r->dmp1);
+        r->dmp1 = dmp1;
+    }
+    if (dmq1 != NULL) {
+        BN_free(r->dmq1);
+        r->dmq1 = dmq1;
+    }
+    if (iqmp != NULL) {
+        BN_free(r->iqmp);
+        r->iqmp = iqmp;
+    }
+
+    return 1;
+}
+};
+
+#endif
+
+static void
+test_rsa_wrapped_key(keyagent_attributes_ptr attrs)
+{
+    RSA *rsa_key = NULL;
+    keyagent_buffer_ptr KEYDATA;
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, KEYDATA, KEYDATA);
+    rsa_key = d2i_RSAPrivateKey(NULL, (const unsigned char **)&keyagent_buffer_data(KEYDATA), keyagent_buffer_length(KEYDATA));
+
+    keyagent_buffer_ptr STM_TEST_DATA;
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_TEST_DATA, STM_TEST_DATA);
+    keyagent_buffer_ptr STM_TEST_SIG;
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_TEST_SIG, STM_TEST_SIG);
+
+
+    k_debug_msg("rsa_sig %p %s\n", rsa_key,
+        (RSA_verify(NID_sha1, keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA),
+        keyagent_buffer_data(STM_TEST_SIG),
+        keyagent_buffer_length(STM_TEST_SIG), rsa_key) == 1 ? "PASSED" : "FAILED"));
+}
+
+static void
+test_ecc_wrapped_key(keyagent_attributes_ptr attrs)
+{
+    EC_KEY *ec_key = NULL;
+    const unsigned char *data = NULL;
+    int len = 0;
+    OpenSSL_add_all_algorithms();
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
+
+    keyagent_buffer_ptr STM_TEST_DATA;
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_TEST_DATA, STM_TEST_DATA);
+    keyagent_buffer_ptr STM_TEST_SIG;
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_TEST_SIG, STM_TEST_SIG);
+    keyagent_buffer_ptr KEYDATA;
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, KEYDATA, KEYDATA);
+    ec_key = d2i_ECPrivateKey(NULL, (const unsigned char **)&keyagent_buffer_data(KEYDATA), keyagent_buffer_length(KEYDATA));
+    ECDSA_SIG* _sig = NULL;
+    data = keyagent_buffer_data(STM_TEST_SIG);
+    len = keyagent_buffer_length(STM_TEST_SIG);
+    _sig =  d2i_ECDSA_SIG(NULL, &data, len);
+    k_debug_msg("ec_sig %p %s\n", _sig,
+        (ECDSA_do_verify(keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA), _sig, ec_key) == 1 ? "PASSED" : "FAILED"));
+}
 
 extern "C" gboolean
-stm_load_key(keyagent_keytype type, keyagent_key_attributes_ptr attrs)
+stm_load_key(keyagent_keytype type, keyagent_attributes_ptr attrs, GError **error)
 {
     stm_wrap_data *wrap_data;
-    keyagent_key_attributes_ptr unwrapped_attrs = keyagent_key_alloc_attributes();
+    keyagent_attributes_ptr unwrapped_attrs = keyagent_attributes_alloc();
     keyagent_buffer_ptr iv, tmp;
     KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, IV, iv);
     KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_DATA, tmp);
 
     wrap_data = (stm_wrap_data *)keyagent_buffer_data(tmp);
     COPY_ATTR_HASH(IV, attrs, unwrapped_attrs);
-    COPY_ATTR_HASH(RSA_E, attrs, unwrapped_attrs);
-    COPY_ATTR_HASH(RSA_N, attrs, unwrapped_attrs);
-    DECRYPT_ATTR_HASH(RSA_D, attrs, unwrapped_attrs, application_sgx_stm::swk, iv, wrap_data->tag_len, decrypt);
-    DECRYPT_ATTR_HASH(RSA_P, attrs, unwrapped_attrs, application_sgx_stm::swk, iv, wrap_data->tag_len, decrypt);
-    DECRYPT_ATTR_HASH(RSA_Q, attrs, unwrapped_attrs, application_sgx_stm::swk, iv, wrap_data->tag_len, decrypt);
-    DECRYPT_ATTR_HASH(RSA_DP, attrs, unwrapped_attrs, application_sgx_stm::swk, iv, wrap_data->tag_len, decrypt);
-    DECRYPT_ATTR_HASH(RSA_DQ, attrs, unwrapped_attrs, application_sgx_stm::swk, iv, wrap_data->tag_len, decrypt);
-    DECRYPT_ATTR_HASH(RSA_QINV, attrs, unwrapped_attrs, application_sgx_stm::swk, iv, wrap_data->tag_len, decrypt);
 
+    DECRYPT_ATTR_HASH(KEYDATA, attrs, unwrapped_attrs, application_sw_stm::swk, iv, wrap_data->tag_len, decrypt);
+    COPY_ATTR_HASH(STM_TEST_DATA, attrs, unwrapped_attrs);
+    COPY_ATTR_HASH(STM_TEST_SIG, attrs, unwrapped_attrs);
+    if (type == KEYAGENT_RSAKEY) {
+        test_rsa_wrapped_key(unwrapped_attrs);
+    } else {
+        test_ecc_wrapped_key(unwrapped_attrs);
+    }
     return TRUE;
+}
+
+extern "C" gboolean
+stm_seal_key(keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_buffer_ptr *sealed_data, GError **error)
+{
+    return FALSE;
+}
+
+extern "C" gboolean
+stm_unseal_key(keyagent_keytype type, keyagent_buffer_ptr sealed_data, keyagent_attributes_ptr *wrapped_attrs, GError **error)
+{
+    return FALSE;
 }

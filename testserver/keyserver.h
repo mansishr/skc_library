@@ -25,18 +25,20 @@ void json_print(Json::Value &val);
 Json::Value parse_data(std::string httpData);
 gchar * generate_checksum(gchar *data, int size);
 void debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size);
-keyagent_key_attributes_ptr convert_key_to_attr_hash();
+keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs);
 Json::Value keyattrs_to_json(GHashTable *attr_hash);
 
 
 namespace server {
     extern GHashTable *uuid_hash_table;
     extern GHashTable *key_hash_table;
+    extern GHashTable *session_hash_table;
+
     extern gboolean debug;
     extern gboolean verbose;
     extern gchar *configfile;
     extern GString *configdirectory;
-    //xxextern keyagent_real_stm *stm;
+    //xxextern keyagent_stm_real *stm;
     extern keyagent_module *stm;
 }
 
@@ -45,9 +47,9 @@ typedef struct {
 } challenge_info_t;
 
 typedef struct {
-    std::string keyid;
-    keyagent_key_attributes_ptr key_attrs;
-    keyagent_buffer_ptr swk;
+    //std::string keyid;
+    keyagent_attributes_ptr key_attrs;
+    keyagent_keytype keytype;
 } key_info_t;
 
 void challenge_info_free(gpointer data);
