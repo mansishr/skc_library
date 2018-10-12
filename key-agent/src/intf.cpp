@@ -173,9 +173,8 @@ _loadkey(gpointer keyid, gpointer data, gpointer user_data)
 	if (!NPM_MODULE_OP(npm,register)(loadkey->url, loadkey->err))
 		return;
 
-	if (NPM_MODULE_OP(npm,key_load)(loadkey->url, loadkey->err) == FALSE) {
+	if (NPM_MODULE_OP(npm,key_load)(loadkey->url, loadkey->err) == FALSE)
 		return;
-	}
 	k_debug_msg("%s mapped to npm %s", loadkey->url, keyagent_get_module_label(npm));
 }
           

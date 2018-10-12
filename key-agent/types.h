@@ -60,9 +60,12 @@ keyagent_buffer_ref(keyagent_buffer_ptr buf)
 static inline void
 keyagent_buffer_unref(keyagent_buffer_ptr buf)
 {
-	g_byte_array_unref(buf->bytes);
-    if (g_atomic_int_dec_and_test (&buf->ref_count))
-        g_free(buf);
+	if(buf != NULL)
+	{
+		g_byte_array_unref(buf->bytes);
+		if (g_atomic_int_dec_and_test (&buf->ref_count))
+			g_free(buf);
+	}
 }
 
 static inline gboolean
@@ -82,6 +85,7 @@ typedef enum {
     KEYAGENT_RSAKEY = 1,
     KEYAGENT_ECCKEY
 } keyagent_keytype;
+
 
 typedef struct {
 	const char *certfile;
@@ -184,11 +188,11 @@ KEYAGENT_ATTR_NAME_FROM_STR(const char *name)
     	KEYAGENT_DEFINE_ATTR_QUARK(KPT_ISSUER)
 
 
-#define KEYAGENT_ATTR_IV	    KEYAGENT_DECLARE_KEY_ATTR(IV)
-#define KEYAGENT_ATTR_KEYDATA	KEYAGENT_DECLARE_KEY_ATTR(KEYDATA)
-#define KEYAGENT_ATTR_STM_TEST_DATA	KEYAGENT_DECLARE_KEY_ATTR(STM_TEST_DATA)
-#define KEYAGENT_ATTR_STM_TEST_SIG	KEYAGENT_DECLARE_KEY_ATTR(STM_TEST_SIG)
-#define KEYAGENT_ATTR_STM_DATA	KEYAGENT_DECLARE_KEY_ATTR(STM_DATA)
+#define KEYAGENT_ATTR_IV										KEYAGENT_DECLARE_KEY_ATTR(IV)
+#define KEYAGENT_ATTR_KEYDATA									KEYAGENT_DECLARE_KEY_ATTR(KEYDATA)
+#define KEYAGENT_ATTR_STM_TEST_DATA								KEYAGENT_DECLARE_KEY_ATTR(STM_TEST_DATA)
+#define KEYAGENT_ATTR_STM_TEST_SIG								KEYAGENT_DECLARE_KEY_ATTR(STM_TEST_SIG)
+#define KEYAGENT_ATTR_STM_DATA									KEYAGENT_DECLARE_KEY_ATTR(STM_DATA)
 #define KEYAGENT_ATTR_SWK	                                    KEYAGENT_DECLARE_KEY_ATTR(SWK)
 #define KEYAGENT_ATTR_CHALLENGE_KEYTYPE	                        KEYAGENT_DECLARE_KEY_ATTR(CHALLENGE_KEYTYPE)
 #define KEYAGENT_ATTR_CHALLENGE_ECC_PUBLIC_KEY	                KEYAGENT_DECLARE_KEY_ATTR(CHALLENGE_ECC_PUBLIC_KEY)

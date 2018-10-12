@@ -10,12 +10,19 @@
 using namespace std;
 using namespace restbed;
 
+typedef enum {
+	    REQUEST_TYPE_NPM_REF = 1,
+		REQUEST_TYPE_NPM_KMS
+} testserver_request_type;
+
 //include <openssl/evp.h>
 
 extern void keytransfer_authentication_handler( const shared_ptr< Session > session, const function< void ( const shared_ptr< Session > ) >& callback );
 extern void get_keytransfer_method_handler( const shared_ptr< Session > session );
+extern void get_kms_keytransfer_method_handler( const shared_ptr< Session > session );
 extern void keysession_authentication_handler( const shared_ptr< Session > session, const function< void ( const shared_ptr< Session > ) >& callback );
 extern void get_keysession_method_handler( const shared_ptr< Session > session );
+extern void get_kms_keysession_method_handler( const shared_ptr< Session > session );
 
 //extern RSA * generate_key();
 //extern void wrapkey(EVP_PKEY *priv_key, DhsmWPKRSAFormat *_wpk);
@@ -57,6 +64,7 @@ void key_info_free(gpointer data);
 
 const gchar *create_challenge(std::string keyid);
 keyagent_buffer_ptr decode64_json_attr(Json::Value json_data, const char *name);
+keyagent_buffer_ptr decode64_data(keyagent_buffer_ptr ptr);
 
 void challenge_info_free(gpointer data);
 

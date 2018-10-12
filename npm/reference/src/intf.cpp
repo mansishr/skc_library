@@ -40,6 +40,11 @@ typedef struct {
 	keyagent_url url;
 } loadkey_info;
 
+extern "C" void
+npm_finalize(GError **err)
+{
+	//TODO free up resource on error case
+}
 
 extern "C" const char * 
 npm_init(const char *config_directory, GError **err)
@@ -173,7 +178,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 }
 
 #define SET_KEY_ATTR(DATA, ATTRS, NAME) do { \
-	keyagent_buffer_ptr NAME = decode64_json_attr(transfer_data, #NAME); \
+	keyagent_buffer_ptr NAME = decode64_json_attr(DATA, #NAME); \
 	KEYAGENT_KEY_ADD_BYTEARRAY_ATTR((ATTRS), NAME); \
 	keyagent_buffer_unref(NAME); \
 } while (0)

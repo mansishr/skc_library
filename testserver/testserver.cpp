@@ -174,10 +174,21 @@ int main(int argc, char** argv)
     keytransfer->set_method_handler( "GET", get_keytransfer_method_handler );
     keytransfer->set_authentication_handler( keytransfer_authentication_handler );
 
+
+    auto kmskeytransfer = make_shared< Resource >( );
+    kmskeytransfer->set_path( "v1/kms/keys/transfer" );
+    kmskeytransfer->set_method_handler( "GET", get_kms_keytransfer_method_handler );
+    kmskeytransfer->set_authentication_handler( keytransfer_authentication_handler );
+
     auto keysession = make_shared< Resource >( );
     keysession->set_path( "/keys/session" );
     keysession->set_method_handler( "POST", get_keysession_method_handler );
     keysession->set_authentication_handler( keysession_authentication_handler );
+    
+    auto kmskeysession = make_shared< Resource >( );
+    kmskeysession->set_path( "v1/kms/keys/session" );
+    kmskeysession->set_method_handler( "POST", get_kms_keysession_method_handler );
+    kmskeysession->set_authentication_handler( keysession_authentication_handler );
     
     
     auto settings = make_shared< Settings >( );
@@ -186,7 +197,9 @@ int main(int argc, char** argv)
     
     Service service;
     service.publish( keytransfer );
+    service.publish( kmskeytransfer );
     service.publish( keysession );
+    service.publish( kmskeysession );
     service.set_authentication_handler( service_authentication_handler );
     
     service.set_logger( make_shared< CustomLogger >( ) );

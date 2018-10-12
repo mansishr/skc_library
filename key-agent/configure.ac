@@ -74,6 +74,7 @@ AC_PROG_LIBTOOL
 AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
+	cli/Makefile
 	tests/Makefile
 ])
 

@@ -3,6 +3,7 @@ SUBDIRS = \
 	config-file \
 	credential-agent \
 	key-agent \
+	npm/kms \
 	npm/reference \
 	stm/sw
 

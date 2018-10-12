@@ -1,5 +1,5 @@
 
-AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS)
+AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) -std=c++11
 
 libdir = $(prefix)/lib/npm-modules
 
@@ -7,7 +7,7 @@ lib_LTLIBRARIES = \
     npm_kms.la
 
 npm_kms_la_SOURCES = \
-    init.c
+    intf.cpp
 
 npm_kms_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS)
 
