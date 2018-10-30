@@ -78,6 +78,18 @@ npm_register(keyagent_url url, GError **err)
 	return TRUE;
 }
 
+std::string get_json_value(Json::Value value, const char *key)
+{
+    char exceptstr[32]="Error in parsing json key:";
+    if( !value.isMember(key))
+    {
+		//cout<< "Exception occured" <<endl;
+        strcat(exceptstr, key);
+		throw std::runtime_error(exceptstr);
+	}
+    //printf("going to return value\n");
+    return value[key].asString();
+}
 
 void json_print(Json::Value &val)
 {
@@ -177,16 +189,19 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	return (info->session ? TRUE : FALSE);
 }
 
-#define SET_KEY_ATTR(DATA, ATTRS, NAME) do { \
-	keyagent_buffer_ptr NAME = decode64_json_attr(DATA, #NAME); \
-	KEYAGENT_KEY_ADD_BYTEARRAY_ATTR((ATTRS), NAME); \
-	keyagent_buffer_unref(NAME); \
+#define SET_KEY_ATTR(DATA, ATTRS, JSON_KEY, NAME) do { \
+    keyagent_buffer_ptr NAME = decode64_json_attr(DATA, JSON_KEY); \
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR((ATTRS), NAME); \
+    keyagent_buffer_unref(NAME); \
 } while (0)
+
 
 
 static gboolean
 __npm_loadkey(loadkey_info *info, GError **err)
 {
+	keyagent_keytype keytype;
+
 	if (info->tries > 1) return FALSE;
 	info->tries += 1;
 
@@ -234,20 +249,16 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	} else if ((res_status & 200) == 200) {
 
 		keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
-		keyagent_keytype keytype = (transfer_data["algorithm"].asString() == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECCKEY);
 
 		try {
-
-			SET_KEY_ATTR(transfer_data, attrs, KEYDATA);
-			SET_KEY_ATTR(transfer_data, attrs, IV);
-            SET_KEY_ATTR(transfer_data, attrs, STM_DATA);
-            SET_KEY_ATTR(transfer_data, attrs, STM_TEST_DATA);
-            SET_KEY_ATTR(transfer_data, attrs, STM_TEST_SIG);
-        } catch (...){
-				k_critical_msg("Invalid key!");
+			keytype = ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECCKEY);
+			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
+            SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
+            SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);
+        } catch (exception& e){
+				k_critical_msg("%s\n", e.what());
                 return FALSE;
 		}
-
 		ret = (keyagent_key_create(info->url, keytype, attrs, info->session, -1, err) != NULL ? TRUE : FALSE);
 	}
 	return ret;

@@ -19,8 +19,10 @@ namespace server {
     gboolean verbose;
     gchar *configfile;
     GString *configdirectory;
-    //keyagent_stm_real *stm = NULL;
     keyagent_module *stm;
+    gchar *certfile;
+    X509 *cert;
+    EVP_PKEY *cert_key;
 }
 
 void service_authentication_handler( const shared_ptr< Session > session, const function< void ( const shared_ptr< Session > ) >& callback )
@@ -110,11 +112,51 @@ server_initialize_stm(const char *filename, GError **err )
     return NULL;
 }
 
+gboolean
+initialize_certificate()
+{
+    BIO *cert = NULL;
+    gboolean ret = FALSE;
+
+    if ((cert = BIO_new(BIO_s_file())) == NULL) {
+        goto out;
+    }
+
+    if (BIO_read_filename(cert, server::certfile) <= 0) {
+        k_critical_msg("Error opening certificate file - %s\n", server::certfile);
+        goto out;
+    }
+
+    server::cert = PEM_read_bio_X509_AUX(cert, NULL, NULL, NULL);
+    if (!server::cert) {
+        k_critical_msg("Error opening certificate file - %s\n", server::certfile);
+        goto out;
+    }
+    BIO_free(cert);
+    if ((cert = BIO_new(BIO_s_file())) == NULL) {
+        goto out;
+    }
+    if (BIO_read_filename(cert, server::certfile) <= 0) {
+        k_critical_msg("Error opening certificate file - %s\n", server::certfile);
+        goto out;
+    }
+    server::cert_key = PEM_read_bio_PrivateKey(cert, NULL, NULL, NULL);
+    if (!server::cert_key) {
+        k_critical_msg("Error opening certificate file - %s\n", server::certfile);
+        goto out;
+    }
+    ret = TRUE;
+out:
+    if (cert)
+        BIO_free(cert);
+    return ret;
+}
 
 static GOptionEntry entries[] =
         {
                 { "verbose", 'v', 0, G_OPTION_ARG_NONE, &server::verbose, "Be verbose", NULL },
                 { "config", 0, 0, G_OPTION_ARG_FILENAME, &server::configfile, "required! config file to use", NULL },
+                { "cert", 0, 0, G_OPTION_ARG_FILENAME, &server::certfile, "required! cert file to use", NULL },
                 { "debug", 0, 0, G_OPTION_ARG_NONE, &server::debug, "enable debug output", NULL },
                 { NULL }
         };
@@ -143,7 +185,7 @@ int main(int argc, char** argv)
         exit (1);
     }
 
-    if (!server::configfile)
+    if (!server::configfile || !server::certfile)
     {
         g_print("%s\n", g_option_context_get_help (context, TRUE, NULL));
         exit(1);
@@ -161,6 +203,8 @@ int main(int argc, char** argv)
     if (err != NULL) {
         k_fatal_error(err);
     }
+
+    initialize_certificate();
 
     server::stm = (keyagent_module *)server_initialize_stm(stm_filename->str, &err);
     if (!server::stm)

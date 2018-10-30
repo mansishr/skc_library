@@ -42,6 +42,7 @@ gboolean keyagent_key_free(keyagent_key *);
 
 keyagent_key * keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_session *session, gint cache_id, GError **error);
 
+gboolean keyagent_verify_and_extract_cms_message(keyagent_buffer_ptr msg, keyagent_buffer_ptr *data, GError **error);
 
 #ifdef  __cplusplus
 }

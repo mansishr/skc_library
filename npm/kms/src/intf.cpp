@@ -251,8 +251,6 @@ __npm_loadkey(loadkey_info *info, GError **err)
 		try {
 			keytype						= ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECCKEY);
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
-			SET_KEY_ATTR(transfer_data["data"], attrs, "IV", IV);
-			SET_KEY_ATTR(transfer_data["data"], attrs, "STM_DATA", STM_DATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);
         } catch (exception& e){

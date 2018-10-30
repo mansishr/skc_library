@@ -83,9 +83,11 @@ verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Ses
         if (strcmp((const char *)keyagent_buffer_data(CHALLENGE_KEYTYPE), "RSA") == 0) {
             keyagent_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
             KEYAGENT_KEY_GET_BYTEARRAY_ATTR(challenge_attrs, CHALLENGE_RSA_PUBLIC_KEY, CHALLENGE_RSA_PUBLIC_KEY);
+
             BIO* bio = BIO_new_mem_buf(keyagent_buffer_data(CHALLENGE_RSA_PUBLIC_KEY), keyagent_buffer_length(CHALLENGE_RSA_PUBLIC_KEY));
-            RSA *rsa = d2i_RSAPublicKey_bio(bio, NULL);
+            RSA *rsa = d2i_RSA_PUBKEY_bio(bio, NULL);
             BIO_free(bio);
+
             keyagent_buffer_ptr encrypted_swk = keyagent_buffer_alloc(NULL, RSA_size(rsa));
 
             RAND_bytes((unsigned char *)keyagent_buffer_data(swk), keyagent_buffer_length(swk));
@@ -258,24 +260,73 @@ int encrypt(keyagent_buffer_ptr plaintext, keyagent_buffer_ptr key, keyagent_buf
     return ciphertext_len;
 }
 
-static gboolean
-wrap_key(keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_attributes_ptr *wrapped_attrs, keyagent_buffer_ptr swk)
+static keyagent_buffer_ptr
+prepare_and_sign_cms(keyagent_buffer_ptr input_data)
 {
-    *wrapped_attrs = keyagent_attributes_alloc();
-    stm_wrap_data wrap_data;
-    keyagent_buffer_ptr iv;
-    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, IV, iv);
-    COPY_ATTR_HASH(IV, attrs, *wrapped_attrs);
+    keyagent_buffer_ptr cms_bytes = NULL;
+    CMS_ContentInfo *sign_cms = NULL;
+    CMS_SignerInfo *si;
+    BIO *input_bio = NULL;
+    BIO *cms_bio = NULL;
+    int flags = (CMS_PARTIAL|CMS_BINARY) & ~CMS_DETACHED;
+    int ret;
+    BUF_MEM *bptr = 0;
 
-    wrap_data.tag_len = TAG_SIZE;
-    keyagent_buffer_ptr STM_DATA = keyagent_buffer_alloc(NULL, sizeof(stm_wrap_data));
-    memcpy(keyagent_buffer_data(STM_DATA), &wrap_data, sizeof(stm_wrap_data));
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*wrapped_attrs, STM_DATA);
-	keyagent_buffer_unref(STM_DATA);
-    COPY_ATTR_HASH(STM_TEST_DATA, attrs, *wrapped_attrs);
-    COPY_ATTR_HASH(STM_TEST_SIG, attrs, *wrapped_attrs);
+    input_bio = BIO_new(BIO_s_mem());
+    BIO_write(input_bio, keyagent_buffer_data(input_data), keyagent_buffer_length(input_data));
+    ret = BIO_get_mem_ptr(input_bio, &bptr);
 
-    ENCRYPT_ATTR_HASH(KEYDATA, attrs, *wrapped_attrs, swk, iv, encrypt);
+    sign_cms = CMS_sign(NULL, NULL, NULL, input_bio, flags);
+    si = CMS_add1_signer(sign_cms, server::cert, server::cert_key, NULL, flags);
+    ret = CMS_final(sign_cms, input_bio, NULL, flags);
+
+    cms_bio = BIO_new(BIO_s_mem());
+    ret = i2d_CMS_bio_stream(cms_bio, sign_cms, input_bio, flags);
+    ret = BIO_get_mem_ptr(cms_bio, &bptr);
+
+    CMS_ContentInfo_free(sign_cms);
+    cms_bytes = keyagent_buffer_alloc(bptr->data, bptr->length);
+    BIO_free(input_bio);
+    BIO_free(cms_bio);
+    return cms_bytes;
+}
+
+static gboolean
+wrap_key(keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_buffer_ptr swk, keyagent_buffer_ptr keydata)
+{
+    keyagent_buffer_ptr iv = generate_iv();
+    keyagent_buffer_ptr tmp = keyagent_buffer_ref(keydata);
+    keyagent_buffer_ptr wrapped_key = NULL;
+    keyagent_buffer_ptr input_bytes = NULL;
+    keyagent_buffer_ptr KEYDATA = NULL;
+    keyagent_keytransfer_t *keytransfer = NULL;
+
+    keyagent_debug_with_checksum("SERVER:PKCS8", keyagent_buffer_data(tmp), keyagent_buffer_length(tmp));
+    keyagent_debug_with_checksum("SERVER:IV", keyagent_buffer_data(iv), keyagent_buffer_length(iv));
+
+    wrapped_key = keyagent_buffer_alloc(NULL, keyagent_buffer_length(tmp) + TAG_SIZE);
+    encrypt(tmp, swk, iv, wrapped_key);
+    keyagent_debug_with_checksum("SERVER:PKCS8:WRAPPED", keyagent_buffer_data(wrapped_key), keyagent_buffer_length(wrapped_key));
+
+    input_bytes = keyagent_buffer_alloc(NULL, sizeof(keyagent_keytransfer_t));
+    keytransfer = (keyagent_keytransfer_t *)keyagent_buffer_data(input_bytes);
+    keytransfer->iv_length = keyagent_buffer_length(iv);
+    keytransfer->tag_size = TAG_SIZE;
+    keytransfer->wrap_size = keyagent_buffer_length(wrapped_key);
+    
+    keyagent_buffer_append(input_bytes, keyagent_buffer_data(iv), keyagent_buffer_length(iv));
+    keyagent_buffer_append(input_bytes, keyagent_buffer_data(wrapped_key), keyagent_buffer_length(wrapped_key));
+    keyagent_debug_with_checksum("SERVER:CMS:PAYLOAD", keyagent_buffer_data(input_bytes), keyagent_buffer_length(input_bytes));
+
+    KEYDATA = prepare_and_sign_cms(input_bytes);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
+    keyagent_debug_with_checksum("SERVER:CMS", keyagent_buffer_data(KEYDATA), keyagent_buffer_length(KEYDATA));
+    
+    keyagent_buffer_unref(tmp);
+    keyagent_buffer_unref(KEYDATA);
+    keyagent_buffer_unref(wrapped_key);
+    keyagent_buffer_unref(input_bytes);
+    keyagent_buffer_unref(iv);
 }
 
 Json::Value
@@ -291,14 +342,11 @@ get_kms_key_info(std::string keyid, int *http_code, char *client_ip)
             key_info					= new key_info_t();
             g_hash_table_insert(server::key_hash_table, strdup(keyid.c_str()), key_info);
             key_info->key_attrs			= keyagent_attributes_alloc();
-            key_info->keytype			= convert_key_to_attr_hash(key_info->key_attrs);
+            key_info->keytype           = convert_key_to_attr_hash(key_info->key_attrs, &key_info->keydata);
         }
-        keyagent_buffer_ptr IV			= generate_iv();
-        KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(key_info->key_attrs, IV);
-        keyagent_attributes_ptr key_attrs = NULL;
-        keyagent_buffer_ptr swk			= (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, client_ip);
-        wrap_key(key_info->keytype, key_info->key_attrs, &key_attrs, swk);
-        Json::Value json_data			= keyattrs_to_json(key_attrs->hash);
+        keyagent_buffer_ptr swk         = (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, client_ip);
+        wrap_key(key_info->keytype, key_info->key_attrs, swk, key_info->keydata);
+        Json::Value json_data           = keyattrs_to_json(key_info->key_attrs->hash);
 		std::cout << json_data.toStyledString() << std::endl;
 		//
         val["status"]					= "success";
@@ -326,38 +374,6 @@ get_kms_key_info(std::string keyid, int *http_code, char *client_ip)
     return val;
 }
 
-Json::Value
-get_key_info(std::string keyid, int *http_code, char *client_ip)
-{
-    Json::Value val;
-    *http_code = 201;
-    GError *err = NULL;
-    key_info_t *key_info = (key_info_t *)g_hash_table_lookup(server::key_hash_table, keyid.c_str());
-
-    try {
-        if (!key_info) {
-            key_info = new key_info_t();
-            g_hash_table_insert(server::key_hash_table,strdup(keyid.c_str()), key_info);
-            key_info->key_attrs = keyagent_attributes_alloc();
-            key_info->keytype = convert_key_to_attr_hash(key_info->key_attrs);
-        }
-        keyagent_buffer_ptr IV = generate_iv();
-        KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(key_info->key_attrs, IV);
-        keyagent_attributes_ptr key_attrs = NULL;
-        keyagent_buffer_ptr swk = (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, client_ip);
-        wrap_key(key_info->keytype, key_info->key_attrs, &key_attrs, swk);
-        Json::Value json_data = keyattrs_to_json(key_attrs->hash);
-        //std::cout << json_data.toStyledString() << std::endl;
-        val["algorithm"] = (key_info->keytype == KEYAGENT_RSAKEY ? "RSA" : "ECC");
-        for (auto const& id : json_data.getMemberNames())
-            val[id] = json_data[id];
-
-        val["status"] = "got-it";
-    } catch (...) {
-        val["status"] = "failure";
-    }
-    return val;
-}
 void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
 {
         std::cout << "Calling get_kms_keytransfer_method_handler" << endl;
@@ -444,7 +460,7 @@ void get_keytransfer_method_handler( const shared_ptr< Session > session )
         if (!swk) {
             val = get_challenge_info(keyid, &http_code, REQUEST_TYPE_NPM_REF);
         } else {
-            val = get_key_info(keyid, &http_code, client_ip);
+            val = get_kms_key_info(keyid, &http_code, client_ip);
         }
         g_free(client_ip);
         std::string out = json_to_string(val);

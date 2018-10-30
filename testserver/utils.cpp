@@ -125,48 +125,52 @@ debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size)
     g_free(cksum);
 }
 
-#define BIGNUM_FOR_ATTR_NAME(N) b_##N
-#define DECLARE_BIGNUM_FOR_ATTR(N) const BIGNUM *BIGNUM_FOR_ATTR_NAME(N) = NULL
-
-#define BN_TO_ATTR_RSA_HASH(VAL) do { \
-    keyagent_buffer_ptr RSA_##VAL = keyagent_buffer_alloc(NULL, BN_num_bytes( b_##VAL)); \
-    BN_bn2bin(b_##VAL, keyagent_buffer_data(RSA_##VAL)); \
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, RSA_##VAL); \
-	keyagent_buffer_unref(RSA_##VAL); \
-} while(0)
-
-gboolean convert_rsa_key_to_attr_hash(keyagent_attributes_ptr attrs)
+keyagent_buffer_ptr
+convert_rsa_key_to_attr_hash(keyagent_attributes_ptr attrs)
 {
     BIGNUM *bne = NULL;
     int bits = 2048;
     unsigned long  e = RSA_F4;
     unsigned int len;
+    RSA *rsa = NULL;
+    gboolean ret = FALSE;
+    EVP_PKEY *pkey = NULL;
+    PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+    keyagent_buffer_ptr KEYDATA = NULL;
+    unsigned char *tmp = NULL;
+    keyagent_buffer_ptr STM_TEST_DATA = NULL;
+    keyagent_buffer_ptr STM_TEST_SIG = NULL;
+
+    OpenSSL_add_all_algorithms();
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
 
     bne = BN_new();
-    if (BN_set_word(bne,e) != 1) {
-        BN_free(bne);
-        return FALSE;
-    }
+    if (BN_set_word(bne,e) != 1) 
+        goto out;
 
-    RSA *rsa = RSA_new();
-    if (RSA_generate_key_ex(rsa, bits, bne, NULL) != 1) {
-        RSA_free(rsa);
-        BN_free(bne);
-        return FALSE;
-    }
-    BN_free(bne);
+    rsa = RSA_new();
+    if (RSA_generate_key_ex(rsa, bits, bne, NULL) != 1)
+        goto out;
 
-    len = i2d_RSAPrivateKey(rsa, NULL);
-    keyagent_buffer_ptr KEYDATA = keyagent_buffer_alloc(NULL, len);
-    unsigned char *tmp = keyagent_buffer_data(KEYDATA);
-    i2d_RSAPrivateKey(rsa, &tmp);
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
-	keyagent_buffer_unref(KEYDATA);
+    pkey = EVP_PKEY_new();
+    if (!EVP_PKEY_set1_RSA(pkey, rsa))
+        goto out;
 
-    keyagent_buffer_ptr STM_TEST_DATA = keyagent_buffer_alloc(NULL, 20);
+    p8inf = EVP_PKEY2PKCS8(pkey);
+    if (!p8inf)
+        goto out;
+
+    if ((len = i2d_PKCS8_PRIV_KEY_INFO(p8inf, NULL)) < 0)
+        goto out;
+
+    KEYDATA = keyagent_buffer_alloc(NULL, len);
+    tmp = keyagent_buffer_data(KEYDATA);
+    i2d_PKCS8_PRIV_KEY_INFO(p8inf, &tmp);
+
+    STM_TEST_DATA = keyagent_buffer_alloc(NULL, 20);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
-    keyagent_buffer_ptr STM_TEST_SIG = keyagent_buffer_alloc(NULL, RSA_size(rsa));
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
+    STM_TEST_SIG = keyagent_buffer_alloc(NULL, RSA_size(rsa));
     if (!RSA_sign(NID_sha1, keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA), 
         keyagent_buffer_data(STM_TEST_SIG),
         &len,
@@ -174,20 +178,31 @@ gboolean convert_rsa_key_to_attr_hash(keyagent_attributes_ptr attrs)
         k_critical_msg("RSA_sign failed ! %s \n", ERR_error_string(ERR_get_error(), NULL));
     }
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
+out:
     keyagent_buffer_unref(STM_TEST_SIG);
     keyagent_buffer_unref(STM_TEST_DATA);
-    RSA_free(rsa);
-
-    return TRUE;
+    if (p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
+    if (pkey) EVP_PKEY_free(pkey);
+    if (rsa) RSA_free(rsa);
+    if (bne) BN_free(bne);
+    return KEYDATA;
 }
 
-gboolean convert_ecc_key_to_attr_hash(keyagent_attributes_ptr attrs)
+keyagent_buffer_ptr
+convert_ecc_key_to_attr_hash(keyagent_attributes_ptr attrs)
 {
     EC_KEY *ec_key = NULL;
-    EVP_PKEY *pkey   = NULL;
     int eccgrp;
     int len;
-    unsigned char *data;
+    unsigned char *data = NULL;
+    EVP_PKEY *pkey = NULL;
+    PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+    keyagent_buffer_ptr KEYDATA = NULL;
+    unsigned char *tmp = NULL;
+    keyagent_buffer_ptr STM_TEST_DATA = NULL;
+    keyagent_buffer_ptr STM_TEST_SIG = NULL;
+    gboolean ret = FALSE;
+    ECDSA_SIG* ec_sig = NULL;
 
     OpenSSL_add_all_algorithms();
     ERR_load_BIO_strings();
@@ -198,35 +213,46 @@ gboolean convert_ecc_key_to_attr_hash(keyagent_attributes_ptr attrs)
     EC_KEY_set_asn1_flag(ec_key, OPENSSL_EC_NAMED_CURVE);
     if (!(EC_KEY_generate_key(ec_key))) {
         k_critical_msg("Error generating the ECC key.");
-        return FALSE;
+        goto out;
     }
 
-    keyagent_buffer_ptr STM_TEST_DATA = keyagent_buffer_alloc(NULL, 20);
+    pkey = EVP_PKEY_new();
+    if (!EVP_PKEY_set1_EC_KEY(pkey, ec_key))
+        goto out;
+
+    p8inf = EVP_PKEY2PKCS8(pkey);
+    if (!p8inf)
+        goto out;
+
+    if ((len = i2d_PKCS8_PRIV_KEY_INFO(p8inf, NULL)) < 0)
+        goto out;
+
+    KEYDATA = keyagent_buffer_alloc(NULL, len);
+    tmp = keyagent_buffer_data(KEYDATA);
+    i2d_PKCS8_PRIV_KEY_INFO(p8inf, &tmp);
+
+    STM_TEST_DATA = keyagent_buffer_alloc(NULL, 20);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
-    ECDSA_SIG* ec_sig = NULL;
     if ((ec_sig = ECDSA_do_sign(keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA), ec_key)) == NULL) {
         k_critical_msg("ECDSA_do_sign failed ! %s \n", ERR_error_string(ERR_get_error(), NULL));
-    } else {
-        len = i2d_ECDSA_SIG(ec_sig, NULL);
-        keyagent_buffer_ptr STM_TEST_SIG = keyagent_buffer_alloc(NULL, len);
-        data = (unsigned char *)keyagent_buffer_data(STM_TEST_SIG);
-        i2d_ECDSA_SIG(ec_sig, &data);
-        KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
-        keyagent_buffer_unref(STM_TEST_SIG);
-        ECDSA_SIG_free(ec_sig);
+        goto out;
     }
+    len = i2d_ECDSA_SIG(ec_sig, NULL);
+    STM_TEST_SIG = keyagent_buffer_alloc(NULL, len);
+    data = (unsigned char *)keyagent_buffer_data(STM_TEST_SIG);
+    i2d_ECDSA_SIG(ec_sig, &data);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
+out:
+    if (ec_sig) ECDSA_SIG_free(ec_sig);
+    keyagent_buffer_unref(STM_TEST_SIG);
     keyagent_buffer_unref(STM_TEST_DATA);
-    len = i2d_ECPrivateKey(ec_key, NULL);
-    keyagent_buffer_ptr KEYDATA = keyagent_buffer_alloc(NULL, len);
-    unsigned char *tmp = keyagent_buffer_data(KEYDATA);
-    i2d_ECPrivateKey(ec_key, &tmp);
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
-	keyagent_buffer_unref(KEYDATA);
-    EC_KEY_free(ec_key);
-    return TRUE;
+    if (p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
+    if (pkey) EVP_PKEY_free(pkey);
+    if (ec_key) EC_KEY_free(ec_key);
+    return KEYDATA;
 }
 
-keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs)
+keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs, keyagent_buffer_ptr *keydata)
 {
     static GRand *rand = NULL;
 
@@ -234,14 +260,12 @@ keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs)
         rand = g_rand_new();
 
     if (g_rand_boolean(rand)) {
-        convert_rsa_key_to_attr_hash(attrs);
+        *keydata = convert_rsa_key_to_attr_hash(attrs);
         return KEYAGENT_RSAKEY;
     }
-    convert_ecc_key_to_attr_hash(attrs);
+    *keydata = convert_ecc_key_to_attr_hash(attrs);
     return KEYAGENT_ECCKEY;
 }
-
-#undef BN_TO_ATTR_HASH
 
 typedef struct {
     Json::Value data;

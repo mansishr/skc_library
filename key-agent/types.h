@@ -83,7 +83,8 @@ typedef struct {
 
 typedef enum {
     KEYAGENT_RSAKEY = 1,
-    KEYAGENT_ECCKEY
+    KEYAGENT_ECCKEY,
+    KEYAGENT_ASKEY,
 } keyagent_keytype;
 
 
@@ -138,6 +139,12 @@ typedef struct {
     keyagent_keytype type;
 } keyagent_key;
 
+typedef struct {
+    int iv_length;
+    int tag_size;
+    int wrap_size;
+} keyagent_keytransfer_t;
+
 #define KEYAGENT_DEFINE_ATTR_QUARK(QN)                                         \
 extern "C" GQuark                                                                  \
 keyagent_##QN##_quark (void)                                                  \
@@ -170,10 +177,8 @@ KEYAGENT_ATTR_NAME_FROM_STR(const char *name)
 
 #define KEYAGENT_DEFINE_ATTRIBUTES() \
         KEYAGENT_DEFINE_KEY_ATTRIBUTES() \
-    	KEYAGENT_DEFINE_ATTR_QUARK(IV) \
         KEYAGENT_DEFINE_ATTR_QUARK(STM_TEST_DATA) \
         KEYAGENT_DEFINE_ATTR_QUARK(STM_TEST_SIG) \
-        KEYAGENT_DEFINE_ATTR_QUARK(STM_DATA) \
     	KEYAGENT_DEFINE_ATTR_QUARK(SWK) \
     	KEYAGENT_DEFINE_ATTR_QUARK(CHALLENGE_KEYTYPE) \
     	KEYAGENT_DEFINE_ATTR_QUARK(CHALLENGE_ECC_PUBLIC_KEY) \
@@ -188,11 +193,9 @@ KEYAGENT_ATTR_NAME_FROM_STR(const char *name)
     	KEYAGENT_DEFINE_ATTR_QUARK(KPT_ISSUER)
 
 
-#define KEYAGENT_ATTR_IV										KEYAGENT_DECLARE_KEY_ATTR(IV)
 #define KEYAGENT_ATTR_KEYDATA									KEYAGENT_DECLARE_KEY_ATTR(KEYDATA)
 #define KEYAGENT_ATTR_STM_TEST_DATA								KEYAGENT_DECLARE_KEY_ATTR(STM_TEST_DATA)
 #define KEYAGENT_ATTR_STM_TEST_SIG								KEYAGENT_DECLARE_KEY_ATTR(STM_TEST_SIG)
-#define KEYAGENT_ATTR_STM_DATA									KEYAGENT_DECLARE_KEY_ATTR(STM_DATA)
 #define KEYAGENT_ATTR_SWK	                                    KEYAGENT_DECLARE_KEY_ATTR(SWK)
 #define KEYAGENT_ATTR_CHALLENGE_KEYTYPE	                        KEYAGENT_DECLARE_KEY_ATTR(CHALLENGE_KEYTYPE)
 #define KEYAGENT_ATTR_CHALLENGE_ECC_PUBLIC_KEY	                KEYAGENT_DECLARE_KEY_ATTR(CHALLENGE_ECC_PUBLIC_KEY)
@@ -210,11 +213,9 @@ KEYAGENT_ATTR_NAME_FROM_STR(const char *name)
 extern "C" {
 #endif
 
-GQuark KEYAGENT_ATTR_IV;
 GQuark KEYAGENT_ATTR_KEYDATA;
 GQuark KEYAGENT_ATTR_STM_TEST_DATA;
 GQuark KEYAGENT_ATTR_STM_TEST_SIG;
-GQuark KEYAGENT_ATTR_STM_DATA;
 GQuark KEYAGENT_ATTR_SWK;
 GQuark KEYAGENT_ATTR_CHALLENGE_KEYTYPE;
 GQuark KEYAGENT_ATTR_CHALLENGE_ECC_PUBLIC_KEY;
@@ -236,6 +237,13 @@ GQuark KEYAGENT_ATTR_KPT_ISSUER;
 	if ((src)) { \
         const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##src ); \
 	    g_hash_table_insert((ATTRS)->hash, (gpointer) keyname,  (gpointer) keyagent_buffer_ref((src))); \
+	} \
+} while(0)
+
+#define KEYAGENT_KEY_REPLACE_BYTEARRAY_ATTR(ATTRS, src) do { \
+	if ((src)) { \
+        const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##src ); \
+	    g_hash_table_replace((ATTRS)->hash, (gpointer) keyname,  (gpointer) keyagent_buffer_ref((src))); \
 	} \
 } while(0)
 
@@ -298,5 +306,25 @@ GQuark KEYAGENT_ATTR_KPT_ISSUER;
     KEYAGENT_MODULE_LOOKUP((MODULE)->module, #SUBTYPE"_"#NAME, (MODULE)->ops.SUBTYPE##_func_##NAME, (ERROR))
 
 #define KEYAGENT_MODULE_OP(SUBTYPE,MODULE,NAME)  (MODULE)->ops.SUBTYPE##_func_##NAME
+
+typedef enum {
+	KEYAGENT_ERROR = 1,
+	STM_ERROR,
+} ErrorClass;
+
+typedef enum {
+	KEYAGENT_ERROR_NPMLOAD = 1,
+	KEYAGENT_ERROR_KEYINIT,
+	KEYAGENT_ERROR_KEYCONF,
+	KEYAGENT_ERROR_NPMKEYINIT,
+	KEYAGENT_ERROR_STMLOAD,
+	KEYAGENT_ERROR_KEY_CREATE_PARAMS,
+    KEYAGENT_ERROR_BADCMS_MSG,
+} KeyAgentErrors;
+
+
+typedef enum {
+    STM_ERROR_QUOTE = 1,
+} StmErrors;
 
 #endif

@@ -7,19 +7,6 @@
 #include "key-agent/stm/stm.h"
 #include <gmodule.h>
 
-typedef enum {
-	KEYAGENT_ERROR = 1,
-} ErrorClass;
-
-typedef enum {
-	KEYAGENT_ERROR_NPMLOAD = 1,
-	KEYAGENT_ERROR_KEYINIT,
-	KEYAGENT_ERROR_KEYCONF,
-	KEYAGENT_ERROR_NPMKEYINIT,
-	KEYAGENT_ERROR_STMLOAD,
-	KEYAGENT_ERROR_KEY_CREATE_PARAMS,
-} KeyAgentErrors;
-
 typedef struct {
     keyagent_module npm;
     GString         *module_name;

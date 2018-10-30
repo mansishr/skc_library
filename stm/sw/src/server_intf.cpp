@@ -107,27 +107,41 @@ extern "C" gboolean
 stm_challenge_verify(keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **error)
 {
     gboolean ret = FALSE;
-    *challenge_attrs = keyagent_attributes_alloc();
-    BIO* bio = BIO_new_mem_buf(keyagent_buffer_data(quote), keyagent_buffer_length(quote));
-    keyagent_buffer_ptr SW_ISSUER = keyagent_buffer_alloc(NULL, STM_ISSUER_SIZE);
+    keyagent_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
+    keyagent_buffer_ptr CHALLENGE_KEYTYPE = keyagent_buffer_ref(server_sw_stm::CHALLENGE_KEYTYPE);
+    keyagent_buffer_ptr SW_ISSUER = NULL;
+    BIO* bio = NULL;
+    EVP_PKEY *pkey = NULL;
+    RSA *rsa = NULL;
+    int len = 0;
+    unsigned char *tmp = NULL;
+
+    *challenge_attrs = NULL;
+
+    bio = BIO_new_mem_buf(keyagent_buffer_data(quote), keyagent_buffer_length(quote));
+    SW_ISSUER = keyagent_buffer_alloc(NULL, STM_ISSUER_SIZE);
     BIO_read(bio, keyagent_buffer_data(SW_ISSUER), keyagent_buffer_length(SW_ISSUER));
-    EVP_PKEY *pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-    RSA *rsa = EVP_PKEY_get1_RSA(pkey);
+    pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+    rsa = EVP_PKEY_get1_RSA(pkey);
     BIO_free(bio);
+    bio = NULL;
+
     BIO_MEM_ptr mbio(BIO_new(BIO_s_mem()), ::BIO_free);
-    i2d_RSAPublicKey_bio(mbio.get(), rsa);
+    i2d_RSA_PUBKEY_bio(mbio.get(), rsa);
     BUF_MEM *mem = NULL;
     BIO_get_mem_ptr(mbio.get(), &mem);
-    keyagent_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
-    keyagent_buffer_ptr CHALLENGE_KEYTYPE = server_sw_stm::CHALLENGE_KEYTYPE;
     CHALLENGE_RSA_PUBLIC_KEY = keyagent_buffer_alloc(mem->data, mem->length);
+
+    *challenge_attrs = keyagent_attributes_alloc();
+
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, CHALLENGE_KEYTYPE);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, CHALLENGE_RSA_PUBLIC_KEY);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, SW_ISSUER);
-    if (CHALLENGE_RSA_PUBLIC_KEY) keyagent_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
     ret = TRUE;
-    out:
+out:
+    if (CHALLENGE_RSA_PUBLIC_KEY) keyagent_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
     if (SW_ISSUER) keyagent_buffer_unref(SW_ISSUER);
+    if (CHALLENGE_KEYTYPE) keyagent_buffer_unref(CHALLENGE_KEYTYPE);
     if (pkey) EVP_PKEY_free(pkey);
     if (rsa) RSA_free(rsa);
     return ret;

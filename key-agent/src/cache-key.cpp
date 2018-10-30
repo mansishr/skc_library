@@ -139,8 +139,6 @@ create_rsa_key(key_data *data, GError **error)
     keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
     keyagent_session *session = keyagent_session_id_lookup(data->session_id);
     SET_KEY_ATTR(data->cache_id, attrs, KEYDATA, error);
-    SET_KEY_ATTR(data->cache_id, attrs, IV, error);
-    SET_KEY_ATTR(data->cache_id, attrs, STM_DATA, error);
     keyagent_key_create(data->url, KEYAGENT_RSAKEY, attrs, session, data->cache_id, error);
     keyagent_attributes_unref(attrs);
 }
@@ -151,8 +149,6 @@ create_ecc_key(key_data *data, GError **error)
     keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
     keyagent_session *session = keyagent_session_id_lookup(data->session_id);
     SET_KEY_ATTR(data->cache_id, attrs, KEYDATA, error);
-    SET_KEY_ATTR(data->cache_id, attrs, IV, error);
-    SET_KEY_ATTR(data->cache_id, attrs, STM_DATA, error);
     keyagent_key_create(data->url, KEYAGENT_ECCKEY, attrs, session, data->cache_id, error);
     keyagent_attributes_unref(attrs);
 }
@@ -267,18 +263,14 @@ cache_key_attr(keyagent_key_real *key, const char *attr_name, keyagent_buffer_pt
 static gboolean
 cache_rsa_key_attrs(keyagent_key_real *key, gint cache_id, GError **error)
 {
-    CACHE_KEY_ATTR(IV, key, cache_id, error);
     CACHE_KEY_ATTR(KEYDATA, key, cache_id, error);
-    CACHE_KEY_ATTR(STM_DATA, key, cache_id, error);
     return TRUE;
 }
 
 static gboolean
 cache_ecc_key_attrs(keyagent_key_real *key, gint cache_id, GError **error)
 {
-    CACHE_KEY_ATTR(IV, key, cache_id, error);
     CACHE_KEY_ATTR(KEYDATA, key, cache_id, error);
-    CACHE_KEY_ATTR(STM_DATA, key, cache_id, error);
     return TRUE;
 }
 

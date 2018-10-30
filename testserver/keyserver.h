@@ -6,6 +6,12 @@
 #include <glib.h>
 #include <restbed>
 #include "key-agent/src/internal.h"
+#include <openssl/x509_vfy.h>
+#include <openssl/x509v3.h>
+#include <openssl/cms.h>
+#include <openssl/bio.h>
+#include <openssl/pem.h>
+
 
 using namespace std;
 using namespace restbed;
@@ -32,7 +38,7 @@ void json_print(Json::Value &val);
 Json::Value parse_data(std::string httpData);
 gchar * generate_checksum(gchar *data, int size);
 void debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size);
-keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs);
+keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs, keyagent_buffer_ptr *keydata);
 Json::Value keyattrs_to_json(GHashTable *attr_hash);
 
 
@@ -45,8 +51,9 @@ namespace server {
     extern gboolean verbose;
     extern gchar *configfile;
     extern GString *configdirectory;
-    //xxextern keyagent_stm_real *stm;
     extern keyagent_module *stm;
+    extern X509 *cert;
+    extern EVP_PKEY *cert_key;
 }
 
 typedef struct {
@@ -57,6 +64,7 @@ typedef struct {
     //std::string keyid;
     keyagent_attributes_ptr key_attrs;
     keyagent_keytype keytype;
+    keyagent_buffer_ptr keydata;
 } key_info_t;
 
 void challenge_info_free(gpointer data);
