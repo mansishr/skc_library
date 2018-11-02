@@ -16,7 +16,6 @@ typedef enum {
 typedef struct {
     int tries;
     keyagent_module *stm;
-    keyagent_session *session;
 	keyagent_url url;
 } loadkey_info;
 
@@ -26,6 +25,8 @@ typedef struct {
 	keyagent_buffer_unref(NAME); \
 } while (0)
 
+
+#define KMS_PREFIX_TOKEN "KMS"
 #define k_string_free(string, flag) { if(string) g_string_free((string), flag); }
 
 #endif

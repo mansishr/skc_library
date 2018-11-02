@@ -79,6 +79,7 @@ keyagent_buffer_equal(keyagent_buffer_ptr buf1, keyagent_buffer_ptr buf2)
 typedef struct {
     keyagent_buffer_ptr		swk;
     GString                 *name;
+    GString                 *session_id;
 } keyagent_session;
 
 typedef enum {
@@ -320,6 +321,7 @@ typedef enum {
 	KEYAGENT_ERROR_STMLOAD,
 	KEYAGENT_ERROR_KEY_CREATE_PARAMS,
     KEYAGENT_ERROR_BADCMS_MSG,
+	KEYAGENT_ERROR_NPM_URL_UNSUPPORTED,
 } KeyAgentErrors;
 
 

@@ -75,6 +75,7 @@ npm_init(const char *config_directory, GError **err)
 extern "C" gboolean
 npm_register(keyagent_url url, GError **err)
 {
+	k_debug_msg("Reference NPM Registered successfully...\n");
 	return TRUE;
 }
 
@@ -168,7 +169,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	Json::StreamWriterBuilder builder;
     builder.settings_["indentation"] = "";
     GString *post_data = g_string_new(Json::writeString(builder, session_data).c_str());
-	long res_status =  keyagent_curlsend(session_url, headers, post_data, return_data, &reference_npm::ssl_opts, reference_npm::debug);
+	long res_status =  keyagent_curlsend(session_url, headers, post_data, NULL, return_data, &reference_npm::ssl_opts, reference_npm::debug);
 	g_string_free(post_data, TRUE);
 
 	if (res_status == -1)
@@ -184,9 +185,9 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 
     keyagent_buffer_ptr protected_swk = decode64_json_attr(session_return_data, "swk");
 
-	info->session =  keyagent_session_create(keyagent_get_module_label(info->stm), protected_swk, -1, error);
-
-	return (info->session ? TRUE : FALSE);
+	gboolean ret = keyagent_session_create(keyagent_get_module_label(info->stm), NULL, protected_swk, -1, error);
+	info->session = keyagent_session_lookup("SW");
+	return ret;
 }
 
 #define SET_KEY_ATTR(DATA, ATTRS, JSON_KEY, NAME) do { \
@@ -229,7 +230,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 	keyagent_buffer_ptr return_data = keyagent_buffer_alloc(NULL,0);
 
-	long res_status =  keyagent_curlsend(url, headers, NULL, return_data, &reference_npm::ssl_opts, reference_npm::debug);
+	long res_status =  keyagent_curlsend(url, headers, NULL, NULL, return_data, &reference_npm::ssl_opts, reference_npm::debug);
 
 	if (res_status == -1)
 		g_error("%s failed", url->str);

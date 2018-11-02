@@ -24,6 +24,7 @@ typedef struct {
 typedef struct {
     keyagent_buffer_ptr		swk;
     GString                 *name;
+    GString                 *session_id;
 	keyagent_cache_state	cache_state;
 } keyagent_session_real;
 

@@ -204,7 +204,11 @@ int main(int argc, char** argv)
         k_fatal_error(err);
     }
 
-    initialize_certificate();
+    if ( initialize_certificate() != TRUE )
+	{
+        k_critical_msg("Invalid certificate information\n");
+	    exit (1);
+	}
 
     server::stm = (keyagent_module *)server_initialize_stm(stm_filename->str, &err);
     if (!server::stm)
@@ -218,9 +222,8 @@ int main(int argc, char** argv)
     keytransfer->set_method_handler( "GET", get_keytransfer_method_handler );
     keytransfer->set_authentication_handler( keytransfer_authentication_handler );
 
-
-    auto kmskeytransfer = make_shared< Resource >( );
-    kmskeytransfer->set_path( "v1/kms/keys/transfer" );
+	auto kmskeytransfer = make_shared< Resource >( );
+    kmskeytransfer->set_path(  "/keys/.*/transfer");
     kmskeytransfer->set_method_handler( "GET", get_kms_keytransfer_method_handler );
     kmskeytransfer->set_authentication_handler( keytransfer_authentication_handler );
 

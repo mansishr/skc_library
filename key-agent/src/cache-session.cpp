@@ -13,6 +13,7 @@ typedef struct {
     keyagent_buffer_ptr swk;
     gint cache_id;
     char *label;
+    char *session_id;
 } session_data;
 
 static void
@@ -20,6 +21,9 @@ session_data_free(session_data *data)
 {
     if (data->label)
         g_free(data->label);
+
+	if( data->session_id)
+        g_free(data->session_id);
 
     keyagent_buffer_unref(data->swk);
     g_free(data);
@@ -36,8 +40,13 @@ get_session_from_model(GdaDataModel *model, int row, GError **error) {
     g_assert(G_VALUE_TYPE(value) == G_TYPE_STRING);
     data->label = g_strdup(g_value_get_string(value));
 
+    value = gda_data_model_get_value_at(model, 3, row, error);
+    g_assert(G_VALUE_TYPE(value) == G_TYPE_STRING);
+    data->session_id = g_strdup(g_value_get_string(value));
+
     value = gda_data_model_get_value_at(model, 2, row, error);
     g_assert(G_VALUE_TYPE(value) == GDA_TYPE_BLOB);
+
 
     GdaBlob *blob = (GdaBlob *) gda_value_get_blob(value);
     gsize size = gda_blob_op_get_length(blob->op);
@@ -58,7 +67,7 @@ keyagent_cache_loadsessions(GError **error)
     parser = gda_sql_parser_new ();
     gboolean ret = FALSE;
 
-    stmt = gda_sql_parser_parse_string(parser, "SELECT session_id, stm_label, swk FROM sessions", NULL, error);
+    stmt = gda_sql_parser_parse_string(parser, "SELECT session_id, stm_label, swk, session_str FROM sessions", NULL, error);
 
     g_object_unref (parser);
     if (!stmt) return FALSE;
@@ -77,7 +86,7 @@ keyagent_cache_loadsessions(GError **error)
             break;
         }
 
-        keyagent_session_real *session = (keyagent_session_real *) keyagent_session_create(data->label, data->swk, data->cache_id, error);
+        keyagent_session_create(data->label, data->session_id, data->swk, data->cache_id, error);
         session_data_free(data);
     }
     g_object_unref (model);
@@ -96,7 +105,7 @@ get_session(const char *label, GError **error)
 
     parser = gda_sql_parser_new ();
     stmt = gda_sql_parser_parse_string(parser,
-            "SELECT session_id, stm_label, swk FROM sessions WHERE stm_label=##label::gchararray",
+            "SELECT session_id, stm_label, swk, session_str FROM sessions WHERE stm_label=##label::gchararray",
             NULL, error);
 
     g_object_unref (parser);
@@ -125,7 +134,7 @@ keyagent_cache_session(keyagent_session *_session, GError **error)
     GdaSet *params;
     GdaSqlParser *parser;
     session_data *session_data = NULL;
-    GValue *v_stmlabel, *v_swk;
+    GValue *v_stmlabel, *v_swk, *v_session_str;
     keyagent_session_real *session = (keyagent_session_real *)_session;
     gint cache_id = -1;
     gboolean ret = TRUE;
@@ -137,9 +146,10 @@ keyagent_cache_session(keyagent_session *_session, GError **error)
     }
 
     v_stmlabel = gda_value_new_from_string (session->name->str, G_TYPE_STRING);
+    v_session_str = gda_value_new_from_string (session->session_id->str, G_TYPE_STRING);
     v_swk = gda_value_new_blob (keyagent_buffer_data(session->swk), keyagent_buffer_length(session->swk));
 
-    if (!gda_connection_insert_row_into_table (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), "sessions", error, "stm_label", v_stmlabel, "swk", v_swk, NULL)) {
+    if (!gda_connection_insert_row_into_table (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), "sessions", error, "stm_label", v_stmlabel, "swk", v_swk, "session_str", v_session_str,  NULL)) {
         k_info_error(*error);
         ret = FALSE;
         goto out;

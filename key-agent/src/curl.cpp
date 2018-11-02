@@ -15,6 +15,18 @@ write_byte_array(void *contents, size_t size, size_t nmemb, void *userp)
   	return realsize;
 }
 
+
+extern "C" 
+size_t 
+get_response_header(void *header_buffer,   size_t size,   size_t nmemb,   void *userp)
+{
+	size_t realsize				= size * nmemb;
+	GPtrArray *res_headers		= ( GPtrArray *)userp;
+	gchar *header_element		= g_strdup ((const gchar *)header_buffer);
+	g_ptr_array_add(res_headers, (gpointer) header_element);
+	return realsize;
+}
+
 #define SETOPT(C,OPT,VAL) do { \
         if (curl_easy_setopt((C), (OPT), (VAL)) != CURLE_OK) { \
 			g_error("can't set  %s", #OPT); \
@@ -31,7 +43,7 @@ build_header_list(gpointer data, gpointer user_data)
 
 extern "C"
 int 
-keyagent_curlsend(GString *url, GPtrArray *headers, GString *postdata, keyagent_buffer_ptr returndata, keyagent_curl_ssl_opts *ssl_opts, gboolean verbose)
+keyagent_curlsend(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, keyagent_buffer_ptr returndata, keyagent_curl_ssl_opts *ssl_opts, gboolean verbose)
 {
     CURL *curl;
     struct curl_slist *header_list = NULL;
@@ -63,10 +75,17 @@ keyagent_curlsend(GString *url, GPtrArray *headers, GString *postdata, keyagent_
     SETOPT(curl, CURLOPT_HTTPHEADER, header_list);
     SETOPT(curl, CURLOPT_WRITEFUNCTION, write_byte_array);
     SETOPT(curl, CURLOPT_WRITEDATA, returndata);
+	if ( response_headers )
+	{
+		SETOPT(curl, CURLOPT_HEADERFUNCTION, get_response_header);
+		SETOPT(curl, CURLOPT_HEADERDATA, response_headers);
+	}
+
 
 	curl_easy_perform(curl);
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &res_status);
     curl_easy_cleanup(curl);
+
 out:
 	return res_status;
 }

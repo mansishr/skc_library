@@ -135,7 +135,7 @@ static void ftest_register_npm(MyTestFixture *fixture, gconstpointer user_data)
 	g_assert_nonnull(npm);
 	g_assert_nonnull(NPM_MODULE_OP(npm, register));
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
-	g_assert_cmpint(NPM_MODULE_OP(npm, register)("./", &tmp_error), ==, TRUE);
+	g_assert_cmpint(NPM_MODULE_OP(npm, register)("KMS:a67a6747-bd53-4280-90e0-5d310ba5fed9", &tmp_error), ==, TRUE);
 	g_assert_null(NPM_MODULE_OP(npm, register)(NULL, NULL));
 	/*g_assert_null(NPM_MODULE_OP(npm, register)(NULL, &tmp_error));*/
 }

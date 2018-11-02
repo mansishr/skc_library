@@ -18,14 +18,15 @@ void keyagent_stm_showlist();
 GString *keyagent_stm_get_names();
 gboolean keyagent_stm_get_by_name(const char *name, keyagent_module **);
 
-keyagent_session * keyagent_session_create(const char *name, keyagent_buffer_ptr swk, gint cache_id, GError **);
+GString * keyagent_session_get_ids();
+gboolean keyagent_session_create(const char *name, const char *session_id, keyagent_buffer_ptr swk, gint cache_id, GError **);
 gboolean keyagent_stm_set_session(keyagent_session *, GError **);
 
 gboolean  keyagent_stm_get_challenge(const char *name, keyagent_buffer_ptr *challenge, GError **);
 
 gboolean keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **);
 
-int keyagent_curlsend(GString *url, GPtrArray *headers, GString *postdata, keyagent_buffer_ptr returndata, keyagent_curl_ssl_opts *ssl_opts, gboolean verbose);
+int keyagent_curlsend(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, keyagent_buffer_ptr returndata, keyagent_curl_ssl_opts *ssl_opts, gboolean verbose);
 gboolean keyagent_get_certificate_files(GString *cert_filename, GString *certkey_filename, GError **err);
 
 keyagent_key * keyagent_loadkey(keyagent_url, GError **err);
@@ -39,6 +40,7 @@ gboolean keyagent_stm_load_key(keyagent_key *key, GError **error);
 keyagent_session * keyagent_session_lookup(const char *label);
 keyagent_key * keyagent_key_lookup(const char *url);
 gboolean keyagent_key_free(keyagent_key *);
+keyagent_session *keyagent_session_str_lookup(const char *sesson_str);
 
 keyagent_key * keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_session *session, gint cache_id, GError **error);
 

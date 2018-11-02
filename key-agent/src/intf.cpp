@@ -161,21 +161,28 @@ typedef struct {
     GError **err;
 } loadkey_t;
 
-static void
+static gboolean
 _loadkey(gpointer keyid, gpointer data, gpointer user_data)
 {
+	gboolean ret = FALSE;
 	keyagent_npm_real *npm = (keyagent_npm_real *)data;
 	loadkey_t *loadkey  = (loadkey_t *)user_data;
+    g_autoptr(GError) tmp_error = NULL;
+
 
 	if (!npm->initialized)
-		return;
+		return ret;
 
-	if (!NPM_MODULE_OP(npm,register)(loadkey->url, loadkey->err))
-		return;
+	if (!NPM_MODULE_OP(npm,register)(loadkey->url, &tmp_error))
+		goto out;
 
+	ret = TRUE;
 	if (NPM_MODULE_OP(npm,key_load)(loadkey->url, loadkey->err) == FALSE)
-		return;
+		goto out;
 	k_debug_msg("%s mapped to npm %s", loadkey->url, keyagent_get_module_label(npm));
+
+out:
+	return ret;
 }
           
 extern "C" keyagent_key *
@@ -194,7 +201,14 @@ keyagent_loadkey(keyagent_url url, GError **err)
 		k_debug_msg("found key %p for url %s cached!", key, url);
 		goto out;
 	}
-	g_hash_table_foreach(keyagent::npm_hash, _loadkey, &loadkey);
+
+	if( !g_hash_table_find(keyagent::npm_hash, _loadkey, &loadkey) )
+	{
+		k_set_error (err, KEYAGENT_ERROR_NPM_URL_UNSUPPORTED, 
+				            "Warining: Error in NPM Register\n");
+		goto out;
+	}
+
 	if ((key = keyagent_key_lookup(url)) == NULL)
 	{
 		k_critical_msg("Not able to load key %s!", url);
