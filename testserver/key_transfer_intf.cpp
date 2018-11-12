@@ -532,25 +532,24 @@ void get_keytransfer_method_handler( const shared_ptr< Session > session )
         Json::Value val;
         std::string keyid = request->get_header( "KeyId");
         std::string challenge = request->get_header( "Accept-Challenge");
+        std::string session_id = request->get_header( "Session-ID");
+        multimap< string, string > headers;
 
         char *client_ip = get_client_ip(session);
         k_info_msg("keytransfer %s %s", __func__, client_ip);
 
         keyagent_buffer_ptr swk = (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, client_ip);
 
-
         // If client sent accept-challenge, they didn't have or lost session
-        if (!challenge.empty() && swk) {
+        if (session_id.empty() && swk) {
             g_hash_table_remove(server::session_hash_table, client_ip);
             keyagent_buffer_unref(swk);
             swk = NULL;
         }
 
         print_input_headers("TRANSFER", session);
-        const multimap< string, string > headers
-                {
-                        { "Content-Type", "application/json" }
-                };
+        headers.insert(std::make_pair("Content-Type", "application/json"));
+        headers.insert(std::make_pair("Session-ID", session_id));
 
         int http_code = 2;
         //std::unique_ptr<std::string> http_data = std::make_unique<std::string>(String::to_string(body));

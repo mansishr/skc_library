@@ -416,7 +416,7 @@ npm_register(keyagent_url url, GError **err)
     {
 		if( err )
 		{
-			k_set_error(err,KMS_NPM_ERROR_REGISTER, "NPM_URL_UNSUPPORTED:Expected token:%s token missing in url:%s\n", 
+			k_set_error(err,NPM_ERROR_REGISTER, "NPM_URL_UNSUPPORTED:Expected token:%s token missing in url:%s\n", 
 					KMS_PREFIX_TOKEN, url);
 		}
 		goto cleanup;

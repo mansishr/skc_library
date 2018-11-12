@@ -324,9 +324,12 @@ typedef enum {
 	KEYAGENT_ERROR_NPM_URL_UNSUPPORTED,
 } KeyAgentErrors;
 
-
 typedef enum {
     STM_ERROR_QUOTE = 1,
 } StmErrors;
+
+typedef enum {
+    NPM_ERROR_REGISTER = 1,
+} NpmErrors;
 
 #endif

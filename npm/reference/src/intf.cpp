@@ -36,8 +36,8 @@ namespace reference_npm {
 typedef struct {
     int tries;
     keyagent_module *stm;
-    keyagent_session *session;
 	keyagent_url url;
+    int keyid;
 } loadkey_info;
 
 extern "C" void
@@ -75,8 +75,22 @@ npm_init(const char *config_directory, GError **err)
 extern "C" gboolean
 npm_register(keyagent_url url, GError **err)
 {
-	k_debug_msg("Reference NPM Registered successfully...\n");
-	return TRUE;
+    g_return_val_if_fail(url, FALSE );
+    gchar **url_tokens = NULL;
+    gboolean ret = FALSE;
+    
+    url_tokens = g_strsplit (url, ":", -1) ; 
+    if ( !url_tokens[0] || !url_tokens[1] || (g_strcmp0(url_tokens[0], "REFERENCE") != 0)) {
+        if( err ) {
+            k_set_error(err, NPM_ERROR_REGISTER, "NPM_URL_UNSUPPORTED:Expected token:%s token missing in url:%s\n", 
+                "REFERENCE", url);
+        }
+        goto cleanup;
+    }
+    ret = TRUE;
+cleanup:
+    g_strfreev(url_tokens);
+    return ret;
 }
 
 std::string get_json_value(Json::Value value, const char *key)
@@ -138,12 +152,25 @@ decode64_json_attr(Json::Value json_data, const char *name)
 	}
 }
 
+void get_session_id_from_header(gpointer data, gpointer user_data)
+{
+    gchar *str = (gchar *)data;
+    gchar ***tokens_ptr = (gchar ***)user_data;
+    gchar **tokens = NULL;
+    if ( g_str_has_prefix (str,"Session-ID:") == TRUE ) {
+        tokens = g_strsplit_set (str,":",-1);
+        *tokens_ptr = tokens;
+        return;
+    }
+}
+
 static gboolean
 start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 {
-
+    gboolean ret = FALSE;
 	GString *session_url  = g_string_new(transfer_data["link"]["challenge-replyto"]["href"].asCString());
 	GString *session_method  = g_string_new(transfer_data["link"]["challenge-replyto"]["method"].asCString());
+    GString *session_id = g_string_new(get_json_value(transfer_data, (const char *)"challenge").c_str());
 
 	GPtrArray *headers;
 	headers = g_ptr_array_new ();
@@ -161,7 +188,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	keyagent_buffer_ptr return_data = keyagent_buffer_alloc(NULL,0);
 	Json::Value session_data;
 	session_data["challenge-type"] = keyagent_get_module_label(info->stm);
-	session_data["challenge"] = transfer_data["challenge"];
+	session_data["challenge"] = session_id->str;
 	session_data["quote"] = g_base64_encode(keyagent_buffer_data(challenge), keyagent_buffer_length(challenge));
 
 	keyagent_buffer_unref(challenge);
@@ -184,9 +211,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
     if (res_status != 200) return FALSE;
 
     keyagent_buffer_ptr protected_swk = decode64_json_attr(session_return_data, "swk");
-
-	gboolean ret = keyagent_session_create(keyagent_get_module_label(info->stm), NULL, protected_swk, -1, error);
-	info->session = keyagent_session_lookup("SW");
+	ret = keyagent_session_create(keyagent_get_module_label(info->stm), session_id->str, protected_swk, -1, error);
 	return ret;
 }
 
@@ -207,8 +232,11 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	info->tries += 1;
 
 	gboolean ret = FALSE;
-	gchar *keyid = g_path_get_basename (info->url);
 	GString *stm_names = keyagent_stm_get_names();
+    GString *session_ids = keyagent_session_get_ids();
+    keyagent_session *session = NULL;
+    GString *session_ids_header = NULL;
+
 	GString *url = g_string_new(reference_npm::server_url->str);
 	g_string_append(url,"/keys/transfer");
 	k_debug_msg("stm-names: %s", stm_names->str);
@@ -218,19 +246,24 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	g_ptr_array_add (headers, (gpointer) "Accept: application/json");
 	g_ptr_array_add (headers, (gpointer) "Content-Type: application/json");
 
-    if (!info->session) {
-	    GString *accept_challenge_header = g_string_new("Accept-Challenge: "); 
-	    g_string_append(accept_challenge_header, stm_names->str);
-	    g_ptr_array_add (headers, (gpointer) accept_challenge_header->str);
+	GString *accept_challenge_header = g_string_new("Accept-Challenge: "); 
+	g_string_append(accept_challenge_header, stm_names->str);
+	g_ptr_array_add (headers, (gpointer) accept_challenge_header->str);
+
+    if( session_ids != NULL && session_ids->len > 0 ) {
+        session_ids_header = g_string_new("Session-ID: ");
+        g_string_append(session_ids_header, session_ids->str);
+        g_ptr_array_add(headers, (gpointer) session_ids_header->str);
     }
 
 	GString *keyid_header = g_string_new("KeyId: "); 
-	g_string_append(keyid_header, keyid);
+	g_string_append_printf(keyid_header, "%d", info->keyid);
 	g_ptr_array_add (headers, (gpointer) keyid_header->str);
 
 	keyagent_buffer_ptr return_data = keyagent_buffer_alloc(NULL,0);
+    GPtrArray *res_headers = g_ptr_array_new ();
 
-	long res_status =  keyagent_curlsend(url, headers, NULL, NULL, return_data, &reference_npm::ssl_opts, reference_npm::debug);
+	long res_status =  keyagent_curlsend(url, headers, NULL, res_headers, return_data, &reference_npm::ssl_opts, reference_npm::debug);
 
 	if (res_status == -1)
 		g_error("%s failed", url->str);
@@ -249,7 +282,9 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 	} else if ((res_status & 200) == 200) {
 
+        gchar **session_id_tokens           = NULL;
 		keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
+        g_ptr_array_foreach (res_headers, get_session_id_from_header,  &session_id_tokens);
 
 		try {
 			keytype = ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECCKEY);
@@ -260,17 +295,29 @@ __npm_loadkey(loadkey_info *info, GError **err)
 				k_critical_msg("%s\n", e.what());
                 return FALSE;
 		}
-		ret = (keyagent_key_create(info->url, keytype, attrs, info->session, -1, err) != NULL ? TRUE : FALSE);
-	}
-	return ret;
-}
 
+        if (!session_id_tokens) {
+            k_critical_msg("Session information not present\n");
+            return FALSE;
+        }
+        if (!(session = keyagent_session_str_lookup((const char*)g_strstrip(session_id_tokens[1])))) {
+            k_critical_msg("Session data not found for stm label:%s\n", session_id_tokens[1]);
+            return FALSE;
+        }
+        ret = (keyagent_key_create(info->url, keytype, attrs, session, -1, err) != NULL ? TRUE : FALSE);
+    }
+    return ret;
+}
+    
 extern "C" gboolean
 npm_key_load(keyagent_url url, GError **error)
 {
     loadkey_info info = {0, NULL, NULL};
+    g_return_val_if_fail(url, FALSE );
+    gchar **url_tokens = NULL;
+    url_tokens = g_strsplit (url, ":", -1) ; 
+    info.keyid = atoi(url_tokens[1]);
     info.url = url;
-    info.session = keyagent_session_lookup("SW");
-	gboolean ret = __npm_loadkey(&info, error);
-	return ret;
+    g_strfreev(url_tokens);
+	return __npm_loadkey(&info, error);
 }
