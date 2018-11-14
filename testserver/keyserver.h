@@ -30,9 +30,6 @@ extern void keysession_authentication_handler( const shared_ptr< Session > sessi
 extern void get_keysession_method_handler( const shared_ptr< Session > session );
 extern void get_kms_keysession_method_handler( const shared_ptr< Session > session );
 
-//extern RSA * generate_key();
-//extern void wrapkey(EVP_PKEY *priv_key, DhsmWPKRSAFormat *_wpk);
-
 void json_print(Json::Value &val);
 //Json::Value parse_data(std::unique_ptr<std::string> &httpData);
 Json::Value parse_data(std::string httpData);
@@ -41,11 +38,11 @@ void debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int si
 keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs, keyagent_buffer_ptr *keydata);
 Json::Value keyattrs_to_json(GHashTable *attr_hash);
 
-
 namespace server {
-    extern GHashTable *uuid_hash_table;
     extern GHashTable *key_hash_table;
     extern GHashTable *session_hash_table;
+    extern GHashTable *client_hash_table;
+    extern GHashTable *session_to_stm_hash_table;;
 
     extern gboolean debug;
     extern gboolean verbose;
@@ -57,24 +54,23 @@ namespace server {
 }
 
 typedef struct {
-    std::string keyid;
-} challenge_info_t;
-
-typedef struct {
     //std::string keyid;
     keyagent_attributes_ptr key_attrs;
     keyagent_keytype keytype;
     keyagent_buffer_ptr keydata;
 } key_info_t;
 
-void challenge_info_free(gpointer data);
 void key_info_free(gpointer data);
+void client_hash_value_free(gpointer data);
+void session_hash_value_free(gpointer data);
 
-const gchar *create_challenge(std::string keyid);
+//void *get_session_state(const char *client_ip, const char *stmlabel);
+void set_session(const char *client_ip, const char *stmlabel, const char *session_id, keyagent_buffer_ptr swk);
+gchar *get_session_id(const char *client_ip, const char *stmlabel);
+const gchar *create_challenge(const char *client_ip);
+
 keyagent_buffer_ptr decode64_json_attr(Json::Value json_data, const char *name);
 keyagent_buffer_ptr decode64_data(keyagent_buffer_ptr ptr);
-
-void challenge_info_free(gpointer data);
 
 void key_info_free(gpointer data);
 void print_input_headers(const char *label, const shared_ptr< Session > session);

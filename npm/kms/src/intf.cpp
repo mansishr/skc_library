@@ -242,9 +242,11 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	std::string status;
 	std::string session_id_str;
 	std::string type;	  
+	std::string key_id_str;	  
 
 	gchar **url_tokens                  = NULL;
 	gchar **session_id_tokens           = NULL;
+    gchar *session_id                   = NULL;
 	
 	url_tokens							= g_strsplit (info->url, ":", -1) ;
 	stm_names							= keyagent_stm_get_names();
@@ -306,7 +308,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 		g_ptr_array_foreach (res_headers, get_session_id_from_header,  &session_id_tokens);
 
 		try {
-			session_id_str				= get_json_value(transfer_data["data"], "id");
+			key_id_str				    = get_json_value(transfer_data["data"], "id");
 			keytype						= ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECCKEY);
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
@@ -320,13 +322,13 @@ __npm_loadkey(loadkey_info *info, GError **err)
 			k_critical_msg("Session information not present\n");
 			goto cleanup;
 		}
-		session							= keyagent_session_str_lookup((const char*)g_strstrip(session_id_tokens[1]));
-		if (session == NULL)
+		session_id                      = g_strstrip(session_id_tokens[1]);
+		if (session_id == NULL)
 		{
 			k_critical_msg("Session data not found for stm label:%s\n", session_id_tokens[1]);
 			goto cleanup;
 		}
-		ret								= (keyagent_key_create(info->url, keytype, attrs, session, -1, err) != NULL ? TRUE : FALSE);
+		ret								= (keyagent_key_create(info->url, keytype, attrs, session_id, -1, err) != NULL ? TRUE : FALSE);
 	}
 	goto cleanup;
 

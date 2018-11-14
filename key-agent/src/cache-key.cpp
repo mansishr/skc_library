@@ -9,12 +9,15 @@
 #include <libgda/gda-blob-op.h>
 #include <sql-parser/gda-sql-parser.h>
 
+static GdaDataModel *global_model = NULL;
+static GList *global_delete_list = NULL;
+
 typedef struct {
     keyagent_buffer_ptr sealed_data;
     char *url;
     gint cache_id;
     gint key_type;
-    gint session_id;
+    gchar *session_id;
 } key_data;
 
 static void
@@ -22,7 +25,8 @@ key_data_free(key_data *data)
 {
     if (data->url)
         g_free(data->url);
-
+    if (data->session_id)
+        g_free(data->session_id);
     if (data->sealed_data)
         keyagent_buffer_unref(data->sealed_data);
     g_free(data);
@@ -52,7 +56,7 @@ get_key_from_model(GdaDataModel *model, int row, GError **error) {
     data->cache_id = g_value_get_int(value);
 
     value = gda_data_model_get_value_at(model, 1, row, error);
-    data->session_id = g_value_get_int(value);
+    data->session_id = g_strdup(g_value_get_string(value));
 
     value = gda_data_model_get_value_at(model, 2, row, error);
     data->key_type = g_value_get_int(value);
@@ -136,21 +140,72 @@ keyagent_cache_loadkey_attr(gint key_id, const char *attr_name, GError **error)
 static gboolean
 create_rsa_key(key_data *data, GError **error)
 {
+    gboolean ret;
     keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
-    keyagent_session *session = keyagent_session_id_lookup(data->session_id);
     SET_KEY_ATTR(data->cache_id, attrs, KEYDATA, error);
-    keyagent_key_create(data->url, KEYAGENT_RSAKEY, attrs, session, data->cache_id, error);
+    ret = (keyagent_key_create(data->url, KEYAGENT_RSAKEY, attrs, data->session_id, data->cache_id, error) ? TRUE : FALSE);
     keyagent_attributes_unref(attrs);
+    return ret;
 }
 
 static gboolean
 create_ecc_key(key_data *data, GError **error)
 {
+    gboolean ret;
     keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
-    keyagent_session *session = keyagent_session_id_lookup(data->session_id);
     SET_KEY_ATTR(data->cache_id, attrs, KEYDATA, error);
-    keyagent_key_create(data->url, KEYAGENT_ECCKEY, attrs, session, data->cache_id, error);
+    ret = (keyagent_key_create(data->url, KEYAGENT_ECCKEY, attrs, data->session_id, data->cache_id, error) ? TRUE : FALSE);
     keyagent_attributes_unref(attrs);
+    return ret;
+}
+
+static void
+__delete_key(int key_id, const char *table, const char *field)
+{
+    GdaSqlParser *parser;
+    GdaStatement *stmt = NULL;
+    GdaSet *params = NULL;
+    g_autoptr(GError) tmp_error = NULL;
+    int ret = 0xff;
+    GString *sql = g_string_new(NULL);
+
+    g_string_printf(sql,"DELETE FROM %s WHERE %s=##keyid::gint", table, field);
+    parser = gda_sql_parser_new ();
+    stmt = gda_sql_parser_parse_string(parser, sql->str, NULL, &tmp_error);
+    g_object_unref (parser);
+
+    if (!stmt) goto out;
+
+    if (!gda_statement_get_parameters (stmt, &params, &tmp_error)) goto out;
+
+    g_assert(gda_set_set_holder_value (params, NULL, "keyid", key_id));
+    ret = gda_connection_statement_execute_non_select (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer),
+         stmt, params, NULL, &tmp_error);
+
+    if (ret >= 0)
+        gda_connection_commit_transaction(GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), NULL, NULL);
+out:
+    if (ret == -1)
+        k_info_error(tmp_error);
+    if (params) g_object_unref (params);
+    if (stmt) g_object_unref (stmt);
+    if (sql) g_string_free(sql, TRUE);
+    return;
+}
+
+static void
+delete_key_and_attrs(int id)
+{
+    __delete_key(id, "key_attributes", "key_id");
+    __delete_key(id, "keys", "id");
+    return;
+}
+
+static void
+delete_key_from_list(gpointer data, gpointer user_data)
+{
+    gint cache_id = GPOINTER_TO_INT(data);
+    delete_key_and_attrs(cache_id);
 }
 
 extern "C" gboolean
@@ -158,91 +213,101 @@ keyagent_cache_loadkeys(GError **error)
 {
     GdaSqlParser *parser;
     GdaStatement *stmt;
-    GdaDataModel *model;
     const GValue *value;
     GdaBlob *blob;
+    gboolean ret = FALSE;
+    gint cache_id;
     parser = gda_sql_parser_new ();
-    stmt = gda_sql_parser_parse_string(parser, "SELECT key_id, session_id, key_type, sealed_data, url FROM keys", NULL, error);
+    stmt = gda_sql_parser_parse_string(parser, "SELECT id, session_id, key_type, sealed_data, url FROM keys", NULL, error);
 
     g_object_unref (parser);
     if (!stmt) return FALSE;
-    model = gda_connection_statement_execute_select (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), stmt, NULL, error);
+    global_model = gda_connection_statement_execute_select (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), stmt, NULL, error);
     g_object_unref (stmt);
-    if (!model) return FALSE;
+    if (!global_model) return FALSE;
 
-    gint rows = gda_data_model_get_n_rows (model);
+    gint rows = gda_data_model_get_n_rows (global_model);
     gint i;
     for (i = 0; i < rows; ++i) {
-        key_data *data = get_key_from_model(model, i, error);
+        g_autoptr(GError) tmp_error = NULL;
+        key_data *data = get_key_from_model(global_model, i, error);
         if (!data) continue;
         
+        cache_id = data->cache_id;
         switch (data->key_type) {
         case KEYAGENT_RSAKEY:
-            create_rsa_key(data, error);
+            ret = create_rsa_key(data, &tmp_error);
             break;
         case KEYAGENT_ECCKEY:
-            create_ecc_key(data, error);
+            ret = create_ecc_key(data, &tmp_error);
             break;
         default:
             ;
         }
         key_data_free(data);
+        if (!ret)
+            global_delete_list = g_list_append(global_delete_list, GINT_TO_POINTER(cache_id));
     }
-    g_object_unref (model);
+    g_object_unref (global_model);
+    global_model = NULL;
+    g_list_foreach(global_delete_list, delete_key_from_list, NULL);
+    g_list_free(global_delete_list);
+    global_delete_list = NULL;
     return TRUE;
 }
 
 static key_data *
 get_key(const char *url, GError **error)
 {
-    GdaSqlParser *parser;
-    GdaStatement *stmt;
-    GdaSet *params;
-    GdaDataModel *model;
-    key_data *key_data;
+    GdaSqlParser *parser = NULL;
+    GdaStatement *stmt = NULL;
+    GdaSet *params = NULL;
+    GdaDataModel *model = NULL;
+    key_data *key_data = NULL;
 
     parser = gda_sql_parser_new ();
     stmt = gda_sql_parser_parse_string(parser,
-            "SELECT key_id, session_id, key_type, sealed_data, url FROM keys WHERE url=##url::gchararray",
+            "SELECT id, session_id, key_type, sealed_data, url FROM keys WHERE url=##url::gchararray",
             NULL, error);
 
     g_object_unref (parser);
     if (!stmt) goto out;
 
     if (!gda_statement_get_parameters (stmt, &params, error)) {
-        g_object_unref (stmt);
         goto out;
     }
     g_assert (gda_set_set_holder_value (params, NULL, "url", url));
-    model = gda_connection_statement_execute_select (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), stmt, params, error);
-    g_object_unref (params);
-    g_object_unref (stmt);
+    model = gda_connection_statement_execute_select (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), 
+        stmt, params, error);
+
     if (!model) goto out;
 
     key_data = get_key_from_model(model, 0, error);
     g_object_unref (model);
     out:
+    if (params) g_object_unref (params);
+    if (stmt) g_object_unref (stmt);
     return key_data;
 }
 
 static gboolean
-cache_key_attr(keyagent_key_real *key, const char *attr_name, keyagent_buffer_ptr attr_value, gint cache_id, GError **error)
+cache_key_attr(keyagent_key_real *key, const char *attr_name, keyagent_buffer_ptr attr_value, gint key_id, GError **error)
 {
     GdaStatement *stmt;
     GdaSet *params;
 
     GdaSqlParser *parser;
     GValue *v_attrname, *v_attrvalue;
-    GValue v_cacheid = G_VALUE_INIT;
+    GValue v_keyid = G_VALUE_INIT;
 
-    g_value_init (&v_cacheid, G_TYPE_INT);
-    g_value_set_int (&v_cacheid, cache_id);
+    g_value_init (&v_keyid, G_TYPE_INT);
+    g_value_set_int (&v_keyid, key_id);
     v_attrname = gda_value_new_from_string (attr_name, G_TYPE_STRING);
     v_attrvalue = gda_value_new_blob (keyagent_buffer_data(attr_value), keyagent_buffer_length(attr_value));
 
     if (!gda_connection_insert_row_into_table (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), 
         "key_attributes", error, 
-        "key_id", &v_cacheid, 
+        "key_id", &v_keyid, 
         "attr_name", v_attrname,
         "attr_value", v_attrvalue,
         NULL)) {
@@ -253,25 +318,27 @@ cache_key_attr(keyagent_key_real *key, const char *attr_name, keyagent_buffer_pt
     return TRUE;
 }
 
-#define CACHE_KEY_ATTR(VAL, KEY, CACHEID, ERROR) do { \
+#define CACHE_KEY_ATTR(VAL, KEY, KEYID, ERROR, RET) do { \
     keyagent_buffer_ptr tmp; \
     KEYAGENT_KEY_GET_BYTEARRAY_ATTR((KEY)->attributes, VAL, tmp); \
     keyagent_debug_with_checksum("CACHE-W-"#VAL, keyagent_buffer_data(tmp), keyagent_buffer_length(tmp)); \
-    cache_key_attr((KEY), #VAL, tmp, CACHEID, ERROR); \
+    RET = cache_key_attr((KEY), #VAL, tmp, KEYID, ERROR); \
 } while (0)
 
 static gboolean
-cache_rsa_key_attrs(keyagent_key_real *key, gint cache_id, GError **error)
+cache_rsa_key_attrs(keyagent_key_real *key, gint key_id, GError **error)
 {
-    CACHE_KEY_ATTR(KEYDATA, key, cache_id, error);
-    return TRUE;
+    gboolean ret = FALSE;
+    CACHE_KEY_ATTR(KEYDATA, key, key_id, error, ret);
+    return ret;
 }
 
 static gboolean
-cache_ecc_key_attrs(keyagent_key_real *key, gint cache_id, GError **error)
+cache_ecc_key_attrs(keyagent_key_real *key, gint key_id, GError **error)
 {
-    CACHE_KEY_ATTR(KEYDATA, key, cache_id, error);
-    return TRUE;
+    gboolean ret = FALSE;
+    CACHE_KEY_ATTR(KEYDATA, key, key_id, error, ret);
+    return ret;
 }
 
 extern "C" gboolean
@@ -281,10 +348,10 @@ keyagent_cache_key(keyagent_key *_key, GError **error)
     GdaSet *params;
     GdaSqlParser *parser;
     key_data *key_data = NULL;
-    GValue *v_url, *v_sealeddata;
-    GValue v_cacheid, v_keytype;
+    GValue *v_url, *v_sealeddata, *v_session_id;
+    GValue v_keytype;
     keyagent_key_real *key = (keyagent_key_real *)_key;
-    keyagent_buffer_ptr tmp;
+    keyagent_buffer_ptr tmp = NULL;;
     gint cache_id = -1;
     gboolean ret = TRUE;
 
@@ -296,21 +363,20 @@ keyagent_cache_key(keyagent_key *_key, GError **error)
     }
 
     v_url = gda_value_new_from_string (key->url->str, G_TYPE_STRING);
+    v_session_id = gda_value_new_from_string (key->session->session_id->str, G_TYPE_STRING);
     //v_sealeddata = gda_value_new_blob (keyagent_buffer_data(key->sealed_data), keyagent_buffer_length(key->sealed_data));
 
     tmp = keyagent_buffer_alloc(NULL, 2);
     v_sealeddata = gda_value_new_blob (keyagent_buffer_data(tmp), keyagent_buffer_length(tmp));
     
-    g_value_init (&v_cacheid, G_TYPE_INT);
     g_value_init (&v_keytype, G_TYPE_INT);
-    g_value_set_int (&v_cacheid, keyagent_key_get_session_cache_id((keyagent_key *)key));
     g_value_set_int (&v_keytype, key->type);
 
     if (!gda_connection_insert_row_into_table (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), 
         "keys", error, 
         "url", v_url,
         "sealed_data", v_sealeddata,
-        "session_id", &v_cacheid,
+        "session_id", v_session_id,
         "key_type", &v_keytype,
         NULL)) {
         k_info_error(*error);
@@ -319,24 +385,43 @@ keyagent_cache_key(keyagent_key *_key, GError **error)
     }
     gda_connection_commit_transaction(GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), NULL, NULL);
 
-    keyagent_buffer_unref(tmp);
 
     key_data = get_key(key->url->str, error);
-    cache_id = key_data->cache_id;
-    switch (key_data->key_type) {
-    case KEYAGENT_RSAKEY:
-        cache_rsa_key_attrs(key, cache_id, error);
-        break;
-    case KEYAGENT_ECCKEY:
-        cache_ecc_key_attrs(key, cache_id, error);
-        break;
-    default:
-        ;
-    }
-    key_data_free(key_data);
+    if (key_data) { 
+        cache_id = key_data->cache_id;
+        switch (key_data->key_type) {
+        case KEYAGENT_RSAKEY:
+            ret = cache_rsa_key_attrs(key, cache_id, error);
+            break;
+        case KEYAGENT_ECCKEY:
+            ret = cache_ecc_key_attrs(key, cache_id, error);
+            break;
+        default:
+            ;
+        }
+        if (!ret) {
+            k_critical_error(*error);
+            delete_key_and_attrs(cache_id);
+        }
+        key_data_free(key_data);
+    } else
+        ret = FALSE;
 out:
+    if (tmp) keyagent_buffer_unref(tmp);
     keyagent_key_set_cache_id((keyagent_key *)key, cache_id);
     g_rw_lock_writer_unlock(&keyagent::localcache::cache_rwlock);
 
     return ret;
+}
+
+extern "C" gboolean
+keyagent_uncache_key(keyagent_key *_key, GError **error)
+{
+    keyagent_key_real *key = (keyagent_key_real *)_key;
+    if (global_model) {
+        global_delete_list = g_list_append(global_delete_list, GINT_TO_POINTER(key->cache_state.id));
+        return TRUE;
+    }
+    delete_key_and_attrs(key->cache_state.id);
+    return TRUE;
 }

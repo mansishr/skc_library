@@ -313,17 +313,15 @@ print_input_headers(const char *label, const shared_ptr< Session > session)
 }
 
 const gchar *
-create_challenge(std::string keyid)
+create_challenge(const char *client_ip)
 {
 	GError *err = NULL;
-    challenge_info_t *info = new challenge_info_t();
-    info->keyid = keyid;
     keyagent_stm_real *lstm = (keyagent_stm_real *)server::stm;
-    const gchar *uuid = NULL;
-    STM_MODULE_OP(lstm,challenge_generate_request)(&uuid, &err);
-    if (STM_MODULE_OP(lstm,challenge_generate_request)(&uuid, &err))
-        g_hash_table_insert(server::uuid_hash_table, (gchar *)uuid, info);
-    return uuid;
+    const gchar *session_id = NULL;
+    if (STM_MODULE_OP(lstm,challenge_generate_request)(&session_id, &err)) {
+        set_session(client_ip, keyagent_get_module_label(server::stm), session_id, NULL);
+    }
+    return session_id;
 }
 
 keyagent_buffer_ptr
@@ -334,14 +332,6 @@ decode64_json_attr(Json::Value json_data, const char *name)
     gsize len = 0;
     guchar *tmp = g_base64_decode(val, &len);
     return keyagent_buffer_alloc(tmp, len);
-}
-
-void
-challenge_info_free(gpointer data)
-{
-    challenge_info_t *info = (challenge_info_t *)data;
-    if (!info) return;
-    delete info;
 }
 
 void

@@ -11,9 +11,11 @@
 #include "key-agent/src/internal.h"
 
 namespace server {
-    GHashTable *uuid_hash_table;
     GHashTable *key_hash_table;
     GHashTable *session_hash_table;
+    //GHashTable *client_session_hash_table;
+    GHashTable *client_hash_table;
+    GHashTable *session_to_stm_hash_table;
 
     gboolean debug;
     gboolean verbose;
@@ -171,9 +173,12 @@ int main(int argc, char** argv)
     GOptionContext *context;
     GError *err = NULL;
 
-    server::uuid_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, challenge_info_free);
     server::key_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, key_info_free);
-    server::session_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    //server::client_session_hash_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, client_session_hash_value_free);
+    server::session_hash_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, session_hash_value_free);
+    server::session_to_stm_hash_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
+
+    server::client_hash_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, client_hash_value_free);
 
     server::debug = FALSE;
 

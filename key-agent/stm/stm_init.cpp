@@ -20,6 +20,7 @@ initialize_stm(gpointer data, gpointer user_data)
     keyagent_stm_real *stm = g_new0(keyagent_stm_real, 1);
     stm->module_name = g_string_new(filename);
     const char *name = NULL;
+    GQuark stm_quark = 0;
 
     g_autoptr(GError) tmp_error = NULL;
 
@@ -35,9 +36,9 @@ initialize_stm(gpointer data, gpointer user_data)
     name = STM_MODULE_OP(stm,init)(keyagent::configdirectory->str, APPLICATION_STM_MODE, &tmp_error);
     if (!name) goto errexit;
     keyagent_set_module_label(stm, name);
-
+    stm_quark = g_quark_from_string(name);
     stm->initialized = 1;
-    g_hash_table_insert(keyagent::stm_hash, keyagent_get_module_label(stm), stm);
+    g_hash_table_insert(keyagent::stm_hash, GINT_TO_POINTER(stm_quark), stm);
     return;
     errexit:
     if (stm->module)
@@ -91,7 +92,8 @@ keyagent_stm_get_by_name(const char *name, keyagent_module **module)
 {
     g_return_val_if_fail((name && module), FALSE);
     keyagent_stm_real *stm;
-    if ((stm = (keyagent_stm_real *)g_hash_table_lookup(keyagent::stm_hash, name)) == NULL)
+    GQuark stm_quark = g_quark_from_string(name);
+    if ((stm = (keyagent_stm_real *)g_hash_table_lookup(keyagent::stm_hash, GINT_TO_POINTER(stm_quark))) == NULL)
         return FALSE;
     
     *module = &stm->stm;

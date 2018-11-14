@@ -37,10 +37,100 @@ using namespace std;
 using namespace restbed;
 using namespace server;
 
+void
+client_session_hash_value_free(gpointer data)
+{
+    GQuark session_id_quark = (GQuark)GPOINTER_TO_INT(data);
+    g_hash_table_remove(server::session_hash_table, GINT_TO_POINTER(session_id_quark));
+}
 
-typedef struct {
-    int tag_len;
-} stm_wrap_data;
+extern "C" gboolean
+clear_stm_hash(gpointer key, gpointer value, gpointer user_data)
+{
+    return TRUE;
+}
+
+void
+client_hash_value_free(gpointer data)
+{
+    GHashTable *stm_hash = (GHashTable *)data;
+    g_hash_table_foreach_remove(stm_hash, clear_stm_hash, NULL);    
+}
+
+void
+session_hash_value_free(gpointer data)
+{
+    keyagent_buffer_ptr swk = (keyagent_buffer_ptr)data;
+    if (swk != (keyagent_buffer_ptr)-1)
+        keyagent_buffer_unref(swk);
+}
+
+void
+stm_hash_value_free(gpointer data)
+{
+    GQuark session_id_quark = GPOINTER_TO_INT(data);
+    g_hash_table_remove(server::session_hash_table, GINT_TO_POINTER(session_id_quark));
+    g_hash_table_remove(server::session_to_stm_hash_table, GINT_TO_POINTER(session_id_quark));
+}
+
+void
+flush_sessions(const char *client_ip)
+{
+    GQuark client_ip_quark = g_quark_from_string(client_ip);
+    GHashTable *stm_hash = (GHashTable *)g_hash_table_lookup(server::client_hash_table, GINT_TO_POINTER(client_ip_quark));
+    if (!stm_hash) return;
+    g_hash_table_foreach_remove(stm_hash, clear_stm_hash, NULL);    
+}
+
+void
+set_session(const char *client_ip, const char *stmlabel, const char  *session_id, keyagent_buffer_ptr swk)
+{
+    GQuark client_ip_quark = g_quark_from_string(client_ip);
+    GQuark stm_quark = g_quark_from_string(stmlabel);
+    GQuark session_id_quark = g_quark_from_string(session_id);
+
+    GHashTable *stm_hash = (GHashTable *)g_hash_table_lookup(server::client_hash_table, GINT_TO_POINTER(client_ip_quark));
+    if (!stm_hash) {
+        stm_hash = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, stm_hash_value_free);
+        g_hash_table_insert(server::client_hash_table, GINT_TO_POINTER(client_ip_quark), (gpointer)stm_hash);
+    }
+
+    g_hash_table_replace(stm_hash, GINT_TO_POINTER(stm_quark), GINT_TO_POINTER(session_id_quark));
+    g_hash_table_insert(server::session_to_stm_hash_table, GINT_TO_POINTER(session_id_quark), GINT_TO_POINTER(stm_quark));
+   
+    if (swk)
+        g_hash_table_insert(server::session_hash_table, GINT_TO_POINTER(session_id_quark), keyagent_buffer_ref(swk));
+    else
+        g_hash_table_insert(server::session_hash_table, GINT_TO_POINTER(session_id_quark), (gpointer)-1);
+}
+
+gchar *
+get_session_id(const char *client_ip, const char *stmlabel)
+{
+    GQuark client_ip_quark = g_quark_from_string(client_ip);
+    GQuark stm_quark = g_quark_from_string(stmlabel);
+
+    GHashTable *stm_hash = (GHashTable *)g_hash_table_lookup(server::client_hash_table, GINT_TO_POINTER(client_ip_quark));
+    if (!stm_hash) return NULL;
+
+    GQuark session_id_quark = GPOINTER_TO_INT(g_hash_table_lookup(stm_hash, GINT_TO_POINTER(stm_quark)));
+    return (gchar *)g_quark_to_string(session_id_quark);
+}
+
+keyagent_buffer_ptr
+get_session_swk(const char *session_id)
+{
+    GQuark session_id_quark = g_quark_from_string(session_id);
+    return (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, GINT_TO_POINTER(session_id_quark));
+}
+
+const char *
+get_session_stmlabel(const char *session_id)
+{
+    GQuark session_id_quark = g_quark_from_string(session_id);
+    GQuark stm_quark = GPOINTER_TO_INT(g_hash_table_lookup(server::session_to_stm_hash_table, GINT_TO_POINTER(session_id_quark)));
+    return g_quark_to_string(stm_quark);
+}
 
 void keysession_authentication_handler( const shared_ptr< Session > session, const function< void ( const shared_ptr< Session > ) >& callback )
 {
@@ -54,13 +144,12 @@ get_client_ip(const shared_ptr< Session > session)
     char *tmp = strdup(session->get_origin().c_str());
     gint i = (rindex(tmp, ':') - tmp);
     char *tmp1 = strndup(tmp,i);
-    //k_info_msg("%s - %s -%s", __func__, tmp, tmp1);
     g_free(tmp);
     return tmp1;
 }
 
 char *
-verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Session > session, challenge_info_t *info)
+verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Session > session, const char *session_id)
 {
     keyagent_buffer_ptr quote = decode64_json_attr(jsondata, "quote");
     GError *err = NULL;
@@ -97,7 +186,9 @@ verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Ses
             keyagent_buffer_unref(encrypted_swk);
             if (rsa) RSA_free(rsa);
         }
-        g_hash_table_insert(server::session_hash_table,get_client_ip(session), keyagent_buffer_ref(swk));
+        const char *stmlabel = get_session_stmlabel(session_id);
+        set_session(get_client_ip(session), stmlabel, session_id, swk);
+        keyagent_buffer_unref(swk);
         keyagent_attributes_unref(challenge_attrs);
         return encoded_swk;
     } else
@@ -130,19 +221,17 @@ void get_kms_keysession_method_handler( const shared_ptr< Session > session )
 
         result["status"] = "Failed";
 		gsize len=0;
-		guchar* challenge_str  = g_base64_decode(challenge.c_str(), &len);
+		const gchar* challenge_str  = (const gchar *)g_base64_decode(challenge.c_str(), &len);
 		k_debug_msg("Challenge in Session Establishment %s, decoded challenge:%s\n", challenge.c_str(), challenge_str);
 
-
-
-        challenge_info_t *info = (challenge_info_t *)g_hash_table_lookup (server::uuid_hash_table, (char *)challenge_str);
-        if (!info)
+        GQuark session_id_quark = g_quark_from_string(challenge_str);
+        if (!g_hash_table_lookup(server::session_hash_table, GINT_TO_POINTER(session_id_quark)))
         {
             k_critical_msg("invalid challenge %s", challenge.c_str());
             http_code = 401;
         } else
         {
-            swk = verify_challenge_and_encode_session(jsondata, session, info);
+            swk = verify_challenge_and_encode_session(jsondata, session, challenge_str);
             if (!swk) {
                 http_code = 401;
 			}else
@@ -155,7 +244,6 @@ void get_kms_keysession_method_handler( const shared_ptr< Session > session )
 		
         out = json_to_string(result);
         k_debug_msg("SWK: %s\n, status code:%d\n", swk, http_code);
-        g_hash_table_remove(server::uuid_hash_table, challenge_str);
         session->close( http_code, out.c_str(), headers);
         if (swk) g_free(swk);
 
@@ -187,21 +275,20 @@ void get_keysession_method_handler( const shared_ptr< Session > session )
 
         result["status"] = "Failed";
 
-        challenge_info_t *info = (challenge_info_t *)g_hash_table_lookup (server::uuid_hash_table, challenge.c_str());
-        if (!info)
+        GQuark session_id_quark = g_quark_from_string(challenge.c_str());
+        if (!g_hash_table_lookup(server::session_hash_table, GINT_TO_POINTER(session_id_quark)))
         {
             k_critical_msg("invalid challenge %s", challenge.c_str());
             http_code = 401;
         } else
         {
-            swk = verify_challenge_and_encode_session(jsondata, session, info);
+            swk = verify_challenge_and_encode_session(jsondata, session, challenge.c_str());
             if (swk) {
                 result["status"] = "ok";
                 result["swk" ] = swk;
             } else
                 http_code = 401;
         }
-        g_hash_table_remove(server::uuid_hash_table, challenge.c_str());
         std::string out = json_to_string(result);
         session->close( http_code, out.c_str(), headers);
         if (swk) g_free(swk);
@@ -216,7 +303,7 @@ void keytransfer_authentication_handler( const shared_ptr< Session > session, co
 }
 
 Json::Value
-get_challenge_info(std::string keyid, int *http_code, testserver_request_type request_type)
+get_challenge_info(char *client_ip, std::string keyid, int *http_code, testserver_request_type request_type)
 {
     Json::Value val;
         Json::Value val1;
@@ -233,17 +320,17 @@ get_challenge_info(std::string keyid, int *http_code, testserver_request_type re
 
         val1["type"] = "not-authorized";
         val["faults"] = val1;
+		challenge_str				= create_challenge(client_ip);
 
 		if ( request_type == REQUEST_TYPE_NPM_KMS )
 		{
-			challenge_str				= create_challenge(keyid);
 			len							= strlen(challenge_str);
 			val["challenge"]			= g_base64_encode((const guchar *)challenge_str, len);
 			challenge_replyto["href"] = "http://localhost:1984/v1/kms/keys/session";
 		}
 		else
 		{
-			val["challenge"]			= create_challenge(keyid);
+			val["challenge"]			= challenge_str;
 			challenge_replyto["href"] = "http://localhost:1984/keys/session";
 		}
 
@@ -349,7 +436,7 @@ wrap_key(keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_buffer_p
 }
 
 Json::Value
-get_kms_key_info(std::string keyid, int *http_code, char *client_ip)
+get_kms_key_info(std::string keyid, int *http_code, char *session_id)
 {
     Json::Value val;
     *http_code							= 200;
@@ -363,7 +450,7 @@ get_kms_key_info(std::string keyid, int *http_code, char *client_ip)
             key_info->key_attrs			= keyagent_attributes_alloc();
             key_info->keytype           = convert_key_to_attr_hash(key_info->key_attrs, &key_info->keydata);
         }
-        keyagent_buffer_ptr swk         = (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, client_ip);
+        keyagent_buffer_ptr swk         = get_session_swk(session_id);
         wrap_key(key_info->keytype, key_info->key_attrs, swk, key_info->keydata);
         Json::Value json_data           = keyattrs_to_json(key_info->key_attrs->hash);
 		std::cout << json_data.toStyledString() << std::endl;
@@ -403,39 +490,54 @@ get_kms_key_info(std::string keyid, int *http_code, char *client_ip)
     return val;
 }
 
-Json::Value
-get_key_info(std::string keyid, int *http_code, char *client_ip)
+char *
+validate_and_pick_session(gchar *client_ip, std::string session_ids)
 {
-    Json::Value val;
-    *http_code = 201;
-    GError *err = NULL;
-    key_info_t *key_info = (key_info_t *)g_hash_table_lookup(server::key_hash_table, keyid.c_str());
+    GList *tmp, *l = NULL;
+    gint i = 0;
+    gchar **ids = NULL;
+    gchar *session_id = NULL;;
+    gint session_cnt, random_indx;
+    
+	if (session_ids.empty())
+        return NULL;
 
-    try {
-        if (!key_info) {
-            key_info = new key_info_t();
-            g_hash_table_insert(server::key_hash_table,strdup(keyid.c_str()), key_info);
-            key_info->key_attrs = keyagent_attributes_alloc();
-            key_info->keytype           = convert_key_to_attr_hash(key_info->key_attrs, &key_info->keydata);
-			//key_info->keytype = convert_key_to_attr_hash(key_info->key_attrs);
-		}
-        //keyagent_buffer_ptr IV = generate_iv();
-        //KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(key_info->key_attrs, IV);
-        keyagent_attributes_ptr key_attrs = NULL;
-        keyagent_buffer_ptr swk = (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, client_ip);
-        wrap_key(key_info->keytype, key_info->key_attrs, swk, key_info->keydata);
-        Json::Value json_data           = keyattrs_to_json(key_info->key_attrs->hash);
-        //std::cout << json_data.toStyledString() << std::endl;
-        val["algorithm"] = (key_info->keytype == KEYAGENT_RSAKEY ? "RSA" : "ECC");
-        for (auto const& id : json_data.getMemberNames())
-            val[id] = json_data[id];
+    ids = g_strsplit( (gchar *)(session_ids.c_str()), ",", -1);
 
-        val["status"] = "got-it";
-    } catch (...) {
-        val["status"] = "failure";
-    }
-    return val;
+    do {
+        gchar *stmlabel;
+        gchar *tmp_session_id;
+        gchar **stm_session;
+
+        if (ids[i] == NULL)
+            break;
+
+        stm_session = g_strsplit((gchar *)ids[i], ":", -1);
+        stmlabel = g_strstrip(stm_session[0]);
+        session_id = g_strstrip(stm_session[1]);
+
+        tmp_session_id = get_session_id(client_ip, stmlabel);
+        if (g_strcmp0(session_id, tmp_session_id) != 0) {
+            k_debug_msg("%s - invalid session %s %s %p", __func__, session_id, tmp_session_id, stm_session);
+            goto next;
+        }
+        if (get_session_swk(session_id))
+            l = g_list_insert(l, (gpointer)tmp_session_id, -1);
+    next:
+        g_strfreev(stm_session);
+        ++i;
+    } while (1);
+    g_strfreev(ids);
+
+	session_cnt = g_list_length(l);
+    if (!session_cnt) return NULL;
+    
+	random_indx = (session_cnt == 1 )?0:(rand() % (session_cnt - 1));
+    session_id = (gchar *)g_list_nth(l, random_indx)->data;
+    g_list_free(l);
+    return session_id;
 }
+
 void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
 {
         std::cout << "Calling get_kms_keytransfer_method_handler" << endl;
@@ -449,12 +551,11 @@ void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
 		{
 
 			multimap< string, string > headers;
-			keyagent_buffer_ptr swk	    = NULL;
 
 			Json::Value val;
 			std::string keyid;
 			std::string challenge;
-			std::string session_id;
+			std::string session_ids;
 			std::string out;
 			std::string http_data;
 			std::string rand_session_id;
@@ -462,58 +563,33 @@ void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
 			int http_code			    = 401;
 
 			char *client_ip			    = NULL;		
-			gchar **session_ids		    = NULL;
-			gint session_ids_cnt	    = 0;
-			gint session_id_random		= 0;
+            char *session_id            = NULL;
 
 			keyid						= "a67a6747-bd53-4280-90e0-5d310ba5fed9";
 			challenge					= request->get_header( "Accept-Challenge");
-			session_id					= request->get_header( "Session-ID");
+			session_ids					= request->get_header( "Session-ID");
 
 			client_ip					= get_client_ip(session);
 			k_debug_msg("keytransfer client ip:%s\n", client_ip);
 
 
-
-			swk							= (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, client_ip);
-
-			// If client sent accept-challenge, they didn't have or lost session
-			if (session_id.empty() && swk) {
-				g_hash_table_remove(server::session_hash_table, client_ip);
-				keyagent_buffer_unref(swk);
-				swk = NULL;
-			}
+            // If client didn't send session-id, flush sessions
+            if (session_ids.empty())
+                flush_sessions(client_ip); 
+            else
+                session_id              = validate_and_pick_session(client_ip, session_ids);
 
 			print_input_headers("TRANSFER", session);
-
-			if (!session_id.empty())
-					{
-
-				session_ids				= g_strsplit( (gchar *)(session_id.c_str()), ",", -1);
-				session_ids_cnt			= g_strv_length (session_ids);
-				session_id_random		= (session_ids_cnt == 1 )?0:(rand() % (session_ids_cnt - 1));
-				rand_session_id			= std::string(session_ids[session_id_random]);
-				k_debug_msg("Selected session id:%s\n", rand_session_id.c_str());
-
-				headers.insert(std::make_pair("Content-Type", "application/json"));
-				headers.insert(std::make_pair("Session-ID", rand_session_id));
-				//headers					= {{ },{"Session-ID", rand_session_id}};
-			}
-			else
-			{
-				headers.insert(std::make_pair("Content-Type", "application/json"));
-				//headers					= {{ "Content-Type", "application/json",}};
-			}
-			//std::unique_ptr<std::string> http_data = std::make_unique<std::string>(String::to_string(body));
+			headers.insert(std::make_pair("Content-Type", "application/json"));
 			http_data					= String::to_string(body);
 
-			k_debug_msg("Key Transfer swk:%p\n", swk);
+            if (!session_id) {
+                val                     = get_challenge_info(client_ip, keyid, &http_code, REQUEST_TYPE_NPM_REF);
+            } else {
+                val                     = get_kms_key_info(keyid, &http_code, session_id);
+                headers.insert(std::make_pair("Session-ID", session_id));
+            }
 
-			if (!swk) {
-				val = get_challenge_info(keyid, &http_code, REQUEST_TYPE_NPM_KMS);
-			} else {
-				val = get_kms_key_info(keyid, &http_code, client_ip);
-			}
 			g_free(client_ip);
 			out							= json_to_string(val);
 			session->close( http_code, out, headers);
@@ -532,33 +608,30 @@ void get_keytransfer_method_handler( const shared_ptr< Session > session )
         Json::Value val;
         std::string keyid = request->get_header( "KeyId");
         std::string challenge = request->get_header( "Accept-Challenge");
-        std::string session_id = request->get_header( "Session-ID");
+        std::string session_ids = request->get_header( "Session-ID");
         multimap< string, string > headers;
 
         char *client_ip = get_client_ip(session);
-        k_info_msg("keytransfer %s %s", __func__, client_ip);
+        char *session_id = NULL;
 
-        keyagent_buffer_ptr swk = (keyagent_buffer_ptr)g_hash_table_lookup(server::session_hash_table, client_ip);
-
-        // If client sent accept-challenge, they didn't have or lost session
-        if (session_id.empty() && swk) {
-            g_hash_table_remove(server::session_hash_table, client_ip);
-            keyagent_buffer_unref(swk);
-            swk = NULL;
-        }
+        // If client didn't send session-id, flush sessions
+        if (session_ids.empty())
+            flush_sessions(client_ip); 
+        else
+            session_id = validate_and_pick_session(client_ip, session_ids);
 
         print_input_headers("TRANSFER", session);
         headers.insert(std::make_pair("Content-Type", "application/json"));
-        headers.insert(std::make_pair("Session-ID", session_id));
 
         int http_code = 2;
         //std::unique_ptr<std::string> http_data = std::make_unique<std::string>(String::to_string(body));
         std::string http_data = String::to_string(body);
 
-        if (!swk) {
-            val = get_challenge_info(keyid, &http_code, REQUEST_TYPE_NPM_REF);
+        if (!session_id) {
+            val = get_challenge_info(client_ip, keyid, &http_code, REQUEST_TYPE_NPM_REF);
         } else {
-            val = get_kms_key_info(keyid, &http_code, client_ip);
+            val = get_kms_key_info(keyid, &http_code, session_id);
+            headers.insert(std::make_pair("Session-ID", session_id));
         }
         g_free(client_ip);
         std::string out = json_to_string(val);

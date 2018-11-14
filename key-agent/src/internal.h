@@ -61,7 +61,6 @@ namespace keyagent {
     extern GHashTable *npm_hash;
     extern GHashTable *stm_hash;
     extern GHashTable *session_hash;
-    extern GHashTable *session_id_hash;
     extern GHashTable *key_hash;
     extern GRWLock rwlock;
 }
@@ -108,15 +107,16 @@ const char *keyagent_key_get_stmname(keyagent_key *key, GError **error);
 
 gboolean keyagent_cache_loadkeys(GError **error);
 gboolean keyagent_cache_key(keyagent_key *key, GError **error);
+gboolean keyagent_uncache_key(keyagent_key *key, GError **error);
 
 void keyagent_session_set_cache_id(keyagent_session *, gint id);
 gint keyagent_session_get_cache_id(keyagent_session *d);
 void keyagent_key_set_cache_id(keyagent_key *, gint id);
 gint keyagent_key_get_cache_id(keyagent_key *);
 gint keyagent_key_get_session_cache_id(keyagent_key *);
-keyagent_session *keyagent_session_id_lookup(gint id);
+//keyagent_session *keyagent_session_id_lookup(gint id);
 gint keyagent_cache_generate_fake_id();
-
+void keyagent_key_remove_by_session(keyagent_session *);
 
 #ifdef  __cplusplus
 }

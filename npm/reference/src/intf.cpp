@@ -236,6 +236,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
     GString *session_ids = keyagent_session_get_ids();
     keyagent_session *session = NULL;
     GString *session_ids_header = NULL;
+    gchar *session_id = NULL;
 
 	GString *url = g_string_new(reference_npm::server_url->str);
 	g_string_append(url,"/keys/transfer");
@@ -300,11 +301,12 @@ __npm_loadkey(loadkey_info *info, GError **err)
             k_critical_msg("Session information not present\n");
             return FALSE;
         }
-        if (!(session = keyagent_session_str_lookup((const char*)g_strstrip(session_id_tokens[1])))) {
-            k_critical_msg("Session data not found for stm label:%s\n", session_id_tokens[1]);
+        session_id = g_strstrip(session_id_tokens[1]);
+        if (!session_id) {
+            k_critical_msg("Invalid session id sent by server: %s - %s\n", session_id_tokens[0],session_id_tokens[1]);
             return FALSE;
         }
-        ret = (keyagent_key_create(info->url, keytype, attrs, session, -1, err) != NULL ? TRUE : FALSE);
+        ret = (keyagent_key_create(info->url, keytype, attrs, session_id, -1, err) != NULL ? TRUE : FALSE);
     }
     return ret;
 }

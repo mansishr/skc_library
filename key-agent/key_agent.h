@@ -37,12 +37,11 @@ void keyagent_debug_with_checksum(const gchar *label, unsigned char *buf, unsign
 keyagent_buffer_ptr keyagent_aes_gcm_data_decrypt(keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv);
 
 gboolean keyagent_stm_load_key(keyagent_key *key, GError **error);
-keyagent_session * keyagent_session_lookup(const char *label);
+keyagent_session * keyagent_session_lookup(const char *session_id);
 keyagent_key * keyagent_key_lookup(const char *url);
 gboolean keyagent_key_free(keyagent_key *);
-keyagent_session *keyagent_session_str_lookup(const char *sesson_str);
 
-keyagent_key * keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_session *session, gint cache_id, GError **error);
+keyagent_key * keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes_ptr attrs, const char *session_id, gint cache_id, GError **error);
 
 gboolean keyagent_verify_and_extract_cms_message(keyagent_buffer_ptr msg, keyagent_buffer_ptr *data, GError **error);
 
