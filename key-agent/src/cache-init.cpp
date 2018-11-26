@@ -83,7 +83,7 @@ create_cache_tables(GError **error)
     gboolean ret = FALSE;
     if (!run_sql_non_select ("CREATE TABLE keys (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, sealed_data BLOB NOT NULL, session_id VARCHAR(64) NOT NULL, key_type INTEGER NOT NULL, url VARCHAR (256) NOT NULL UNIQUE ON CONFLICT REPLACE)", error))
         goto out;
-    if (!run_sql_non_select ("CREATE TABLE sessions (id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, stm_label VARCHAR (64) NOT NULL UNIQUE ON CONFLICT REPLACE, swk BLOB NOT NULL, session_id VARCHAR (64))", error))
+    if (!run_sql_non_select ("CREATE TABLE sessions (id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, stm_label VARCHAR (64) NOT NULL UNIQUE ON CONFLICT REPLACE, swk BLOB NOT NULL, session_id VARCHAR (64), swk_type VARCHAR (64))", error))
         goto out;
     if (!run_sql_non_select ("CREATE TABLE key_attributes (keyattr_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, key_id INTEGER NOT NULL REFERENCES keys (id) ON UPDATE CASCADE, attr_name VARCHAR(64) NOT NULL, attr_value BLOB NOT NULL, UNIQUE (key_id, attr_name) ON CONFLICT REPLACE)", error)) {
         k_critical_error(*error);

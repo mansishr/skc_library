@@ -264,11 +264,12 @@ keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs, keyagen
         return KEYAGENT_RSAKEY;
     }
     *keydata = convert_ecc_key_to_attr_hash(attrs);
-    return KEYAGENT_ECCKEY;
+    return KEYAGENT_ECKEY;
 }
 
 typedef struct {
     Json::Value data;
+    GRegex *regex;
 } jsondatawrapper;
 
 static void
@@ -276,14 +277,17 @@ attr_to_json(gpointer id, gpointer data, gpointer user_data) {
     std::string attrname = (const char *)id;
     keyagent_buffer_ptr buf = (keyagent_buffer_ptr)data;
     jsondatawrapper *datawrapper = (jsondatawrapper *)user_data;
-    datawrapper->data[attrname.c_str()] = g_base64_encode(keyagent_buffer_data(buf), keyagent_buffer_length(buf));
-    attrname.append("_size");
-    datawrapper->data[attrname.c_str()] =  keyagent_buffer_length(buf);
+    std::string tmp = g_regex_replace_literal (datawrapper->regex, attrname.c_str(), -1, 0,"", (GRegexMatchFlags)0, NULL);
+
+    datawrapper->data[tmp.c_str()] = g_base64_encode(keyagent_buffer_data(buf), keyagent_buffer_length(buf));
+    tmp.append("_size");
+    datawrapper->data[tmp.c_str()] =  keyagent_buffer_length(buf);
 }
 
 Json::Value keyattrs_to_json(GHashTable *attr_hash)
 {
     jsondatawrapper datawrapper;
+    datawrapper.regex = g_regex_new ("KEYAGENT_ATTR_", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
 
     g_hash_table_foreach(attr_hash, attr_to_json, &datawrapper);
     return datawrapper.data;
@@ -319,7 +323,7 @@ create_challenge(const char *client_ip)
     keyagent_stm_real *lstm = (keyagent_stm_real *)server::stm;
     const gchar *session_id = NULL;
     if (STM_MODULE_OP(lstm,challenge_generate_request)(&session_id, &err)) {
-        set_session(client_ip, keyagent_get_module_label(server::stm), session_id, NULL);
+        set_session(client_ip, keyagent_get_module_label(server::stm), session_id, NULL, NULL);
     }
     return session_id;
 }

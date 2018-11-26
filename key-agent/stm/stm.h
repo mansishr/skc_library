@@ -16,8 +16,8 @@ typedef enum {
 DECLARE_STM_INTERFACE(init, const gchar *, (const char *config_directory, stm_mode mode, GError **err));
 DECLARE_STM_INTERFACE(activate, gboolean , (GError **err));
 DECLARE_STM_INTERFACE(create_challenge, gboolean, (keyagent_buffer_ptr *challenge, GError **));
-DECLARE_STM_INTERFACE(set_session, gboolean, (keyagent_buffer_ptr, GError **));
-DECLARE_STM_INTERFACE(load_key, gboolean, (keyagent_keytype type, keyagent_attributes_ptr, GError **));
+DECLARE_STM_INTERFACE(set_session, gboolean, (GQuark swk_type, keyagent_buffer_ptr, GError **));
+DECLARE_STM_INTERFACE(load_key, gboolean, (GQuark swk_type,keyagent_keytype type, keyagent_attributes_ptr, GError **));
 DECLARE_STM_INTERFACE(challenge_generate_request, gboolean, (const gchar **, GError **));
 DECLARE_STM_INTERFACE(challenge_verify, gboolean, (keyagent_buffer_ptr quote, keyagent_attributes_ptr *, GError **));
 DECLARE_STM_INTERFACE(seal_key, gboolean, (keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_buffer_ptr *sealed_data, GError **));

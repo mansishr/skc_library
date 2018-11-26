@@ -29,17 +29,40 @@ keyagent_debug_with_checksum(const gchar *label, unsigned char *buf, unsigned in
 }
 
 extern "C" keyagent_buffer_ptr
-keyagent_aes_gcm_data_decrypt(keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv)
+keyagent_aes_data_decrypt(GQuark swk_type, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv)
 {
-    keyagent_buffer_ptr result;
+    swk_type_op *op = (swk_type_op *)g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(swk_type));
+    if (op == NULL || op->cipher_func == NULL || op->decrypt_func == NULL) {
+        k_critical_msg("%s() -> Enable to fetch AES function from the hash ! \n", __func__);
+        return NULL;
+	}
+	return op->decrypt_func(op, msg, key, tlen, iv);
+
+}
+extern "C" int
+keyagent_get_swk_keybit( GQuark swk_type )
+{
+    swk_type_op *op = (swk_type_op *)g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(swk_type));
+    if (op == NULL ) {
+        k_critical_msg("%s() -> Enable to fetch AES function from the hash ! \n", __func__);
+	    return -1;	
+	}
+	return op->keybits;
+}
+
+extern "C" keyagent_buffer_ptr
+aes_gcm_decrypt(swk_type_op *op, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv)
+{
+    CRYPTO_malloc_init();
+    ERR_load_crypto_strings();
+    OpenSSL_add_all_algorithms();
+
+	keyagent_buffer_ptr result;
     EVP_CIPHER_CTX *ctx;
     int outlen, rv;
     int msglen = keyagent_buffer_length(msg) - tlen;
     uint8_t *tag = keyagent_buffer_data(msg) + msglen;
-
-    CRYPTO_malloc_init();
-    ERR_load_crypto_strings();
-    OpenSSL_add_all_algorithms();
+	k_debug_msg("AES:GCM:-keybit:%d\n", op->keybits);
 
     ctx = EVP_CIPHER_CTX_new();
     if (ctx == NULL) {
@@ -49,14 +72,44 @@ keyagent_aes_gcm_data_decrypt(keyagent_buffer_ptr msg, keyagent_buffer_ptr key, 
 
     result = keyagent_buffer_alloc(NULL,msglen);
 
-    EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL);
+	EVP_DecryptInit_ex(ctx, op->cipher_func(), NULL, NULL, NULL);
     EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, keyagent_buffer_length(iv), NULL);
     EVP_DecryptInit_ex(ctx, NULL, NULL, keyagent_buffer_data(key), keyagent_buffer_data(iv));
     EVP_DecryptUpdate(ctx, keyagent_buffer_data(result), &outlen, keyagent_buffer_data(msg), msglen);
     EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, tlen, tag);
     rv = EVP_DecryptFinal_ex(ctx, keyagent_buffer_data(result), &outlen);
     EVP_CIPHER_CTX_free(ctx);
+    return result;
+}
 
+extern "C" keyagent_buffer_ptr
+aes_cbc_decrypt(swk_type_op *op, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv)
+{
+    CRYPTO_malloc_init();
+    ERR_load_crypto_strings();
+    OpenSSL_add_all_algorithms();
+
+	keyagent_buffer_ptr result;
+    EVP_CIPHER_CTX *ctx;
+    int outlen, rv;
+	int msglen = keyagent_buffer_length(msg);
+    uint8_t *tag = keyagent_buffer_data(msg) + msglen;
+
+    ctx = EVP_CIPHER_CTX_new();
+    if (ctx == NULL) {
+        k_critical_msg("%s() -> Allocating context is failed ! \n", __func__);
+        return NULL;
+    }
+
+	k_debug_msg("AES:CBC-keybit:%d\n", op->keybits);
+    result = keyagent_buffer_alloc(NULL,msglen);
+
+    EVP_DecryptInit_ex(ctx, op->cipher_func(), NULL, keyagent_buffer_data(key), keyagent_buffer_data(iv));
+    EVP_DecryptUpdate(ctx, keyagent_buffer_data(result), &outlen, keyagent_buffer_data(msg), msglen);
+	msglen = outlen;
+    rv = EVP_DecryptFinal_ex(ctx, keyagent_buffer_data(result)+outlen , &outlen);
+	msglen += outlen;
+    EVP_CIPHER_CTX_free(ctx);
     return result;
 }
 

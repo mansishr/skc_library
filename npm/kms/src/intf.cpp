@@ -115,11 +115,13 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 
 	GString *post_data					= NULL;
 	GString *session_url				= NULL;
+	GString *swktype					= NULL;
 	GString *session_method				= NULL;
 	GString *challenge_type				= NULL;
 	GString *session_id					= NULL;
 	GString *status						= NULL;
 
+	GQuark swk_quark					= 0;
 	gsize len							= 0;
 	long res_status						= -1;
 	gboolean ret_status					= FALSE;
@@ -151,9 +153,10 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	keyagent_debug_with_checksum("NPM:CHALLENGEl:REAL", keyagent_buffer_data(challenge), keyagent_buffer_length(challenge));
 
 	return_data							= keyagent_buffer_alloc(NULL,0);
-	session_data["challenge-type"]		= challenge_type->str;//keyagent_get_module_label(info->stm);
-	session_data["challenge"]			= session_id->str;//transfer_data["challenge"];
+	session_data["challenge_type"]		= challenge_type->str;
+	session_data["challenge"]			= session_id->str;
 	session_data["quote"]				= g_base64_encode(keyagent_buffer_data(challenge), keyagent_buffer_length(challenge));
+	session_data["certificate_chain"]   = "";//TODO need to fill
 
     builder.settings_["indentation"]	= "";
     post_data							= g_string_new(Json::writeString(builder, session_data).c_str());
@@ -171,13 +174,13 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 		goto cleanup;
 	}
 
-
 	session_return_data					= parse_data(return_data);
 	json_print(session_return_data);
 	try
 	{
 		session_url			     		= g_string_new(get_json_value(session_return_data,(const char *)"status").c_str());
 		protected_swk                   = decode64_json_attr(session_return_data["data"], "swk");
+		swktype							= g_string_new(get_json_value(session_return_data["data"],(const char *)"type").c_str());
 	}
 	catch(exception& e)
 	{
@@ -185,9 +188,13 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 		goto cleanup;
 	}
 
-	ret_status							= keyagent_session_create(challenge_type->str,
-			                                  (const char*)g_base64_decode(session_id->str, &len), protected_swk, -1, error);
-
+	ret_status							= keyagent_session_create(
+																	challenge_type->str,
+																	(const char*)g_base64_decode(session_id->str, &len), 
+																	protected_swk,
+																	(const char *)swktype->str, 
+																	-1, 
+																	error);
 	if( ret_status  == FALSE)
 	{
 		k_critical_msg("Session create error\n");
@@ -198,6 +205,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 cleanup:
 	k_string_free(post_data, TRUE);
 	k_string_free(session_url, TRUE);
+	k_string_free(swktype, TRUE);
 	k_string_free(session_method, TRUE);
 	k_string_free(session_id, TRUE);
 	k_string_free(status, TRUE);
@@ -309,7 +317,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 		try {
 			key_id_str				    = get_json_value(transfer_data["data"], "id");
-			keytype						= ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECCKEY);
+			keytype						= ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECKEY);
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);

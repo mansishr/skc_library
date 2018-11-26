@@ -154,7 +154,7 @@ create_ecc_key(key_data *data, GError **error)
     gboolean ret;
     keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
     SET_KEY_ATTR(data->cache_id, attrs, KEYDATA, error);
-    ret = (keyagent_key_create(data->url, KEYAGENT_ECCKEY, attrs, data->session_id, data->cache_id, error) ? TRUE : FALSE);
+    ret = (keyagent_key_create(data->url, KEYAGENT_ECKEY, attrs, data->session_id, data->cache_id, error) ? TRUE : FALSE);
     keyagent_attributes_unref(attrs);
     return ret;
 }
@@ -238,7 +238,7 @@ keyagent_cache_loadkeys(GError **error)
         case KEYAGENT_RSAKEY:
             ret = create_rsa_key(data, &tmp_error);
             break;
-        case KEYAGENT_ECCKEY:
+        case KEYAGENT_ECKEY:
             ret = create_ecc_key(data, &tmp_error);
             break;
         default:
@@ -393,7 +393,7 @@ keyagent_cache_key(keyagent_key *_key, GError **error)
         case KEYAGENT_RSAKEY:
             ret = cache_rsa_key_attrs(key, cache_id, error);
             break;
-        case KEYAGENT_ECCKEY:
+        case KEYAGENT_ECKEY:
             ret = cache_ecc_key_attrs(key, cache_id, error);
             break;
         default:

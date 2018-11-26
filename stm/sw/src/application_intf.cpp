@@ -122,12 +122,13 @@ stm_create_challenge(keyagent_buffer_ptr *challenge, GError **err)
 
 
 extern "C" gboolean
-stm_set_session(keyagent_buffer_ptr session, GError **error)
+stm_set_session(GQuark swk_type, keyagent_buffer_ptr session, GError **error)
 {
     gboolean ret = FALSE;
     keyagent_debug_with_checksum("CLIENT:SESSION:PROTECTED", keyagent_buffer_data(session), keyagent_buffer_length(session));
+	int keybits = keyagent_get_swk_keybit(swk_type);
 
-    application_sw_stm::swk = keyagent_buffer_alloc(NULL, AES_256_KEY_SIZE);
+	application_sw_stm::swk = keyagent_buffer_alloc(NULL, keybits/8);
 
     int result = RSA_private_decrypt(RSA_size(application_sw_stm::session_keypair),
                      (const unsigned char *)keyagent_buffer_data(session), keyagent_buffer_data(application_sw_stm::swk), application_sw_stm::session_keypair,
@@ -331,7 +332,7 @@ test_ecc_wrapped_key(EVP_PKEY *pkey, keyagent_attributes_ptr attrs)
 }
 
 extern "C" gboolean
-stm_load_key(keyagent_keytype type, keyagent_attributes_ptr attrs, GError **error)
+stm_load_key(GQuark swk_quark, keyagent_keytype type, keyagent_attributes_ptr attrs, GError **error)
 {
     gboolean ret = FALSE;
     keyagent_buffer_ptr tmp = NULL;
@@ -360,7 +361,7 @@ stm_load_key(keyagent_keytype type, keyagent_attributes_ptr attrs, GError **erro
     keyagent_debug_with_checksum("STM:IV", keyagent_buffer_data(iv), keyagent_buffer_length(iv));
     keyagent_debug_with_checksum("STM:PKCS8:WRAPPED", keyagent_buffer_data(wrapped_key), keyagent_buffer_length(wrapped_key));
 
-    pkcs8 = keyagent_aes_gcm_data_decrypt(wrapped_key, application_sw_stm::swk, keytransfer->tag_size, iv);
+    pkcs8 = keyagent_aes_data_decrypt(swk_quark, wrapped_key, application_sw_stm::swk, keytransfer->tag_size, iv);
     keyagent_debug_with_checksum("STM:PKCS8", keyagent_buffer_data(pkcs8), keyagent_buffer_length(pkcs8));
     tmpp = keyagent_buffer_data(pkcs8);
     p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, &tmpp,  keyagent_buffer_length(pkcs8));
@@ -369,12 +370,16 @@ stm_load_key(keyagent_keytype type, keyagent_attributes_ptr attrs, GError **erro
         goto out;
 
     pkey = EVP_PKCS82PKEY(p8inf);
+	if(pkey == NULL)
+	{
+		goto out;
+	}
 
     switch (type) {
     case KEYAGENT_RSAKEY:
         test_rsa_wrapped_key(pkey, attrs);
         break;
-    case KEYAGENT_ECCKEY:
+    case KEYAGENT_ECKEY:
         test_ecc_wrapped_key(pkey, attrs);
         break;
     }

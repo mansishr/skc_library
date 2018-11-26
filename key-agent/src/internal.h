@@ -6,6 +6,8 @@
 #include "key-agent/npm/npm.h"
 #include "key-agent/stm/stm.h"
 #include <gmodule.h>
+#include <openssl/ossl_typ.h>
+#include <openssl/evp.h>
 
 typedef struct {
     keyagent_module npm;
@@ -25,6 +27,7 @@ typedef struct {
     keyagent_buffer_ptr		swk;
     GString                 *name;
     GString                 *session_id;
+    GString                 *swk_type;
 	keyagent_cache_state	cache_state;
 } keyagent_session_real;
 
@@ -62,6 +65,7 @@ namespace keyagent {
     extern GHashTable *stm_hash;
     extern GHashTable *session_hash;
     extern GHashTable *key_hash;
+    extern GHashTable *swk_type_hash;
     extern GRWLock rwlock;
 }
 
@@ -75,8 +79,17 @@ namespace keyagent {
 }
 
 #define GPOINTER_TO_GDA_CONNECTION(p) ((GdaConnection *)(p))
-
 #endif
+
+
+typedef struct swk_op{
+	int keybits;
+	const EVP_CIPHER* (* cipher_func )(void);
+	int (* encrypt_func)(keyagent_buffer_ptr plaintext, void *swk_info, keyagent_buffer_ptr iv, keyagent_buffer_ptr ciphertext);
+	keyagent_buffer_ptr (* decrypt_func)(struct swk_op *swk_op, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv);
+} swk_type_op;
+
+
 
 #define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
 	if (!g_module_symbol ((MODULE), (FUNCNAME), (gpointer *)&(RET))) \
@@ -117,6 +130,12 @@ gint keyagent_key_get_session_cache_id(keyagent_key *);
 //keyagent_session *keyagent_session_id_lookup(gint id);
 gint keyagent_cache_generate_fake_id();
 void keyagent_key_remove_by_session(keyagent_session *);
+
+GQuark keyagent_session_make_swktype(const char *type);
+gboolean keyagent_session_init(GError **error);
+keyagent_buffer_ptr aes_gcm_decrypt(swk_type_op *sw_op, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv);
+keyagent_buffer_ptr aes_cbc_decrypt(swk_type_op *sw_op, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv);
+
 
 #ifdef  __cplusplus
 }

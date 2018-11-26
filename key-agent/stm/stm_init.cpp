@@ -110,7 +110,8 @@ keyagent_stm_set_session(keyagent_session *session, GError **error)
     g_return_val_if_fail(lstm != NULL, FALSE);
 
     lstm->session = (keyagent_session_real *)session;
-    STM_MODULE_OP(lstm,set_session)(session->swk, error);
+    GQuark swk_quark = keyagent_session_lookup_swktype(lstm->session->swk_type->str);
+    STM_MODULE_OP(lstm,set_session)(swk_quark,session->swk, error);
 
     if (lstm->session)
         keyagent_debug_with_checksum("CLIENT:SESSION", keyagent_buffer_data(lstm->session->swk), keyagent_buffer_length(lstm->session->swk));
@@ -150,6 +151,8 @@ keyagent_stm_load_key(keyagent_key *_key, GError **error)
     }
     keyagent_stm_real *lstm = NULL;
     keyagent_stm_get_by_name(keyagent_key_get_stmname(_key, error), (keyagent_module **)&lstm);
-    g_return_val_if_fail(lstm != NULL, FALSE);
-    return STM_MODULE_OP(lstm,load_key)(key->type, key->attributes, error);
+    g_return_val_if_fail(lstm != NULL || lstm->session != NULL, FALSE);
+
+    GQuark swk_quark = keyagent_session_lookup_swktype(lstm->session->swk_type->str);
+	return STM_MODULE_OP(lstm,load_key)(swk_quark, key->type, key->attributes, error);
 }

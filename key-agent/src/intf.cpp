@@ -23,6 +23,7 @@ namespace keyagent {
     GHashTable *stm_hash;
     GHashTable *key_hash;
 	GHashTable *session_hash;
+	GHashTable *swk_type_hash;
     GRWLock rwlock;
 }
 
@@ -119,6 +120,10 @@ do_keyagent_init(const char *filename, GError **err)
 		k_critical_msg("Did not find any stms that matched pattern %s", pattern->str);
 		return FALSE;
 	}
+
+    if (!keyagent_session_init(err))
+        return FALSE;
+
 	g_list_foreach(modules, initialize_stm, err); 
 	g_list_free_full(modules, free_char_pointer);  
 

@@ -16,6 +16,7 @@ namespace server {
     //GHashTable *client_session_hash_table;
     GHashTable *client_hash_table;
     GHashTable *session_to_stm_hash_table;
+    GHashTable *swk_type_hash;
 
     gboolean debug;
     gboolean verbose;
@@ -25,6 +26,28 @@ namespace server {
     gchar *certfile;
     X509 *cert;
     EVP_PKEY *cert_key;
+}
+
+
+swk_type_op swk_type_fns[]={
+	{128,  EVP_aes_128_gcm, aes_gcm_encrypt, NULL},
+	{192,  EVP_aes_192_gcm, aes_gcm_encrypt, NULL},
+	{256,  EVP_aes_256_gcm, aes_gcm_encrypt, NULL},
+	{128,  EVP_aes_128_cbc, aes_cbc_encrypt, NULL},
+	{192,  EVP_aes_192_cbc, aes_cbc_encrypt, NULL},
+	{256,  EVP_aes_256_cbc, aes_cbc_encrypt, NULL},
+};
+extern "C" gboolean
+server_swk_hash_init(GError **error)
+{
+    const char **ptr;
+    swk_type_op *opptr;
+    server::swk_type_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
+    for (ptr = supported_swk_types, opptr = swk_type_fns; *ptr; ++ptr, ++opptr) {
+		GQuark q = g_quark_from_string(*ptr);
+        g_hash_table_insert(server::swk_type_hash, GUINT_TO_POINTER(q), (gpointer)opptr);
+    } 
+    return TRUE;
 }
 
 void service_authentication_handler( const shared_ptr< Session > session, const function< void ( const shared_ptr< Session > ) >& callback )
@@ -219,6 +242,10 @@ int main(int argc, char** argv)
     if (!server::stm)
         k_fatal_error(err);
 
+	server_swk_hash_init(&err);
+    if (err != NULL) {
+        k_fatal_error(err);
+	}
     k_info_msg("Using stm %s", keyagent_get_module_label(server::stm));
 
 

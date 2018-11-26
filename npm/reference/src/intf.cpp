@@ -152,6 +152,16 @@ decode64_json_attr(Json::Value json_data, const char *name)
 	}
 }
 
+static inline GQuark
+KEYAGENT_QUARK_FROM_STR(const char *type, const char *name)
+{
+    GString *tmp = g_string_new(NULL);
+    g_string_printf(tmp, "%s_%s", type, name);
+    GQuark q = g_quark_from_string(tmp->str);
+    g_string_free(tmp, TRUE);
+    return q;
+}
+
 void get_session_id_from_header(gpointer data, gpointer user_data)
 {
     gchar *str = (gchar *)data;
@@ -168,6 +178,9 @@ static gboolean
 start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 {
     gboolean ret = FALSE;
+    GQuark swk_quark = 0;
+    const char *swk_type = NULL;
+
 	GString *session_url  = g_string_new(transfer_data["link"]["challenge-replyto"]["href"].asCString());
 	GString *session_method  = g_string_new(transfer_data["link"]["challenge-replyto"]["method"].asCString());
     GString *session_id = g_string_new(get_json_value(transfer_data, (const char *)"challenge").c_str());
@@ -211,7 +224,10 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
     if (res_status != 200) return FALSE;
 
     keyagent_buffer_ptr protected_swk = decode64_json_attr(session_return_data, "swk");
-	ret = keyagent_session_create(keyagent_get_module_label(info->stm), session_id->str, protected_swk, -1, error);
+    swk_type = session_return_data["type"].asCString();
+	//swk_quark = keyagent_session_lookup_swktype(swk_type);
+	//if (swk_quark)
+	ret = keyagent_session_create(keyagent_get_module_label(info->stm), session_id->str, protected_swk, swk_type, -1, error);
 	return ret;
 }
 
@@ -288,7 +304,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
         g_ptr_array_foreach (res_headers, get_session_id_from_header,  &session_id_tokens);
 
 		try {
-			keytype = ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECCKEY);
+			keytype = ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECKEY);
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);
