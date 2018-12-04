@@ -90,12 +90,11 @@ typedef struct swk_op{
 } swk_type_op;
 
 
-
 #define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
 	if (!g_module_symbol ((MODULE), (FUNCNAME), (gpointer *)&(RET))) \
     { \
 		g_set_error (&tmp_error, KEYAGENT_ERROR, (ERRCLASS), \
-                   "%s: %s", filename, g_module_error ()); \
+                   "%s", g_module_error ()); \
 		goto errexit; \
     } \
 } while (0)
