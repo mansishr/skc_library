@@ -41,7 +41,8 @@ keyagent_session * keyagent_session_lookup(const char *session_id);
 keyagent_key * keyagent_key_lookup(const char *url);
 gboolean keyagent_key_free(keyagent_key *);
 
-keyagent_key * keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes_ptr attrs, const char *session_id, gint cache_id, GError **error);
+GQuark keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes_ptr attrs, const char *session_id, gint cache_id, GError **error);
+gboolean keyagent_key_policy_add(keyagent_url url, keyagent_attributes_ptr policy_attrs, gint cache_id, GError **error);
 gboolean keyagent_verify_and_extract_cms_message(keyagent_buffer_ptr msg, keyagent_buffer_ptr *data, GError **error);
 
 #ifdef  __cplusplus

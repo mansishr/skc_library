@@ -23,10 +23,18 @@ typedef struct {
     gint ref_count;
 } keyagent_buffer;
 
+typedef struct {
+	GTimeVal time;
+    gint ref_count;
+}keyagent_policy_buffer;
+
 typedef keyagent_buffer *	keyagent_buffer_ptr;
+typedef keyagent_policy_buffer * keyagent_policy_buffer_ptr;
 
 #define keyagent_buffer_data(PTR) (PTR)->bytes->data
 #define keyagent_buffer_length(PTR) (PTR)->bytes->len
+
+#define keyagent_policy_buffer_data(PTR) &((PTR)->time)
 
 static inline void
 keyagent_buffer_append(keyagent_buffer_ptr buf, void *data, int size)
@@ -76,6 +84,30 @@ keyagent_buffer_equal(keyagent_buffer_ptr buf1, keyagent_buffer_ptr buf2)
     return (memcmp(keyagent_buffer_data(buf1),keyagent_buffer_data(buf2), keyagent_buffer_length(buf1)) ? FALSE: TRUE);
 }
 
+static inline keyagent_policy_buffer_ptr
+keyagent_policy_buffer_ref(keyagent_policy_buffer_ptr buf)
+{
+    g_atomic_int_inc (&buf->ref_count);
+    return buf;
+}
+
+static inline void
+keyagent_policy_buffer_unref(keyagent_policy_buffer_ptr buf)
+{
+	if(buf != NULL)
+	{
+		if (g_atomic_int_dec_and_test (&buf->ref_count))
+			g_free(buf);
+	}
+}
+static inline keyagent_policy_buffer_ptr
+keyagent_policy_buffer_alloc()
+{
+    keyagent_policy_buffer_ptr buf = g_new0(keyagent_policy_buffer, 1);
+    buf->ref_count = 1;
+	return buf;
+}
+
 typedef enum {
     KEYAGENT_RSAKEY = 1,
     KEYAGENT_ECKEY,
@@ -110,8 +142,8 @@ typedef struct {
     gint ref_count;
 } keyagent_attributes;
 
-typedef keyagent_attributes *	keyagent_attributes_ptr;
 
+typedef keyagent_attributes *	keyagent_attributes_ptr;
 static inline void
 keyagent_attribute_free(gpointer _data)
 {
@@ -169,6 +201,7 @@ keyagent_##TYPE##_##QN##_quark (void)                                           
 #define KEYAGENT_QUARK(TYPE,NAME)	keyagent_##TYPE##_##NAME##_quark()
 #define KEYAGENT_DECLARE_ATTR(NAME) (KEYAGENT_QUARK(ATTR,NAME))
 #define KEYAGENT_DECLARE_SWKTYPE(NAME) (KEYAGENT_QUARK(SWKTYPE,NAME))
+#define KEYAGENT_DECLARE_ATTR_POLICY(NAME) (KEYAGENT_QUARK(ATTR_POLICY, NAME))
 
 static inline GQuark
 keyagent_quark_to_string(const char *type, const char *name)
@@ -198,8 +231,14 @@ keyagent_quark_to_string(const char *type, const char *name)
 #define KEYAGENT_DEFINE_KEY_ATTRIBUTES() \
     	KEYAGENT_DEFINE_QUARK(ATTR,KEYDATA)
 
+#define KEYAGENT_DEFINE_POLITY_ATTRIBUTES() \
+		KEYAGENT_DEFINE_QUARK(ATTR_POLICY, NOT_AFTER) \
+		KEYAGENT_DEFINE_QUARK(ATTR_POLICY, NOT_BEFORE) \
+		KEYAGENT_DEFINE_QUARK(ATTR_POLICY, CREATED_AT) 
+
 #define KEYAGENT_DEFINE_ATTRIBUTES() \
         KEYAGENT_DEFINE_SWK_TYPES() \
+		KEYAGENT_DEFINE_POLITY_ATTRIBUTES() \
         KEYAGENT_DEFINE_KEY_ATTRIBUTES() \
         KEYAGENT_DEFINE_QUARK(ATTR,STM_TEST_DATA) \
         KEYAGENT_DEFINE_QUARK(ATTR,STM_TEST_SIG) \
@@ -246,6 +285,11 @@ keyagent_quark_to_string(const char *type, const char *name)
 #define KEYAGENT_SWKTYPE_AES256_XTS								KEYAGENT_DECLARE_SWKTYPE(AES256_XTS)
 
 
+#define KEYAGENT_ATTR_POLICY_NOT_AFTER                          KEYAGENT_DECLARE_ATTR_POLICY(NOT_AFTER)
+#define KEYAGENT_ATTR_POLICY_NOT_BEFORE                         KEYAGENT_DECLARE_ATTR_POLICY(NOT_BEFORE)
+#define KEYAGENT_ATTR_POLICY_CREATED_AT                         KEYAGENT_DECLARE_ATTR_POLICY(CREATED_AT)
+
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -277,9 +321,22 @@ GQuark KEYAGENT_SWKTYPE_AES256_CBC;
 GQuark KEYAGENT_SWKTYPE_AES128_XTS;
 GQuark KEYAGENT_SWKTYPE_AES256_XTS;
 
+GQuark KEYAGENT_ATTR_POLICY_NOT_AFTER;
+GQuark KEYAGENT_ATTR_POLICY_NOT_BEFORE;
+GQuark KEYAGENT_ATTR_POLICY_CREATED_AT;
+
 #ifdef  __cplusplus
 }
 #endif
+
+
+
+#define KEYAGENT_KEY_ADD_POLICY_ATTR(ATTRS, policy) do { \
+	if ((policy)) { \
+        const gchar *policyname = g_quark_to_string ( KEYAGENT_ATTR_POLICY_##policy ); \
+	    g_hash_table_insert((ATTRS)->hash, (gpointer) policyname,  (gpointer) keyagent_policy_buffer_ref((policy))); \
+	} \
+} while(0)
 
 #define KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(ATTRS, src) do { \
 	if ((src)) { \
@@ -294,6 +351,12 @@ GQuark KEYAGENT_SWKTYPE_AES256_XTS;
 	    g_hash_table_replace((ATTRS)->hash, (gpointer) keyname,  (gpointer) keyagent_buffer_ref((src))); \
 	} \
 } while(0)
+
+#define KEYAGENT_KEY_GET_POLICY_ATTR(ATTRS, NAME, DEST) do { \
+    const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_POLICY_##NAME ); \
+    DEST = (keyagent_policy_buffer_ptr)g_hash_table_lookup((ATTRS)->hash, keyname); \
+} while(0)
+
 
 #define KEYAGENT_KEY_GET_BYTEARRAY_ATTR(ATTRS, NAME, DEST) do { \
     const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##NAME ); \
@@ -382,6 +445,7 @@ typedef enum {
 
 typedef enum {
     NPM_ERROR_REGISTER = 1,
+    NPM_ERROR_LOAD_KEY,
 } NpmErrors;
 
 #endif

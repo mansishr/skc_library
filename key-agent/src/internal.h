@@ -45,6 +45,7 @@ typedef struct {
     keyagent_keytype type;
     keyagent_session *session;
     keyagent_attributes_ptr attributes;
+    keyagent_attributes_ptr policy_attributes;
     keyagent_cache_state	cache_state;
 } keyagent_key_real;
 
@@ -120,6 +121,9 @@ const char *keyagent_key_get_stmname(keyagent_key *key, GError **error);
 gboolean keyagent_cache_loadkeys(GError **error);
 gboolean keyagent_cache_key(keyagent_key *key, GError **error);
 gboolean keyagent_uncache_key(keyagent_key *key, GError **error);
+gboolean keyagent_cache_loadkeys_policy_attr(GError **error);
+
+gboolean keyagent_cache_key_policy(keyagent_key *_key, GError **error);
 
 void keyagent_session_set_cache_id(keyagent_session *, gint id);
 gint keyagent_session_get_cache_id(keyagent_session *d);

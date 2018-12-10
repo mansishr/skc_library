@@ -20,6 +20,7 @@ namespace keyagent {
         gpointer connection_pointer;
         gboolean cache_sessions;
         gboolean cache_keys;
+        gboolean cache_key_policy;
         volatile gint fake_cache_ids;
         GRWLock cache_rwlock;
     }
@@ -85,6 +86,8 @@ create_cache_tables(GError **error)
         goto out;
     if (!run_sql_non_select ("CREATE TABLE sessions (id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, stm_label VARCHAR (64) NOT NULL UNIQUE ON CONFLICT REPLACE, swk BLOB NOT NULL, session_id VARCHAR (64), swk_type VARCHAR (64))", error))
         goto out;
+    if (!run_sql_non_select ("CREATE TABLE key_policy_attributes (keyattr_policy_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, key_id INTEGER NOT NULL REFERENCES keys (id) ON UPDATE CASCADE, attr_name VARCHAR(64) NOT NULL, attr_value VARCHAR(256) NOT NULL, UNIQUE (key_id, attr_name) ON CONFLICT REPLACE)", error))
+        goto out;
     if (!run_sql_non_select ("CREATE TABLE key_attributes (keyattr_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, key_id INTEGER NOT NULL REFERENCES keys (id) ON UPDATE CASCADE, attr_name VARCHAR(64) NOT NULL, attr_value BLOB NOT NULL, UNIQUE (key_id, attr_name) ON CONFLICT REPLACE)", error)) {
         k_critical_error(*error);
         goto out;
@@ -138,6 +141,9 @@ keyagent_cache_init(GError **err)
         return FALSE;
 
     if (keyagent::localcache::cache_keys && !keyagent_cache_loadkeys(err))
+        return FALSE;
+
+    if (keyagent::localcache::cache_keys && !keyagent_cache_loadkeys_policy_attr(err))
         return FALSE;
 
     return TRUE;

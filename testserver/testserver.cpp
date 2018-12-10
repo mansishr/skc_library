@@ -269,6 +269,10 @@ int main(int argc, char** argv)
     kmskeysession->set_method_handler( "POST", get_kms_keysession_method_handler );
     kmskeysession->set_authentication_handler( keysession_authentication_handler );
     
+    auto kms_key_usagepolices= make_shared< Resource >( );
+    kms_key_usagepolices->set_path( "v1/key-usage-policies/.*" );
+    kms_key_usagepolices->set_method_handler( "GET", get_kms_key_usagepolices_method_handler );
+    kms_key_usagepolices->set_authentication_handler( keysession_authentication_handler );
     
     auto settings = make_shared< Settings >( );
     settings->set_port( 1984 );
@@ -279,6 +283,7 @@ int main(int argc, char** argv)
     service.publish( kmskeytransfer );
     service.publish( keysession );
     service.publish( kmskeysession );
+    service.publish( kms_key_usagepolices );
     service.set_authentication_handler( service_authentication_handler );
     
     service.set_logger( make_shared< CustomLogger >( ) );

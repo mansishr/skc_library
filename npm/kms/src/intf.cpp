@@ -9,7 +9,6 @@
 #include <jsoncpp/json/json.h>
 #include <exception>
 
-
 using namespace std;
 
 namespace kms_npm
@@ -17,6 +16,7 @@ namespace kms_npm
 	GString *configfile;
 	GString *server_url;
 	gboolean debug;
+	gboolean policy_support				= FALSE;
 	GString *certfile					= NULL;
 	GString *keyname					= NULL;
 	keyagent_curl_ssl_opts ssl_opts;
@@ -44,6 +44,32 @@ void get_session_id_from_header(gpointer data, gpointer user_data)
 		*tokens_ptr                     = tokens;
         return;
     }
+}
+
+gboolean keyagent_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type){
+	GTimeVal ctime;
+	gint status                         = -1;
+	gboolean ret						= FALSE;
+	GDateTime *policy_time              = NULL;
+	GDateTime *current_time             = NULL;
+
+	policy_time							= g_date_time_new_from_timeval_local (policy);
+	if (policy_time == NULL)
+	{
+		k_critical_msg("Error in converting date time struct\n");
+		return ret;
+	}
+    g_get_current_time (&ctime);
+    current_time                        = g_date_time_new_from_timeval_local (&ctime);
+	status                              = g_date_time_compare(policy_time, current_time);
+	if ( (strcmp(policy_type, "NOT_AFTER") ==0  && (status == 1)) || 
+	   ( (strcmp(policy_type, "NOT_BEFORE") == 0 || strcmp(policy_type, "CREATED_AT") == 0 ) && (status == -1) ))
+	{
+		ret                             = TRUE;
+	}
+	g_date_time_unref(policy_time);
+	g_date_time_unref(current_time);
+	return ret;
 }
 
 void json_print(Json::Value &val)
@@ -91,6 +117,28 @@ decode64_json_attr(Json::Value json_data, const char *name)
 		//throw e;
 	}
 	return keyagent_buffer_alloc(NULL, 0);
+}
+
+static keyagent_policy_buffer_ptr
+get_time_val_from_json( Json::Value json_data, const char *name )
+{
+	keyagent_policy_buffer_ptr \
+		policy_attr                     = NULL;
+	try {
+		std::string	json_val			= get_json_value(json_data, name);
+		policy_attr                     = keyagent_policy_buffer_alloc();
+		gboolean ret                    = g_time_val_from_iso8601((const gchar *) json_val.c_str(), 
+				                                              keyagent_policy_buffer_data(policy_attr));
+		k_debug_msg("KEY POLICY %s: %s\n", name, json_val.c_str());
+		if( ret == FALSE )
+		{
+			k_critical_msg("Invalid time stamp information:%s\n", json_val.c_str());
+			return NULL;
+		}
+		return policy_attr;
+	} catch (exception  e) {
+		k_critical_msg("%s\n", e.what());
+	}
 }
 
 keyagent_buffer_ptr decode_base64_data(keyagent_buffer_ptr ptr)
@@ -234,18 +282,23 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	long res_status						= -1;
 
 	GPtrArray *headers					= NULL;
+	GPtrArray *policy_headers			= NULL;
 	GPtrArray *res_headers				= NULL;
 
 	keyagent_session *session			= NULL;
 
 	keyagent_buffer_ptr return_data		= NULL;
+	keyagent_buffer_ptr policy_ret_data	= NULL;
+
 	keyagent_attributes_ptr attrs		= NULL;
+	keyagent_attributes_ptr policy_attrs= NULL;
 	
 	GString *accept_challenge_header	= NULL;
 	GString *session_ids_header			= NULL;
 	GString *stm_names					= NULL;
 	GString *session_ids				= NULL;
 	GString *url						= NULL;
+	GString *policy_url					= NULL;
 
 	std::string status;
 	std::string session_id_str;
@@ -321,10 +374,12 @@ __npm_loadkey(loadkey_info *info, GError **err)
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);
+			policy_url					= g_string_new(get_json_value(transfer_data["data"]["policy"]["link"]["key-usage"], "href").c_str());
         } catch (exception& e){
 				k_critical_msg("%s\n", e.what());
 				goto cleanup;
 		}
+
 		if( session_id_tokens == NULL)
 		{
 			k_critical_msg("Session information not present\n");
@@ -336,7 +391,40 @@ __npm_loadkey(loadkey_info *info, GError **err)
 			k_critical_msg("Session data not found for stm label:%s\n", session_id_tokens[1]);
 			goto cleanup;
 		}
-		ret								= (keyagent_key_create(info->url, keytype, attrs, session_id, -1, err) != NULL ? TRUE : FALSE);
+		if( policy_url != NULL && kms_npm::policy_support == TRUE )
+		{
+			policy_headers				= g_ptr_array_new ();
+			g_ptr_array_add (policy_headers, (gpointer) "Accept: application/json");
+			g_ptr_array_add (policy_headers, (gpointer) "Content-Type: application/json");
+
+			policy_ret_data				= keyagent_buffer_alloc(NULL,0);
+			res_status					= keyagent_curlsend(policy_url, policy_headers, NULL, NULL, policy_ret_data, 
+			                                                 &kms_npm::ssl_opts, kms_npm::debug);
+			if( res_status != 200)
+			{			
+				k_set_error(err, NPM_ERROR_LOAD_KEY, "Error in policy fetching\n");
+				goto cleanup;
+			}
+			transfer_data				= parse_data(policy_ret_data);
+
+			try {
+
+				policy_attrs			= keyagent_attributes_alloc();
+				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "not_after", NOT_AFTER);
+				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "not_before", NOT_BEFORE);
+				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "created_at", CREATED_AT);
+		        if( keyagent_key_create(info->url, keytype, attrs, session_id, -1, err) )
+				    ret					= keyagent_key_policy_add(info->url, policy_attrs, -1, err);
+			}catch(exception& e){
+				k_critical_msg("%s\n", e.what());
+				goto cleanup;
+			}
+
+		}
+		else
+		{
+			ret							= (keyagent_key_create(info->url, keytype, attrs, session_id, -1, err) ? TRUE : FALSE);
+		}
 	}
 	goto cleanup;
 
@@ -348,8 +436,12 @@ cleanup:
 	k_string_free(stm_names, TRUE);
 	k_string_free(session_ids, TRUE);
 	k_string_free(url, TRUE);
+	k_string_free(policy_url, TRUE);
 	keyagent_buffer_unref(return_data);
+	keyagent_buffer_unref(policy_ret_data);
 	g_ptr_array_free(headers, TRUE);
+	if( policy_headers )
+		g_ptr_array_free(policy_headers, TRUE);
 	g_ptr_array_free(res_headers, TRUE);
 	return ret;
 }
@@ -381,6 +473,7 @@ npm_init(const char *config_directory, GError **err)
 	}
 	kms_npm::server_url					= g_string_new(server);
 	kms_npm::debug						= key_config_get_boolean_optional(config, "core", "debug", FALSE);
+	kms_npm::policy_support             = key_config_get_boolean_optional(config, "core", "policy_support", FALSE); 
 
 	memset(&kms_npm::ssl_opts, 0, sizeof (keyagent_curl_ssl_opts));
 	kms_npm::certfile					= g_string_new(NULL);
@@ -427,7 +520,7 @@ npm_register(keyagent_url url, GError **err)
 		if( err )
 		{
 			k_set_error(err,NPM_ERROR_REGISTER, "NPM_URL_UNSUPPORTED:Expected token:%s token missing in url:%s\n", 
-					KMS_PREFIX_TOKEN, url);
+			KMS_PREFIX_TOKEN, url);
 		}
 		goto cleanup;
     }

@@ -99,7 +99,7 @@ do_keyagent_init(const char *filename, GError **err)
 
 	keyagent::npm_hash = g_hash_table_new (g_str_hash, g_str_equal);
 	keyagent::stm_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
-	keyagent::key_hash = g_hash_table_new_full (g_str_hash, g_str_equal, keyagent_key_hash_key_free, keyagent_key_hash_value_free);
+	keyagent::key_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, keyagent_key_hash_key_free, keyagent_key_hash_value_free);
 	keyagent::session_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, keyagent_session_hash_key_free, keyagent_session_hash_value_free);
 
 

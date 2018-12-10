@@ -119,6 +119,12 @@ keyagent_cache_loadkey_attr(gint key_id, const char *attr_name, GError **error)
     g_object_unref (stmt);
     if (!model) return NULL;
 
+    gint rows = gda_data_model_get_n_rows (model);
+	if( rows == 0)
+	{
+		return NULL;
+	}
+
     value = gda_data_model_get_value_at(model, 1, 0, error);
     g_assert(G_VALUE_TYPE(value) == GDA_TYPE_BLOB);
     blob = (GdaBlob *) gda_value_get_blob(value);
@@ -130,12 +136,80 @@ keyagent_cache_loadkey_attr(gint key_id, const char *attr_name, GError **error)
     return attr_value;
 }
 
+extern "C" keyagent_policy_buffer_ptr
+keyagent_cache_loadkey_policy_attr(gint key_id, const char *attr_name, GError **error)
+{
+    GdaSqlParser *parser;
+    GdaStatement *stmt;
+    GdaDataModel *model;
+    const GValue *value;
+    GdaSet *params;
+    parser = gda_sql_parser_new ();
+
+    stmt = gda_sql_parser_parse_string(parser,
+            "SELECT keyattr_policy_id, attr_value FROM key_policy_attributes WHERE key_id=##keyid::gint and attr_name=##attrname::gchararray",
+            NULL, error);
+
+    g_object_unref (parser);
+    if (!stmt) return NULL;
+    if (!gda_statement_get_parameters (stmt, &params, error)) {
+        g_object_unref (stmt);
+        return NULL;
+    }
+    g_assert (gda_set_set_holder_value (params, NULL, "keyid", key_id));
+    g_assert (gda_set_set_holder_value (params, NULL, "attrname", attr_name));
+    model = gda_connection_statement_execute_select (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), stmt, params, error);
+    g_object_unref (params);
+    g_object_unref (stmt);
+    if (!model) return NULL;
+
+    gint rows = gda_data_model_get_n_rows (model);
+	if( rows == 0)
+	{
+		return NULL;
+	}
+
+    value = gda_data_model_get_value_at(model, 1, 0, error);
+    gchar *policy_attr_str = g_strdup(g_value_get_string(value));
+	if( policy_attr_str == NULL)
+	{
+		return NULL;
+	}
+    keyagent_policy_buffer_ptr attr_value = keyagent_policy_buffer_alloc();
+	k_debug_msg("Cache Key Policy attr:%s-%s\n", attr_name, policy_attr_str);
+	gboolean ret = g_time_val_from_iso8601(policy_attr_str, keyagent_policy_buffer_data(attr_value));
+    g_object_unref (model);
+    return attr_value;
+}
+
 #define SET_KEY_ATTR(KEYID, ATTRS, NAME, ERROR) do { \
     keyagent_buffer_ptr NAME = keyagent_cache_loadkey_attr((KEYID), #NAME, (ERROR)); \
     keyagent_debug_with_checksum("CACHE-R-"#NAME, keyagent_buffer_data(NAME), keyagent_buffer_length(NAME)); \
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR((ATTRS), NAME); \
     keyagent_buffer_unref(NAME); \
 } while (0)
+
+#define SET_KEY_POLICY_ATTR(KEYID, ATTRS, NAME, ERROR) do { \
+    keyagent_policy_buffer_ptr NAME = keyagent_cache_loadkey_policy_attr(KEYID, #NAME, (ERROR)); \
+	if( NAME == NULL)\
+		return FALSE; \
+	k_debug_msg("SET-CACHE:%s %s\n", #NAME, g_time_val_to_iso8601(keyagent_policy_buffer_data(NAME))); \
+    KEYAGENT_KEY_ADD_POLICY_ATTR((ATTRS), NAME); \
+    keyagent_policy_buffer_unref(NAME); \
+} while (0)
+
+static gboolean
+create_key_policy(key_data *data, GError **error)
+{
+    gboolean ret;
+    keyagent_attributes_ptr attrs = keyagent_attributes_alloc();
+    SET_KEY_POLICY_ATTR(data->cache_id, attrs, NOT_BEFORE, error);
+    SET_KEY_POLICY_ATTR(data->cache_id, attrs, NOT_AFTER, error);
+    SET_KEY_POLICY_ATTR(data->cache_id, attrs, CREATED_AT, error);
+    ret = (keyagent_key_policy_add(data->url, attrs, data->cache_id, error) ? TRUE : FALSE);
+    keyagent_attributes_unref(attrs);
+    return ret;
+}
 
 static gboolean
 create_rsa_key(key_data *data, GError **error)
@@ -198,6 +272,7 @@ delete_key_and_attrs(int id)
 {
     __delete_key(id, "key_attributes", "key_id");
     __delete_key(id, "keys", "id");
+    __delete_key(id, "key_policy_attributes", "key_id");
     return;
 }
 
@@ -206,6 +281,55 @@ delete_key_from_list(gpointer data, gpointer user_data)
 {
     gint cache_id = GPOINTER_TO_INT(data);
     delete_key_and_attrs(cache_id);
+}
+
+
+extern "C" gboolean
+keyagent_cache_loadkeys_policy_attr(GError **error)
+{
+    GdaSqlParser *parser;
+    GdaStatement *stmt;
+    const GValue *value;
+    GdaBlob *blob;
+    gboolean ret = FALSE;
+    gint cache_id;
+    parser = gda_sql_parser_new ();
+    stmt = gda_sql_parser_parse_string(parser, "SELECT id, session_id, key_type, sealed_data, url FROM keys", NULL, error);
+
+    g_object_unref (parser);
+    if (!stmt) return FALSE;
+    global_model = gda_connection_statement_execute_select (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), stmt, NULL, error);
+    g_object_unref (stmt);
+    if (!global_model) return FALSE;
+
+    gint rows = gda_data_model_get_n_rows (global_model);
+	if( rows == 0 )
+	{
+		k_info_msg("Policy data not available\n");
+		return TRUE;
+	}
+    gint i;
+    for (i = 0; i < rows; ++i) {
+        g_autoptr(GError) tmp_error = NULL;
+        key_data *data = get_key_from_model(global_model, i, error);
+        if (!data) continue;
+        cache_id = data->cache_id;
+		ret = create_key_policy(data, error);
+		if( ret == FALSE )
+		{
+			k_info_msg("Key usage policy may not be supported for key_id:%d\n", cache_id);
+			return TRUE;
+		}
+        key_data_free(data);
+        if (!ret)
+            global_delete_list = g_list_append(global_delete_list, GINT_TO_POINTER(cache_id));
+    }
+    g_object_unref (global_model);
+    global_model = NULL;
+    g_list_foreach(global_delete_list, delete_key_from_list, NULL);
+    g_list_free(global_delete_list);
+    global_delete_list = NULL;
+    return TRUE;
 }
 
 extern "C" gboolean
@@ -291,6 +415,34 @@ get_key(const char *url, GError **error)
 }
 
 static gboolean
+cache_key_policy_attr(keyagent_key_real *key, const char *attr_name, keyagent_policy_buffer_ptr attr_value, gint key_id, GError **error)
+{
+    GdaStatement *stmt;
+    GdaSet *params;
+
+    GdaSqlParser *parser;
+    GValue *v_attrname, *v_attrvalue;
+    GValue v_keyid = G_VALUE_INIT;
+
+    g_value_init (&v_keyid, G_TYPE_INT);
+    g_value_set_int (&v_keyid, key_id);
+    v_attrname = gda_value_new_from_string (attr_name, G_TYPE_STRING);
+    v_attrvalue = gda_value_new_from_string (g_time_val_to_iso8601(keyagent_policy_buffer_data(attr_value)), G_TYPE_STRING);
+
+    if (!gda_connection_insert_row_into_table (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), 
+        "key_policy_attributes", error, 
+        "key_id", &v_keyid, 
+        "attr_name", v_attrname,
+        "attr_value", v_attrvalue,
+        NULL)) {
+        k_info_error(*error);
+        return FALSE;
+    }
+    gda_connection_commit_transaction(GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), NULL, NULL);
+    return TRUE;
+}
+
+static gboolean
 cache_key_attr(keyagent_key_real *key, const char *attr_name, keyagent_buffer_ptr attr_value, gint key_id, GError **error)
 {
     GdaStatement *stmt;
@@ -325,6 +477,17 @@ cache_key_attr(keyagent_key_real *key, const char *attr_name, keyagent_buffer_pt
     RET = cache_key_attr((KEY), #VAL, tmp, KEYID, ERROR); \
 } while (0)
 
+
+#define CACHE_KEY_POLICY_ATTR(VAL, KEY, KEYID, ERROR) do { \
+	gboolean RET = FALSE; \
+    keyagent_policy_buffer_ptr tmp; \
+    KEYAGENT_KEY_GET_POLICY_ATTR((KEY)->policy_attributes, VAL, tmp); \
+    k_debug_msg("CACHE-%s %s\n", #VAL, g_time_val_to_iso8601(keyagent_policy_buffer_data(tmp))); \
+    RET = cache_key_policy_attr((KEY), #VAL, tmp, KEYID, ERROR); \
+	if (RET == FALSE) \
+		return RET; \
+} while (0)
+
 static gboolean
 cache_rsa_key_attrs(keyagent_key_real *key, gint key_id, GError **error)
 {
@@ -341,6 +504,46 @@ cache_ecc_key_attrs(keyagent_key_real *key, gint key_id, GError **error)
     return ret;
 }
 
+static gboolean
+cache_key_policy_attrs_add(keyagent_key_real *key, gint key_id, GError **error)
+{
+    CACHE_KEY_POLICY_ATTR(NOT_BEFORE, key, key_id, error);
+    CACHE_KEY_POLICY_ATTR(NOT_AFTER, key, key_id, error);
+    CACHE_KEY_POLICY_ATTR(CREATED_AT, key, key_id, error);
+	return TRUE;
+}
+
+extern "C" gboolean
+keyagent_cache_key_policy(keyagent_key *_key, GError **error)
+{
+    key_data *key_data = NULL;
+    keyagent_key_real *key = (keyagent_key_real *)_key;
+    gint cache_id = -1;
+    gboolean ret = TRUE;
+
+    g_rw_lock_writer_lock(&keyagent::localcache::cache_rwlock);
+    if (!keyagent::localcache::cache_keys) {
+        cache_id = keyagent_cache_generate_fake_id();
+        goto out;
+    }
+
+    key_data = get_key(key->url->str, error);
+    if (key_data) { 
+        cache_id = key_data->cache_id;
+		ret = cache_key_policy_attrs_add(key, cache_id, error);
+        if (!ret) {
+            k_critical_error(*error);
+            delete_key_and_attrs(cache_id);
+        }
+        key_data_free(key_data);
+    } else
+        ret = FALSE;
+out:
+    keyagent_key_set_cache_id((keyagent_key *)key, cache_id);
+    g_rw_lock_writer_unlock(&keyagent::localcache::cache_rwlock);
+
+    return ret;
+}
 extern "C" gboolean
 keyagent_cache_key(keyagent_key *_key, GError **error)
 {

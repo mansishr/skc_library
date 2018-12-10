@@ -37,6 +37,8 @@ extern void get_kms_keytransfer_method_handler( const shared_ptr< Session > sess
 extern void keysession_authentication_handler( const shared_ptr< Session > session, const function< void ( const shared_ptr< Session > ) >& callback );
 extern void get_keysession_method_handler( const shared_ptr< Session > session );
 extern void get_kms_keysession_method_handler( const shared_ptr< Session > session );
+/*extern void get_kms_key_usagepolicys_method_handler( const shared_ptr< Session > session );*/
+extern void get_kms_key_usagepolices_method_handler( const shared_ptr< Session > session );
 
 //extern RSA * generate_key();
 //extern void wrapkey(EVP_PKEY *priv_key, DhsmWPKRSAFormat *_wpk);

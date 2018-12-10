@@ -322,7 +322,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
             k_critical_msg("Invalid session id sent by server: %s - %s\n", session_id_tokens[0],session_id_tokens[1]);
             return FALSE;
         }
-        ret = (keyagent_key_create(info->url, keytype, attrs, session_id, -1, err) != NULL ? TRUE : FALSE);
+        ret = (keyagent_key_create(info->url, keytype, attrs, session_id, -1, err) ? TRUE : FALSE);
     }
     return ret;
 }

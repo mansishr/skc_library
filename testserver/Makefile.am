@@ -8,7 +8,7 @@ AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) -std=c++11  -I$(
 bin_PROGRAMS = testserver
 
 testserver_SOURCES = \
-	testserver.cpp key_transfer_intf.cpp utils.cpp
+	testserver.cpp key_transfer_intf.cpp utils.cpp key_usage_polices.cpp
 
 testserver_LDFLAGS = -version-info @VERSION_INFO@ $(GLIB_LIBS) $(GMODULE_LIBS) \
 	$(top_srcdir)/config-file/src/libkey_configfile.la $(MYLDFLAGS)

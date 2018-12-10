@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <vector>
+#include <regex>
 #include "keyserver.h"
 #include <restbed>
 #include <jsoncpp/json/json.h>
@@ -554,13 +556,13 @@ get_kms_key_info(std::string keyid, int *http_code, char *session_id)
         val["data"]["algorithm"]		= (key_info->keytype == KEYAGENT_RSAKEY ? "RSA" : "ECC");
 		val["data"]["key_length"]		= "2048";
 		val["data"]["policy"]["link"]
-			["key-usage"]["href"]       = "https://10.105.160.133/v1/key-usage-policies/073796eb-9849-4dc2-b374-18628c5635ad";
+			["key-usage"]["href"]       = "http://localhost:1984/v1/key-usage-policies/073796eb-9849-4dc2-b374-18628c5635ad";
 
 		val["data"]["policy"]["link"]
 			["key-usage"]["method"]     = "get";
 
 		val["data"]["policy"]["link"]
-		["key-transfer"]["href"]        = "https://10.105.160.133/v1/key-transfer-policies/a67a6747-bd53-4280-90e0-5d310ba5fed9";
+		["key-transfer"]["href"]        = "http://localhost:1984/v1/key-transfer-policies/a67a6747-bd53-4280-90e0-5d310ba5fed9";
 
 		val["data"]["policy"]["link"]
 			["key-transfer"]["method"]  = "get";
@@ -636,7 +638,6 @@ void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
 
 		size_t content_length			= 0;
 		const auto request				= session->get_request();
-
 		content_length					= request->get_header( "Content-Length", 0 ); 
 
 		session->fetch( content_length, [ request ]( const shared_ptr< Session > session, const Bytes & body )
@@ -651,13 +652,21 @@ void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
 			std::string out;
 			std::string http_data;
 			std::string rand_session_id;
+			std::string request_url;
+			
+			request_url                 = request->get_path();
 
 			int http_code			    = 401;
 
 			char *client_ip			    = NULL;		
             char *session_id            = NULL;
 
-			keyid						= "a67a6747-bd53-4280-90e0-5d310ba5fed9";
+
+			gchar **results = g_regex_split_simple( "/", (gchar *)request_url.c_str(), G_REGEX_RAW, G_REGEX_MATCH_NOTEMPTY);
+			if ( *results != NULL )
+				keyid					= results[2];
+			else
+				keyid					= "";
 			challenge					= request->get_header( "Accept-Challenge");
 			session_ids					= request->get_header( "Session-ID");
 
@@ -671,7 +680,7 @@ void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
             else
                 session_id              = validate_and_pick_session(client_ip, session_ids);
 
-			print_input_headers("TRANSFER", session);
+			//print_input_headers("TRANSFER", session);
 			headers.insert(std::make_pair("Content-Type", "application/json"));
 			http_data					= String::to_string(body);
 
