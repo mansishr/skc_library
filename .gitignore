@@ -47,3 +47,6 @@ doit
 install_manifest.txt
 key-agent/cli/keyagent-cli
 testserver/testserver
+npm/kms/tests/test_kms_npm
+npm/tests/test_app/npm_tapp
+G[R|P|T|F|L]*

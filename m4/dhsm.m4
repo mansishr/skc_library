@@ -12,15 +12,26 @@ AC_DEFUN([DHSM_SETUP],
     VERSION_INFO="_VERSION_CURRENT:_VERSION_REVISION:_VERSION_AGE"
     AC_SUBST(VERSION_INFO)
 
+	full_sysconfdir=`eval eval eval eval eval echo "${sysconfdir}" | sed "s#NONE#${prefix}#" | sed "s#NONE#${ac_default_prefix}#"` 
+	default_dhsm2_conf_path="`eval echo ${full_sysconfdir} | sed s,NONE,$ac_default_prefix,g`"
+
     GLIB_TESTS
     TOPDIR="$srcdir/$1"
     TOPDIR=`cd "$srcdir/$1" && pwd -P`
     AC_SUBST(TOPDIR)
     COMMON_FLAGS="-I${TOPDIR}/include -I${TOPDIR} -I. -g -O0 $GLIB_CFLAGS -DG_LOG_USE_STRUCTURED"
     COMMON_LDFLAGS="$GLIB_LIBS"
+	AC_PREFIX_DEFAULT(/tmp/foo)
     AC_SUBST(COMMON_FLAGS)
     AC_SUBST(COMMON_LDFLAGS)
     AC_SUBST(GLIB_FLAGS)
     AC_SUBST(GLIB_LIBS)
+	AC_DEFINE_UNQUOTED(
+		[DHSM2_CONF_PATH],
+		["$default_dhsm2_conf_path"],
+		[The default location of configuration file directory]
+	)
+	 
+	AC_SUBST([default_dhsm2_conf_path])
 ])
 

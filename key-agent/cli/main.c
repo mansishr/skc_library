@@ -6,6 +6,7 @@
 #include "key-agent/key_agent.h"
 #include <syslog.h>
 #include "k_errors.h"
+#include "config.h"
 
 
 const gchar g_log_domain[] = "keyagent-cli";
@@ -50,8 +51,7 @@ main (int argc, char *argv[])
 	k_debug_msg("TESTING");
 	if (!configfile)
 	{
-		g_print("%s\n", g_option_context_get_help (context, TRUE, NULL));
-		exit(1);
+		configfile = g_strconcat (DHSM2_CONF_PATH,"/key-agent.ini", NULL);
 	}
 	if (!keyagent_init(configfile, &error))
 	{
@@ -67,6 +67,8 @@ main (int argc, char *argv[])
 
 	if (keyurl)
 		keyagent_loadkey(keyurl, &error);
+
+	g_free(configfile);
 
 	exit(0);
 }

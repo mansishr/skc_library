@@ -9,6 +9,7 @@
 #include "k_errors.h"
 #include "key-agent/types.h"
 #include "key-agent/src/internal.h"
+#include "config.h"
 
 namespace server {
     GHashTable *key_hash_table;
@@ -212,8 +213,12 @@ int main(int argc, char** argv)
         g_print ("option parsing failed: %s\n", err->message);
         exit (1);
     }
+    if (!server::configfile)
+    {
+		server::configfile = g_strconcat (DHSM2_CONF_PATH,"/testserver.ini", NULL);
+	}
 
-    if (!server::configfile || !server::certfile)
+    if (!server::certfile)
     {
         g_print("%s\n", g_option_context_get_help (context, TRUE, NULL));
         exit(1);
