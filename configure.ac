@@ -83,6 +83,7 @@ AC_CONFIG_SUBDIRS([
     npm/reference
     npm/kms
     npm/tests/test_app
+    api-module/sw-pkcs11/SoftHSMv2
 ])
 
 AC_OUTPUT

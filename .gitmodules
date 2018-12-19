@@ -1,0 +1,4 @@
+[submodule "api-module/sw-pkcs11"]
+	path = api-module/sw-pkcs11
+	url = ssh://git-amr-1.devtools.intel.com:29418/distributed_hsm-dhsm-core/
+	branch = v2+next-major
