@@ -24,7 +24,7 @@ gboolean keyagent_stm_set_session(keyagent_session *, GError **);
 //Used by STM
 GQuark keyagent_session_lookup_swktype(const char *type);
 gboolean  keyagent_stm_get_challenge(const char *name, keyagent_buffer_ptr *challenge, GError **);
-gboolean keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **);
+gboolean keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_attrs, GError **);
 
 int keyagent_curlsend(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, keyagent_buffer_ptr returndata, keyagent_curl_ssl_opts *ssl_opts, gboolean verbose);
 gboolean keyagent_get_certificate_files(GString *cert_filename, GString *certkey_filename, GError **err);

@@ -176,6 +176,75 @@ keyagent_attributes_unref(keyagent_attributes_ptr attrs)
 }
 
 typedef struct {
+    char *name;
+    keyagent_buffer_ptr value;
+} keyagent_attribute;
+
+typedef keyagent_attribute *	keyagent_attribute_ptr;
+
+typedef struct {
+    int ref_count;
+    int count;
+    int _count;
+    keyagent_attribute_ptr attrs;
+} keyagent_attribute_set;
+
+typedef keyagent_attribute_set *	keyagent_attribute_set_ptr;
+
+static inline keyagent_attribute_set_ptr
+keyagent_attribute_set_alloc(int count)
+{
+    keyagent_attribute_set *set = g_new0(keyagent_attribute_set, 1);
+    set->_count = count;
+    set->ref_count = 1;
+    set->attrs = g_new0(keyagent_attribute, count);
+    return set;
+}
+
+static inline void
+keyagent_attribute_set_add_attribute(keyagent_attribute_set_ptr set, char *name, keyagent_buffer_ptr value)
+{
+    keyagent_attribute_ptr attr = set->attrs;
+    if (set->count >= set->_count)
+        return;
+
+    attr += set->count;
+    attr->name = g_strdup(name);
+    attr->value = keyagent_buffer_ref(value);
+    ++set->count;
+}
+
+static inline keyagent_buffer_ptr
+keyagent_attribute_set_get_attribute(keyagent_attribute_set_ptr set, char *name)
+{
+    keyagent_attribute_ptr attr;
+    int i;
+
+    for (i = 0, attr = set->attrs; i < set->_count; i++, attr++) {
+        if (!strcmp(name, attr->name))
+            return keyagent_buffer_ref(attr->value);
+    }
+    return NULL;
+}
+
+static inline void
+keyagent_attribute_set_unref(keyagent_attribute_set_ptr set)
+{
+    keyagent_attribute_ptr attr;
+    int i;
+
+    if (!g_atomic_int_dec_and_test (&set->ref_count))
+        return;
+    
+    for (i = 0, attr = set->attrs; i < set->_count; i++, attr++) {
+        g_free(attr->name);
+        keyagent_buffer_unref(attr->value);
+    }
+    
+    g_free(set->attrs);
+}
+
+typedef struct {
     GString  *url;
     keyagent_keytype type;
 } keyagent_key;

@@ -130,7 +130,7 @@ keyagent_stm_get_challenge(const char *name, keyagent_buffer_ptr *challenge, GEr
 }
 
 extern "C" gboolean
-keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **error)
+keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_attrs, GError **error)
 {
     g_return_val_if_fail(name && quote && challenge_attrs, FALSE);
     keyagent_stm_real *lstm = NULL;
