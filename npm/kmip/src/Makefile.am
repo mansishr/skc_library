@@ -8,4 +8,6 @@ lib_LTLIBRARIES = \
 npm_kmip_la_SOURCES = \
     init.c
 
-npm_kmip_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS)
+npm_kmip_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS) \
+	$(TOPDIR)/config-file/src/libkey_configfile.la
+

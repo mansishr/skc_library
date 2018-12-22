@@ -12,7 +12,7 @@
 
 DECLARE_NPM_INTERFACE(init, const gchar *, (const char *config_directory, GError **err));
 DECLARE_NPM_INTERFACE(register, gboolean, (keyagent_url, GError **));
-DECLARE_NPM_INTERFACE(key_load, gboolean, (keyagent_url , GError **err));
+DECLARE_NPM_INTERFACE(key_load, gboolean, (keyagent_keyload_details * , GError **err));
 DECLARE_NPM_INTERFACE(finalize, void, (GError **err));
 
 typedef struct {

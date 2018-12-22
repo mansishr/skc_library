@@ -5,19 +5,17 @@
 #include "key-agent/key_agent.h"
 #include "key-agent/types.h"
 
-extern "C"
-size_t
+static size_t
 write_byte_array(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t realsize = size * nmemb;
-	keyagent_buffer_ptr mem = (keyagent_buffer_ptr )userp;
-	keyagent_buffer_append (mem, (guint8*) contents, realsize);
+	k_buffer_ptr mem = (k_buffer_ptr )userp;
+	k_buffer_append (mem, (guint8*) contents, realsize);
   	return realsize;
 }
 
 
-extern "C" 
-size_t 
+static size_t 
 get_response_header(void *header_buffer,   size_t size,   size_t nmemb,   void *userp)
 {
 	size_t realsize				= size * nmemb;
@@ -33,7 +31,7 @@ get_response_header(void *header_buffer,   size_t size,   size_t nmemb,   void *
         } \
 } while (0)
 
-extern "C" void
+static void
 build_header_list(gpointer data, gpointer user_data)
 {
         struct curl_slist **header_list = (struct curl_slist **)user_data;
@@ -43,7 +41,7 @@ build_header_list(gpointer data, gpointer user_data)
 
 extern "C"
 int 
-keyagent_curlsend(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, keyagent_buffer_ptr returndata, keyagent_curl_ssl_opts *ssl_opts, gboolean verbose)
+__keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, gboolean verbose)
 {
     CURL *curl;
     struct curl_slist *header_list = NULL;

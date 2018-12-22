@@ -12,7 +12,7 @@
 using namespace keyagent;
 
 extern "C" gboolean 
-keyagent_get_certificate_files(GString *cert_filename, GString *certkey_filename, GError **err)
+__keyagent_get_certificate_files(GString *cert_filename, GString *certkey_filename, GError **err)
 {
 	g_return_val_if_fail( (keyagent::cert || keyagent::certkey), FALSE );
     g_string_assign(cert_filename, keyagent::cert->str);

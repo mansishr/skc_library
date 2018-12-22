@@ -108,25 +108,8 @@ std::string json_to_string(Json::Value &input) {
     return Json::writeString(builder, input);
 }
 
-gchar *
-generate_checksum(gchar *data, int size)
-{
-    return g_compute_checksum_for_data (G_CHECKSUM_SHA256, (const guchar *)data, (gsize) size);
-}
-
-void
-debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size)
-{
-    gchar *cksum = generate_checksum((char *)buf, size);
-    std::stringstream ss;
-    ss << std::hex << cksum;
-    std::string tmp1 = ss.str();
-    k_debug_msg("%s %s\n", label, tmp1.c_str());
-    g_free(cksum);
-}
-
-keyagent_buffer_ptr
-convert_rsa_key_to_attr_hash(keyagent_attributes_ptr attrs)
+k_buffer_ptr
+convert_rsa_key_to_attr_hash(k_attributes_ptr attrs)
 {
     BIGNUM *bne = NULL;
     int bits = 2048;
@@ -136,10 +119,10 @@ convert_rsa_key_to_attr_hash(keyagent_attributes_ptr attrs)
     gboolean ret = FALSE;
     EVP_PKEY *pkey = NULL;
     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
-    keyagent_buffer_ptr KEYDATA = NULL;
+    k_buffer_ptr KEYDATA = NULL;
     unsigned char *tmp = NULL;
-    keyagent_buffer_ptr STM_TEST_DATA = NULL;
-    keyagent_buffer_ptr STM_TEST_SIG = NULL;
+    k_buffer_ptr STM_TEST_DATA = NULL;
+    k_buffer_ptr STM_TEST_SIG = NULL;
 
     OpenSSL_add_all_algorithms();
     ERR_load_BIO_strings();
@@ -164,23 +147,23 @@ convert_rsa_key_to_attr_hash(keyagent_attributes_ptr attrs)
     if ((len = i2d_PKCS8_PRIV_KEY_INFO(p8inf, NULL)) < 0)
         goto out;
 
-    KEYDATA = keyagent_buffer_alloc(NULL, len);
-    tmp = keyagent_buffer_data(KEYDATA);
+    KEYDATA = k_buffer_alloc(NULL, len);
+    tmp = k_buffer_data(KEYDATA);
     i2d_PKCS8_PRIV_KEY_INFO(p8inf, &tmp);
 
-    STM_TEST_DATA = keyagent_buffer_alloc(NULL, 20);
+    STM_TEST_DATA = k_buffer_alloc(NULL, 20);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
-    STM_TEST_SIG = keyagent_buffer_alloc(NULL, RSA_size(rsa));
-    if (!RSA_sign(NID_sha1, keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA), 
-        keyagent_buffer_data(STM_TEST_SIG),
+    STM_TEST_SIG = k_buffer_alloc(NULL, RSA_size(rsa));
+    if (!RSA_sign(NID_sha1, k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA), 
+        k_buffer_data(STM_TEST_SIG),
         &len,
         rsa)) {
         k_critical_msg("RSA_sign failed ! %s \n", ERR_error_string(ERR_get_error(), NULL));
     }
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
 out:
-    keyagent_buffer_unref(STM_TEST_SIG);
-    keyagent_buffer_unref(STM_TEST_DATA);
+    k_buffer_unref(STM_TEST_SIG);
+    k_buffer_unref(STM_TEST_DATA);
     if (p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
     if (pkey) EVP_PKEY_free(pkey);
     if (rsa) RSA_free(rsa);
@@ -188,8 +171,8 @@ out:
     return KEYDATA;
 }
 
-keyagent_buffer_ptr
-convert_ecc_key_to_attr_hash(keyagent_attributes_ptr attrs)
+k_buffer_ptr
+convert_ecc_key_to_attr_hash(k_attributes_ptr attrs)
 {
     EC_KEY *ec_key = NULL;
     int eccgrp;
@@ -197,10 +180,10 @@ convert_ecc_key_to_attr_hash(keyagent_attributes_ptr attrs)
     unsigned char *data = NULL;
     EVP_PKEY *pkey = NULL;
     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
-    keyagent_buffer_ptr KEYDATA = NULL;
+    k_buffer_ptr KEYDATA = NULL;
     unsigned char *tmp = NULL;
-    keyagent_buffer_ptr STM_TEST_DATA = NULL;
-    keyagent_buffer_ptr STM_TEST_SIG = NULL;
+    k_buffer_ptr STM_TEST_DATA = NULL;
+    k_buffer_ptr STM_TEST_SIG = NULL;
     gboolean ret = FALSE;
     ECDSA_SIG* ec_sig = NULL;
 
@@ -227,32 +210,32 @@ convert_ecc_key_to_attr_hash(keyagent_attributes_ptr attrs)
     if ((len = i2d_PKCS8_PRIV_KEY_INFO(p8inf, NULL)) < 0)
         goto out;
 
-    KEYDATA = keyagent_buffer_alloc(NULL, len);
-    tmp = keyagent_buffer_data(KEYDATA);
+    KEYDATA = k_buffer_alloc(NULL, len);
+    tmp = k_buffer_data(KEYDATA);
     i2d_PKCS8_PRIV_KEY_INFO(p8inf, &tmp);
 
-    STM_TEST_DATA = keyagent_buffer_alloc(NULL, 20);
+    STM_TEST_DATA = k_buffer_alloc(NULL, 20);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
-    if ((ec_sig = ECDSA_do_sign(keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA), ec_key)) == NULL) {
+    if ((ec_sig = ECDSA_do_sign(k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA), ec_key)) == NULL) {
         k_critical_msg("ECDSA_do_sign failed ! %s \n", ERR_error_string(ERR_get_error(), NULL));
         goto out;
     }
     len = i2d_ECDSA_SIG(ec_sig, NULL);
-    STM_TEST_SIG = keyagent_buffer_alloc(NULL, len);
-    data = (unsigned char *)keyagent_buffer_data(STM_TEST_SIG);
+    STM_TEST_SIG = k_buffer_alloc(NULL, len);
+    data = (unsigned char *)k_buffer_data(STM_TEST_SIG);
     i2d_ECDSA_SIG(ec_sig, &data);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
 out:
     if (ec_sig) ECDSA_SIG_free(ec_sig);
-    keyagent_buffer_unref(STM_TEST_SIG);
-    keyagent_buffer_unref(STM_TEST_DATA);
+    k_buffer_unref(STM_TEST_SIG);
+    k_buffer_unref(STM_TEST_DATA);
     if (p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
     if (pkey) EVP_PKEY_free(pkey);
     if (ec_key) EC_KEY_free(ec_key);
     return KEYDATA;
 }
 
-keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs, keyagent_buffer_ptr *keydata)
+keyagent_keytype convert_key_to_attr_hash(k_attributes_ptr attrs, k_buffer_ptr *keydata)
 {
     static GRand *rand = NULL;
 
@@ -275,13 +258,13 @@ typedef struct {
 static void
 attr_to_json(gpointer id, gpointer data, gpointer user_data) {
     std::string attrname = (const char *)id;
-    keyagent_buffer_ptr buf = (keyagent_buffer_ptr)data;
+    k_buffer_ptr buf = (k_buffer_ptr)data;
     jsondatawrapper *datawrapper = (jsondatawrapper *)user_data;
     std::string tmp = g_regex_replace_literal (datawrapper->regex, attrname.c_str(), -1, 0,"", (GRegexMatchFlags)0, NULL);
 
-    datawrapper->data[tmp.c_str()] = g_base64_encode(keyagent_buffer_data(buf), keyagent_buffer_length(buf));
+    datawrapper->data[tmp.c_str()] = g_base64_encode(k_buffer_data(buf), k_buffer_length(buf));
     tmp.append("_size");
-    datawrapper->data[tmp.c_str()] =  keyagent_buffer_length(buf);
+    datawrapper->data[tmp.c_str()] =  k_buffer_length(buf);
 }
 
 Json::Value keyattrs_to_json(GHashTable *attr_hash)
@@ -293,18 +276,18 @@ Json::Value keyattrs_to_json(GHashTable *attr_hash)
     return datawrapper.data;
 }
 
-keyagent_buffer_ptr
+k_buffer_ptr
 generate_iv()
 {
-    keyagent_buffer_ptr iv = keyagent_buffer_alloc(NULL, AES_BLOCK_SIZE);
+    k_buffer_ptr iv = k_buffer_alloc(NULL, AES_BLOCK_SIZE);
 
-    if (!RAND_bytes((unsigned char *)keyagent_buffer_data(iv), keyagent_buffer_length(iv))) {
-        keyagent_buffer_unref(iv);
+    if (!RAND_bytes((unsigned char *)k_buffer_data(iv), k_buffer_length(iv))) {
+        k_buffer_unref(iv);
         iv = NULL;
         goto out;
     }
 
-    debug_with_checksum("SERVER:CKSUM:IV", keyagent_buffer_data(iv), keyagent_buffer_length(iv));
+    k_debug_generate_checksum("SERVER:CKSUM:IV", k_buffer_data(iv), k_buffer_length(iv));
     out:
     return iv;
 }
@@ -328,14 +311,14 @@ create_challenge(const char *client_ip)
     return session_id;
 }
 
-keyagent_buffer_ptr
+k_buffer_ptr
 decode64_json_attr(Json::Value json_data, const char *name)
 {
 
     const char *val = json_data[name].asCString();
     gsize len = 0;
     guchar *tmp = g_base64_decode(val, &len);
-    return keyagent_buffer_alloc(tmp, len);
+    return k_buffer_alloc(tmp, len);
 }
 
 void
@@ -351,26 +334,8 @@ key_info_free(gpointer data)
 }
 
 extern "C" gboolean
-keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **error)
+__keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attributes_ptr *challenge_attrs, GError **error)
 {
     keyagent_stm_real *lstm = (keyagent_stm_real *)server::stm;
     return STM_MODULE_OP(lstm,challenge_verify)(quote, challenge_attrs, error);
-}
-
-extern "C"
-gchar *
-keyagent_generate_checksum(gchar *data, int size)
-{
-    return g_compute_checksum_for_data (G_CHECKSUM_SHA256, (const guchar *)data, (gsize) size);
-}
-
-extern "C" void
-keyagent_debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size)
-{
-    gchar *tmp =  keyagent_generate_checksum((char *)buf, size);
-    std::stringstream ss;
-    ss << std::hex << tmp;
-    std::string tmp1 = ss.str();
-    k_debug_msg("%s %s\n", label, tmp1.c_str());
-    g_free(tmp);
 }

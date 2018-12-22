@@ -80,7 +80,7 @@ get_stm_names(gpointer key, gpointer data, gpointer user_data)
 }
 
 extern "C" GString *
-keyagent_stm_get_names()
+__keyagent_stm_get_names()
 {
     GString *names = g_string_new(NULL);
     g_hash_table_foreach(keyagent::stm_hash, get_stm_names, names);
@@ -88,7 +88,7 @@ keyagent_stm_get_names()
 }
 
 extern "C" gboolean
-keyagent_stm_get_by_name(const char *name, keyagent_module **module)
+__keyagent_stm_get_by_name(const char *name, keyagent_module **module)
 {
     g_return_val_if_fail((name && module), FALSE);
     keyagent_stm_real *stm;
@@ -101,47 +101,66 @@ keyagent_stm_get_by_name(const char *name, keyagent_module **module)
 }
 
 extern "C" gboolean
-keyagent_stm_set_session(keyagent_session *session, GError **error)
+__keyagent_stm_set_session(keyagent_session *session, GError **error)
 {
     g_return_val_if_fail(session != NULL, FALSE);
     keyagent_stm_real *lstm = NULL;
-    keyagent_stm_get_by_name(keyagent_session_get_stmname(session, error), (keyagent_module **)&lstm);
+    keyagent_stm_session_details details;
+    __keyagent_stm_get_by_name(keyagent_session_get_stmname(session, error), (keyagent_module **)&lstm);
 
     g_return_val_if_fail(lstm != NULL, FALSE);
 
     lstm->session = (keyagent_session_real *)session;
-    GQuark swk_quark = keyagent_session_lookup_swktype(lstm->session->swk_type->str);
-    STM_MODULE_OP(lstm,set_session)(swk_quark,session->swk, error);
+    details.session = session->swk;
+    details.swk_type = __keyagent_session_lookup_swktype(lstm->session->swk_type->str);
+    details.swk_size_in_bits = __keyagent_get_swk_size(details.swk_type);
+    LOOKUP_KEYAGENT_INTERNAL_STM_OPS(&details.cbs);
+
+    STM_MODULE_OP(lstm,set_session)(&details, error);
 
     if (lstm->session)
-        keyagent_debug_with_checksum("CLIENT:SESSION", keyagent_buffer_data(lstm->session->swk), keyagent_buffer_length(lstm->session->swk));
+        k_debug_generate_checksum("CLIENT:SESSION", k_buffer_data(lstm->session->swk), k_buffer_length(lstm->session->swk));
 
     return TRUE;
 }
 
 extern "C" gboolean
-keyagent_stm_get_challenge(const char *name, keyagent_buffer_ptr *challenge, GError **error)
+__keyagent_stm_get_challenge(const char *name, k_buffer_ptr *challenge, GError **error)
 {
-    g_return_val_if_fail(name && challenge, FALSE);
+	//g_return_val_if_fail(name && challenge, FALSE);
+	if( name == NULL || challenge == NULL )
+	{
+        k_set_error (error, STM_ERROR_INVALID_CHALLENGE_DATA,
+            "%s: %s", __func__, "Invalid challenge data");
+		return FALSE;
+	}
     keyagent_stm_real *lstm = NULL;
-    keyagent_stm_get_by_name(name, (keyagent_module **)&lstm);
-    g_return_val_if_fail(lstm != NULL, FALSE);
+    __keyagent_stm_get_by_name(name, (keyagent_module **)&lstm);
+	//g_return_val_if_fail(lstm != NULL, FALSE);
+	if( lstm == NULL )
+	{
+        k_set_error (error, STM_ERROR_INVALID_CHALLENGE_DATA,
+            "%s: %s", __func__, "STM not found");
+		return FALSE;
+	}
     return STM_MODULE_OP(lstm,create_challenge)(challenge, error);
 }
 
 extern "C" gboolean
-keyagent_stm_challenge_verify(const char *name, keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **error)
+__keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attributes_ptr *challenge_attrs, GError **error)
 {
     g_return_val_if_fail(name && quote && challenge_attrs, FALSE);
     keyagent_stm_real *lstm = NULL;
-    keyagent_stm_get_by_name(name, (keyagent_module **)&lstm);
+    __keyagent_stm_get_by_name(name, (keyagent_module **)&lstm);
     g_return_val_if_fail(lstm != NULL, FALSE);
     return STM_MODULE_OP(lstm,challenge_verify)(quote, challenge_attrs, error);
 }
 
 extern "C" gboolean
-keyagent_stm_load_key(keyagent_key *_key, GError **error)
+__keyagent_stm_load_key(keyagent_key *_key, GError **error)
 {
+    gboolean ret = FALSE;
+    keyagent_stm_loadkey_details details;
     keyagent_key_real *key = (keyagent_key_real *)_key;
     g_return_val_if_fail(key, FALSE);
     if (!key->session) {
@@ -150,9 +169,17 @@ keyagent_stm_load_key(keyagent_key *_key, GError **error)
         return FALSE;
     }
     keyagent_stm_real *lstm = NULL;
-    keyagent_stm_get_by_name(keyagent_key_get_stmname(_key, error), (keyagent_module **)&lstm);
+    __keyagent_stm_get_by_name(keyagent_key_get_stmname(_key, error), (keyagent_module **)&lstm);
     g_return_val_if_fail(lstm != NULL || lstm->session != NULL, FALSE);
 
-    GQuark swk_quark = keyagent_session_lookup_swktype(lstm->session->swk_type->str);
-	return STM_MODULE_OP(lstm,load_key)(swk_quark, key->type, key->attributes, error);
+    
+    LOOKUP_KEYAGENT_INTERNAL_STM_OPS(&details.cbs);
+    details.swk_quark = __keyagent_session_lookup_swktype(lstm->session->swk_type->str);
+    details.type = key->type;
+    details.url = strdup(key->url->str);
+    details.attrs = key->attributes;
+    memcpy(&details.apimodule_ops, &keyagent::apimodule_ops, sizeof(keyagent::apimodule_ops));
+	ret = STM_MODULE_OP(lstm,load_key)(&details, error);
+    free(details.url);
+    return ret;
 }

@@ -46,7 +46,7 @@ get_session_ids(gpointer key, gpointer data, gpointer user_data)
 }
 
 extern "C" GString *
-keyagent_session_get_ids()
+__keyagent_session_get_ids()
 {
     GString *session_ids = g_string_new(NULL);
     g_hash_table_foreach(keyagent::session_hash, get_session_ids, session_ids);
@@ -59,7 +59,7 @@ keyagent_session_get_ids()
 }
 
 extern "C" keyagent_session *
-keyagent_session_lookup(const gchar *session_id)
+__keyagent_session_lookup(const gchar *session_id)
 {
     GQuark session_id_quark = g_quark_from_string(session_id);
     return (keyagent_session *)g_hash_table_lookup(keyagent::session_hash, GINT_TO_POINTER(session_id_quark));
@@ -80,13 +80,13 @@ keyagent_session_get_cache_id(keyagent_session *_session)
 }
 
 extern "C" gboolean
-keyagent_session_create(const char *label, const char *session_id, keyagent_buffer_ptr swk, const char *swk_type, gint cache_id, GError **error)
+__keyagent_session_create(const char *label, const char *session_id, k_buffer_ptr swk, const char *swk_type, gint cache_id, GError **error)
 {
-    DECLARE_KEYAGENT_REAL_PTR(session, keyagent_session, keyagent_session_lookup(session_id));
+    DECLARE_KEYAGENT_REAL_PTR(session, keyagent_session, __keyagent_session_lookup(session_id));
     GQuark session_id_quark = g_quark_from_string(session_id);
 	gboolean status = FALSE;
 	
-    GQuark swk_quark = keyagent_session_lookup_swktype(swk_type);
+    GQuark swk_quark = __keyagent_session_lookup_swktype(swk_type);
 	if( !swk_quark )
 	{
         k_set_error (error, KEYAGENT_ERROR_SESSION_CREATE_INVALID_SWK_TYPE, 
@@ -109,16 +109,16 @@ keyagent_session_create(const char *label, const char *session_id, keyagent_buff
         }
     }
     if (session) {
-        if (!keyagent_buffer_equal(session->swk, swk)) {
-			keyagent_buffer_unref(session->swk);
-            session->swk = keyagent_buffer_ref(swk);
+        if (!k_buffer_equal(session->swk, swk)) {
+			k_buffer_unref(session->swk);
+            session->swk = k_buffer_ref(swk);
 			status = TRUE;
         }
         goto out;
     }
     session = (keyagent_session_real *)g_new0(keyagent_session_real, 1);
     session->name = g_string_new(label);
-    session->swk = keyagent_buffer_ref(swk);
+    session->swk = k_buffer_ref(swk);
 	session->swk_type	= g_string_new(swk_type);
 	session->session_id	= g_string_new(session_id);
     keyagent_session_set_cache_id((keyagent_session *)session, cache_id);
@@ -130,7 +130,7 @@ out:
     if (cache_id == -1)
         keyagent_cache_session((keyagent_session *)session, error);
 
-    keyagent_stm_set_session((keyagent_session *)session, error);
+    __keyagent_stm_set_session((keyagent_session *)session, error);
     return status;
 }
 
@@ -168,7 +168,7 @@ keyagent_session_make_swktype(const char *type)
 }
 
 extern "C" GQuark
-keyagent_session_lookup_swktype(const char *type) 
+__keyagent_session_lookup_swktype(const char *type) 
 {
     GQuark q = keyagent_session_make_swktype(type);
     swk_type_op *op = (swk_type_op *)g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(q));

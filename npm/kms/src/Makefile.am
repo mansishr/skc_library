@@ -9,6 +9,6 @@ lib_LTLIBRARIES = \
 npm_kms_la_SOURCES = \
     intf.cpp
 
-npm_kms_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS)
-
-
+npm_kms_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS) \
+	$(TOPDIR)/config-file/src/libkey_configfile.la \
+	-ljsoncpp

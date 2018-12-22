@@ -4,27 +4,15 @@
 #include <libgen.h>
 #include <stdlib.h>
 #include "key-agent/key_agent.h"
+#include "config.h"
 
-
-/**
-[core]
-npm-directory=/tmp/key-server/npms
-npm-list=reference,kmip
-[reference]
-url=http://localhost:8000
-module=libnpm_reference.so
-[kmip]
-url=http://localhost:9000
-module=libnpm_kmip.so
-*/
 
 const char *programname;
 GString *testdir = NULL;
 
 typedef struct {
-	void *cfile;
-	GString *filename;
-} MyTestFixture;
+	gchar* configfile;
+} testcase_data;
 
 static GString *
 generate_testfile_name(const char *name)
@@ -35,18 +23,18 @@ generate_testfile_name(const char *name)
 }
 
 static void
-my_object_fixture_set_up (MyTestFixture *fixture,
+fsetup (gpointer fixture,
                           gconstpointer user_data)
 {
-	g_autoptr(GError) err = NULL;
-	fixture->filename = generate_testfile_name((const char *)user_data);
-  	//fixture->cfile = key_config_openfile(fixture->filename->str, &err);
 }
 
 static void
-my_object_fixture_tear_down (MyTestFixture *fixture,
+fteardown(gpointer fixture,
                              gconstpointer user_data)
 {
+	testcase_data *d= (testcase_data *)user_data;
+	if( d->configfile )
+		g_free(d->configfile);
 }
 
 gboolean fatal_handler(const gchar *log_domain,
@@ -54,27 +42,17 @@ gboolean fatal_handler(const gchar *log_domain,
                       const gchar *message,
                       gpointer user_data)
 {
-	//g_print("%s - %s %s\n", __func__, log_domain, message);
 	return FALSE;
 }
  
-void test_init(void)
+void test_init(gpointer ptr, gpointer data)
 {
 	g_autoptr(GError) err = NULL;
-	GString *filename = generate_testfile_name("key-agent.ini");
+	testcase_data *d= (testcase_data *)data;
+	d->configfile = g_strconcat (DHSM2_CONF_PATH,"/key-agent.ini", NULL);
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
-	g_assert_true(keyagent_init(filename->str, &err));
+	g_assert_true(keyagent_init(d->configfile, &err));
 	keyagent_npm_showlist();
-}
-
-static void
-test_vals (MyTestFixture *fixture,
-                      gconstpointer user_data)
-{
-	char *strval;
-	int intval;
-	g_assert_nonnull(fixture->cfile);
-	g_autoptr(GError) err = NULL;
 }
 
 gboolean set_testdir(const gchar *option_name,
@@ -125,7 +103,7 @@ int main(int argc, char** argv)
 	}
 
     g_test_set_nonfatal_assertions ();
-    g_test_add_func("/key_agent/test_init", test_init);
-
+	testcase_data data={NULL};
+	g_test_add("/key_agent/test_init", gpointer, &data, fsetup, test_init, fteardown);
     return g_test_run();
 }

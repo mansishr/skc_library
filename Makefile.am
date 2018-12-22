@@ -5,8 +5,8 @@ SUBDIRS = \
 	npm/kms \
 	npm/reference \
 	stm/sw \
-	npm/tests/test_app \
-	api-module/sw-pkcs11/SoftHSMv2
+	api-module/sw-pkcs11/SoftHSMv2 \
+	npm/tests/test_app
 
 conf_dir:=./configs
 datadir=$(prefix)/etc

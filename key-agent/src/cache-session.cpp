@@ -10,7 +10,7 @@
 #include <sql-parser/gda-sql-parser.h>
 
 typedef struct {
-    keyagent_buffer_ptr swk;
+    k_buffer_ptr swk;
     gint id;
     char *label;
     char *session_id;
@@ -29,13 +29,16 @@ session_data_free(session_data *data)
 	if( data->swk_type)
         g_free(data->swk_type);
 
-    keyagent_buffer_unref(data->swk);
+    k_buffer_unref(data->swk);
     g_free(data);
 }
 
 static session_data *
 get_session_from_model(GdaDataModel *model, int row, GError **error) {
     session_data *data = g_new0(session_data, 1);
+
+    GdaBlob *blob = NULL;
+    gsize size = 0;
 
     const GValue *value = gda_data_model_get_value_at(model, 0, row, error);
     data->id = g_value_get_int(value);
@@ -53,14 +56,19 @@ get_session_from_model(GdaDataModel *model, int row, GError **error) {
     data->swk_type = g_strdup(g_value_get_string(value));
 
     value = gda_data_model_get_value_at(model, 2, row, error);
-    g_assert(G_VALUE_TYPE(value) == GDA_TYPE_BLOB);
+    if (!value || (G_VALUE_TYPE(value) != GDA_TYPE_BLOB)) 
+        goto err;
 
-
-    GdaBlob *blob = (GdaBlob *) gda_value_get_blob(value);
-    gsize size = gda_blob_op_get_length(blob->op);
+    blob = (GdaBlob *) gda_value_get_blob(value);
+    size = gda_blob_op_get_length(blob->op);
     gda_blob_op_read_all(blob->op, (GdaBlob *) blob);
-    data->swk = keyagent_buffer_alloc(NULL, size);
-    memcpy(keyagent_buffer_data(data->swk), blob->data.data, size);
+    data->swk = k_buffer_alloc(NULL, size);
+    memcpy(k_buffer_data(data->swk), blob->data.data, size);
+    goto out;
+err:
+    g_free(data);
+    data = NULL;
+out:
     return data;
 }
 
@@ -94,7 +102,7 @@ keyagent_cache_loadsessions(GError **error)
             break;
         }
 
-        keyagent_session_create(data->label, data->session_id, data->swk, data->swk_type, data->id, error);
+        __keyagent_session_create(data->label, data->session_id, data->swk, data->swk_type, data->id, error);
         session_data_free(data);
     }
     g_object_unref (model);
@@ -156,7 +164,7 @@ keyagent_cache_session(keyagent_session *_session, GError **error)
     v_stmlabel = gda_value_new_from_string (session->name->str, G_TYPE_STRING);
     v_session_id = gda_value_new_from_string (session->session_id->str, G_TYPE_STRING);
     v_swk_type = gda_value_new_from_string (session->swk_type->str, G_TYPE_STRING);
-    v_swk = gda_value_new_blob (keyagent_buffer_data(session->swk), keyagent_buffer_length(session->swk));
+    v_swk = gda_value_new_blob (k_buffer_data(session->swk), k_buffer_length(session->swk));
 
     if (!gda_connection_insert_row_into_table (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), "sessions", error, "stm_label", v_stmlabel, "swk", v_swk, "session_id", v_session_id,  "swk_type", v_swk_type, NULL)) {
     //if (!gda_connection_insert_row_into_table (GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), "sessions", error, "stm_label", v_stmlabel, "session_id", v_session_id,  NULL)) {

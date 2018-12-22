@@ -4,7 +4,9 @@
 #include <glib.h>
 #include <stdlib.h>
 #include <string.h>
+#include "k_types.h"
 #include "k_errors.h"
+#include "k_debug.h"
 
 typedef struct {
     GString *label;
@@ -18,95 +20,6 @@ typedef struct {
 
 typedef gchar * keyagent_url;
 
-typedef struct {
-	GByteArray *bytes;
-    gint ref_count;
-} keyagent_buffer;
-
-typedef struct {
-	GTimeVal time;
-    gint ref_count;
-}keyagent_policy_buffer;
-
-typedef keyagent_buffer *	keyagent_buffer_ptr;
-typedef keyagent_policy_buffer * keyagent_policy_buffer_ptr;
-
-#define keyagent_buffer_data(PTR) (PTR)->bytes->data
-#define keyagent_buffer_length(PTR) (PTR)->bytes->len
-
-#define keyagent_policy_buffer_data(PTR) &((PTR)->time)
-
-static inline void
-keyagent_buffer_append(keyagent_buffer_ptr buf, void *data, int size)
-{
-	g_byte_array_append (buf->bytes, (guint8*) data, size);
-}
-
-static inline keyagent_buffer_ptr
-keyagent_buffer_alloc(void *data, int size)
-{
-    keyagent_buffer_ptr buf = g_new0(keyagent_buffer, 1);
-    buf->ref_count = 1;
-    buf->bytes = g_byte_array_sized_new(size);
-
-    if (!data) {
-        g_byte_array_set_size(buf->bytes, size);
-    } else {
-        keyagent_buffer_append (buf, data, size);
-    }
-    return buf;
-}
-
-static inline keyagent_buffer_ptr
-keyagent_buffer_ref(keyagent_buffer_ptr buf)
-{
-    g_byte_array_ref(buf->bytes);
-    g_atomic_int_inc (&buf->ref_count);
-    return buf;
-}
-
-static inline void
-keyagent_buffer_unref(keyagent_buffer_ptr buf)
-{
-	if(buf != NULL)
-	{
-		g_byte_array_unref(buf->bytes);
-		if (g_atomic_int_dec_and_test (&buf->ref_count))
-			g_free(buf);
-	}
-}
-
-static inline gboolean
-keyagent_buffer_equal(keyagent_buffer_ptr buf1, keyagent_buffer_ptr buf2)
-{
-    if (keyagent_buffer_length(buf1) != keyagent_buffer_length(buf2)) return FALSE;
-
-    return (memcmp(keyagent_buffer_data(buf1),keyagent_buffer_data(buf2), keyagent_buffer_length(buf1)) ? FALSE: TRUE);
-}
-
-static inline keyagent_policy_buffer_ptr
-keyagent_policy_buffer_ref(keyagent_policy_buffer_ptr buf)
-{
-    g_atomic_int_inc (&buf->ref_count);
-    return buf;
-}
-
-static inline void
-keyagent_policy_buffer_unref(keyagent_policy_buffer_ptr buf)
-{
-	if(buf != NULL)
-	{
-		if (g_atomic_int_dec_and_test (&buf->ref_count))
-			g_free(buf);
-	}
-}
-static inline keyagent_policy_buffer_ptr
-keyagent_policy_buffer_alloc()
-{
-    keyagent_policy_buffer_ptr buf = g_new0(keyagent_policy_buffer, 1);
-    buf->ref_count = 1;
-	return buf;
-}
 
 typedef enum {
     KEYAGENT_RSAKEY = 1,
@@ -123,7 +36,7 @@ typedef enum {
 } keyagent_aes_mode;
 
 typedef struct {
-    keyagent_buffer_ptr		swk;
+    k_buffer_ptr		swk;
     GString                 *name;
     GString                 *session_id;
     GString                 *swk_type;
@@ -135,45 +48,7 @@ typedef struct {
 	const char *certtype;
 	const char *keyname;
 	const char *keytype;
-} keyagent_curl_ssl_opts;
-
-typedef struct {
-	GHashTable *hash;
-    gint ref_count;
-} keyagent_attributes;
-
-
-typedef keyagent_attributes *	keyagent_attributes_ptr;
-static inline void
-keyagent_attribute_free(gpointer _data)
-{
-    keyagent_buffer_ptr data = (keyagent_buffer_ptr)_data;
-    keyagent_buffer_unref(data);
-}
-
-static inline  keyagent_attributes_ptr
-keyagent_attributes_alloc() {
-    keyagent_attributes_ptr ptr = g_new0(keyagent_attributes, 1);
-    ptr->ref_count = 1;
-    ptr->hash = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, keyagent_attribute_free);
-    return ptr;
-}
-
-static inline keyagent_attributes_ptr
-keyagent_attributes_ref(keyagent_attributes_ptr attrs)
-{
-    g_hash_table_ref(attrs->hash);
-    g_atomic_int_inc (&attrs->ref_count);
-    return attrs;
-}
-
-static inline void
-keyagent_attributes_unref(keyagent_attributes_ptr attrs)
-{
-    g_hash_table_unref(attrs->hash);
-    if (g_atomic_int_dec_and_test (&attrs->ref_count))
-        g_free(attrs);
-}
+} keyagent_ssl_opts;
 
 typedef struct {
     GString  *url;
@@ -185,6 +60,69 @@ typedef struct {
     int tag_size;
     int wrap_size;
 } keyagent_keytransfer_t;
+
+#define KEYAGENT_KEY_ADD_POLICY_ATTR(ATTRS, policy) do { \
+	if ((policy)) { \
+        const gchar *policyname = g_quark_to_string ( KEYAGENT_ATTR_POLICY_##policy ); \
+	    g_hash_table_insert((ATTRS)->hash, (gpointer) policyname,  (gpointer) k_policy_buffer_ref((policy))); \
+	} \
+} while(0)
+
+#define KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(ATTRS, src) do { \
+	if ((src)) { \
+        const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##src ); \
+	    g_hash_table_insert((ATTRS)->hash, (gpointer) keyname,  (gpointer) k_buffer_ref((src))); \
+	} \
+} while(0)
+
+#define KEYAGENT_KEY_REPLACE_BYTEARRAY_ATTR(ATTRS, src) do { \
+	if ((src)) { \
+        const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##src ); \
+	    g_hash_table_replace((ATTRS)->hash, (gpointer) keyname,  (gpointer) k_buffer_ref((src))); \
+	} \
+} while(0)
+
+#define KEYAGENT_KEY_GET_POLICY_ATTR(ATTRS, NAME, DEST) do { \
+    const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_POLICY_##NAME ); \
+    DEST = (k_policy_buffer_ptr)g_hash_table_lookup((ATTRS)->hash, keyname); \
+} while(0)
+
+
+#define KEYAGENT_KEY_GET_BYTEARRAY_ATTR(ATTRS, NAME, DEST) do { \
+    const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##NAME ); \
+    DEST = (k_buffer_ptr)g_hash_table_lookup((ATTRS)->hash, keyname); \
+} while(0)
+
+#define ENCRYPT_ATTR_HASH(VAL, SRC_ATTR, DEST_ATTRS, KEY, IV, ENCRYPT_FUNC) do { \
+    k_buffer_ptr tmp; \
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(SRC_ATTR, VAL, tmp); \
+    k_buffer_ptr VAL = k_buffer_alloc(NULL, k_buffer_length(tmp) + TAG_SIZE); \
+	k_debug_generate_checksum("BEFORE-E-"#VAL, k_buffer_data(tmp), k_buffer_length(tmp)); \
+    ENCRYPT_FUNC(tmp, KEY, IV, VAL); \
+    k_debug_generate_checksum("AFTER-E-"#VAL, k_buffer_data(VAL), k_buffer_length(VAL)); \
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(DEST_ATTRS, VAL); \
+    k_buffer_unref(VAL); \
+} while(0)
+
+#define DECRYPT_ATTR_HASH(VAL, SRC_ATTR, DEST_ATTRS, KEY, IV, TAGLEN, DECRYPT_FUNC) do { \
+    k_buffer_ptr tmp; \
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(SRC_ATTR, VAL, tmp); \
+    k_buffer_ptr VAL = k_buffer_alloc(NULL, k_buffer_length(tmp) - TAGLEN); \
+    k_debug_generate_checksum("BEFORE-D-"#VAL, k_buffer_data(tmp), k_buffer_length(tmp)); \
+    DECRYPT_FUNC(VAL, KEY, IV, tmp, TAGLEN); \
+    k_debug_generate_checksum("AFTER-D-"#VAL, k_buffer_data(VAL), k_buffer_length(VAL)); \
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(DEST_ATTRS, VAL); \
+    k_buffer_unref(VAL); \
+} while(0)
+
+
+#define COPY_ATTR_HASH(VAL, SRC_ATTR, DEST_ATTRS) do { \
+    k_buffer_ptr VAL; \
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(SRC_ATTR, VAL, VAL); \
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(DEST_ATTRS, VAL); \
+} while(0)
+
+
 
 #define KEYAGENT_DEFINE_QUARK(TYPE,QN)                                         \
 extern "C" GQuark                                                                  \
@@ -329,69 +267,6 @@ GQuark KEYAGENT_ATTR_POLICY_CREATED_AT;
 }
 #endif
 
-
-
-#define KEYAGENT_KEY_ADD_POLICY_ATTR(ATTRS, policy) do { \
-	if ((policy)) { \
-        const gchar *policyname = g_quark_to_string ( KEYAGENT_ATTR_POLICY_##policy ); \
-	    g_hash_table_insert((ATTRS)->hash, (gpointer) policyname,  (gpointer) keyagent_policy_buffer_ref((policy))); \
-	} \
-} while(0)
-
-#define KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(ATTRS, src) do { \
-	if ((src)) { \
-        const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##src ); \
-	    g_hash_table_insert((ATTRS)->hash, (gpointer) keyname,  (gpointer) keyagent_buffer_ref((src))); \
-	} \
-} while(0)
-
-#define KEYAGENT_KEY_REPLACE_BYTEARRAY_ATTR(ATTRS, src) do { \
-	if ((src)) { \
-        const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##src ); \
-	    g_hash_table_replace((ATTRS)->hash, (gpointer) keyname,  (gpointer) keyagent_buffer_ref((src))); \
-	} \
-} while(0)
-
-#define KEYAGENT_KEY_GET_POLICY_ATTR(ATTRS, NAME, DEST) do { \
-    const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_POLICY_##NAME ); \
-    DEST = (keyagent_policy_buffer_ptr)g_hash_table_lookup((ATTRS)->hash, keyname); \
-} while(0)
-
-
-#define KEYAGENT_KEY_GET_BYTEARRAY_ATTR(ATTRS, NAME, DEST) do { \
-    const gchar *keyname = g_quark_to_string ( KEYAGENT_ATTR_##NAME ); \
-    DEST = (keyagent_buffer_ptr)g_hash_table_lookup((ATTRS)->hash, keyname); \
-} while(0)
-
-#define ENCRYPT_ATTR_HASH(VAL, SRC_ATTR, DEST_ATTRS, KEY, IV, ENCRYPT_FUNC) do { \
-    keyagent_buffer_ptr tmp; \
-    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(SRC_ATTR, VAL, tmp); \
-    keyagent_buffer_ptr VAL = keyagent_buffer_alloc(NULL, keyagent_buffer_length(tmp) + TAG_SIZE); \
-	keyagent_debug_with_checksum("BEFORE-E-"#VAL, keyagent_buffer_data(tmp), keyagent_buffer_length(tmp)); \
-    ENCRYPT_FUNC(tmp, KEY, IV, VAL); \
-    keyagent_debug_with_checksum("AFTER-E-"#VAL, keyagent_buffer_data(VAL), keyagent_buffer_length(VAL)); \
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(DEST_ATTRS, VAL); \
-    keyagent_buffer_unref(VAL); \
-} while(0)
-
-#define DECRYPT_ATTR_HASH(VAL, SRC_ATTR, DEST_ATTRS, KEY, IV, TAGLEN, DECRYPT_FUNC) do { \
-    keyagent_buffer_ptr tmp; \
-    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(SRC_ATTR, VAL, tmp); \
-    keyagent_buffer_ptr VAL = keyagent_buffer_alloc(NULL, keyagent_buffer_length(tmp) - TAGLEN); \
-    keyagent_debug_with_checksum("BEFORE-D-"#VAL, keyagent_buffer_data(tmp), keyagent_buffer_length(tmp)); \
-    DECRYPT_FUNC(VAL, KEY, IV, tmp, TAGLEN); \
-    keyagent_debug_with_checksum("AFTER-D-"#VAL, keyagent_buffer_data(VAL), keyagent_buffer_length(VAL)); \
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(DEST_ATTRS, VAL); \
-    keyagent_buffer_unref(VAL); \
-} while(0)
-
-
-#define COPY_ATTR_HASH(VAL, SRC_ATTR, DEST_ATTRS) do { \
-    keyagent_buffer_ptr VAL; \
-    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(SRC_ATTR, VAL, VAL); \
-    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(DEST_ATTRS, VAL); \
-} while(0)
-
 #define TAG_SIZE    			16
 #define AES_BLOCK_SIZE			16
 
@@ -441,11 +316,100 @@ typedef enum {
 
 typedef enum {
     STM_ERROR_QUOTE = 1,
+	STM_ERROR_API_MODULE_LOADKEY,
+	STM_ERROR_INVALID_CHALLENGE_DATA,
 } StmErrors;
 
 typedef enum {
-    NPM_ERROR_REGISTER = 1,
+	NPM_ERROR_INIT = 1,
+    NPM_ERROR_REGISTER,
+    NPM_ERROR_KEYSERVER_ERROR,
+    NPM_ERROR_NOT_AUTHORIZED,
     NPM_ERROR_LOAD_KEY,
+	NPM_ERROR_JSON_PARSE,
+	NPM_ERROR_INVALID_STATUS,
+	NPM_ERROR_INVALID_SESSION_DATA,
+    NPM_ERROR_PARSE_JSON,
 } NpmErrors;
+
+#define DECLARE_KEYAGENT_INTERNAL_OP(SUBTYPE, NAME, RETURNTYPE, ARGS) \
+    typedef RETURNTYPE (* SUBTYPE##_##NAME##_func) ARGS; \
+    DHSM_EXTERN RETURNTYPE __##SUBTYPE##_##NAME ARGS
+
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_set_session, gboolean,(keyagent_session *, GError **));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_get_challenge, gboolean, (const char *name, k_buffer_ptr *challenge, GError **));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_get_ids,GString *,());
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_create, gboolean, (const char *name, const char *session_id, k_buffer_ptr swk, const char *swk_type, gint cache_id, GError **));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_lookup_swktype, GQuark, (const char *type));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_challenge_verify, gboolean, (const char *name, k_buffer_ptr quote, k_attributes_ptr *challenge_attrs, GError **));
+
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,https_send,int, (GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, gboolean verbose));
+
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_create, GQuark,(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_policy_add, gboolean, (keyagent_url url, k_attributes_ptr policy_attrs, gint cache_id, GError **error));
+
+typedef struct {
+    DECLARE_KEYAGENT_OP(keyagent,stm_set_session);
+    DECLARE_KEYAGENT_OP(keyagent,stm_get_challenge);
+    DECLARE_KEYAGENT_OP(keyagent,stm_challenge_verify);
+    DECLARE_KEYAGENT_OP(keyagent,session_get_ids);
+    DECLARE_KEYAGENT_OP(keyagent,session_create);
+    DECLARE_KEYAGENT_OP(keyagent,session_lookup_swktype);
+    DECLARE_KEYAGENT_OP(keyagent,https_send);
+    DECLARE_KEYAGENT_OP(keyagent,key_create);
+    DECLARE_KEYAGENT_OP(keyagent,key_policy_add);
+} keyagent_npm_callbacks;
+
+#define KEYAGENT_NPM_OP(OPS,NAME)  (OPS)->keyagent_func_##NAME
+
+typedef struct {
+    keyagent_url url;
+    GString *stm_names;
+    keyagent_ssl_opts ssl_opts;
+    keyagent_npm_callbacks cbs;
+} keyagent_keyload_details;
+
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,get_swk_size, int, (GQuark swk_type));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,aes_decrypt, k_buffer_ptr,(GQuark swk_type, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,verify_and_extract_cms_message, gboolean, (k_buffer_ptr msg, k_buffer_ptr *data, GError **error));
+
+typedef struct {
+    DECLARE_KEYAGENT_OP(keyagent,get_swk_size);
+    DECLARE_KEYAGENT_OP(keyagent,aes_decrypt);
+    DECLARE_KEYAGENT_OP(keyagent,verify_and_extract_cms_message);
+} keyagent_stm_callbacks;
+
+#define KEYAGENT_STM_OP(OPS,NAME)  (OPS)->keyagent_func_##NAME
+
+typedef struct {
+    GQuark swk_type;
+    int swk_size_in_bits;
+    k_buffer_ptr session;
+    keyagent_stm_callbacks cbs;
+} keyagent_stm_session_details;
+
+#define DECLARE_KEYAGENT_EXTERNAL_OP(SUBTYPE, NAME, RETURNTYPE, ARGS) \
+    typedef RETURNTYPE (* SUBTYPE##_##NAME##_func) ARGS;
+
+typedef struct {
+    keyagent_url url;
+    keyagent_keytype type;
+    k_buffer_ptr key;
+} keyagent_apimodule_loadkey_details;
+
+DECLARE_KEYAGENT_EXTERNAL_OP(apimodule,loadkey, gboolean,(keyagent_apimodule_loadkey_details *, GError **));
+
+typedef struct {
+    DECLARE_KEYAGENT_OP(apimodule,loadkey);
+} keyagent_apimodule_ops;
+
+typedef struct {
+    GQuark swk_quark;
+    keyagent_url url;
+    keyagent_keytype type;
+    k_attributes_ptr attrs;
+    keyagent_stm_callbacks cbs;
+    keyagent_apimodule_ops apimodule_ops;
+} keyagent_stm_loadkey_details;
 
 #endif

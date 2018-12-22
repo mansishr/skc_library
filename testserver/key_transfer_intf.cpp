@@ -21,6 +21,7 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include "k_errors.h"
+#include "k_debug.h"
 #include "key-agent/types.h"
 #include "key-agent/key_agent.h"
 #include "key-agent/src/internal.h"
@@ -40,7 +41,7 @@ using namespace restbed;
 using namespace server;
 
 typedef struct {
-	keyagent_buffer_ptr swk;
+	k_buffer_ptr swk;
 	swk_type_op *swk_op;
 }server_swk;
 
@@ -67,11 +68,11 @@ client_hash_value_free(gpointer data)
 void
 session_hash_value_free(gpointer data)
 {
-	//keyagent_buffer_ptr swk = (keyagent_buffer_ptr)data;
+	//k_buffer_ptr swk = (k_buffer_ptr)data;
 	server_swk *swk_info = (server_swk *)data;
 	if (swk_info != (server_swk *)-1)
 	{
-		keyagent_buffer_unref(swk_info->swk);
+		k_buffer_unref(swk_info->swk);
 		g_free(swk_info);
 	}
 }
@@ -94,7 +95,7 @@ flush_sessions(const char *client_ip)
 }
 
 void
-set_session(const char *client_ip, const char *stmlabel, const char  *session_id, keyagent_buffer_ptr swk, swk_type_op *op)
+set_session(const char *client_ip, const char *stmlabel, const char  *session_id, k_buffer_ptr swk, swk_type_op *op)
 {
     GQuark client_ip_quark = g_quark_from_string(client_ip);
     GQuark stm_quark = g_quark_from_string(stmlabel);
@@ -115,7 +116,7 @@ set_session(const char *client_ip, const char *stmlabel, const char  *session_id
     if (swk)
 	{
 		server_swk *swk_info = g_new0(server_swk, 1); 
-		swk_info->swk = keyagent_buffer_ref(swk);
+		swk_info->swk = k_buffer_ref(swk);
 		swk_info->swk_op = op;
         g_hash_table_insert(server::session_hash_table, GINT_TO_POINTER(session_id_quark), swk_info);
 	}
@@ -136,7 +137,7 @@ get_session_id(const char *client_ip, const char *stmlabel)
     return (gchar *)g_quark_to_string(session_id_quark);
 }
 
-keyagent_buffer_ptr
+k_buffer_ptr
 get_session_swk(const char *session_id)
 {
     GQuark session_id_quark = g_quark_from_string(session_id);
@@ -188,13 +189,13 @@ swk_type_op* get_swk_info(const char *swk_type_str)
 char *
 verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Session > session, const char *session_id, const char* swk_type_str)
 {
-    keyagent_buffer_ptr quote = decode64_json_attr(jsondata, "quote");
+    k_buffer_ptr quote = decode64_json_attr(jsondata, "quote");
     GError *err = NULL;
 
-    keyagent_attributes_ptr challenge_attrs = NULL;
-    if (keyagent_stm_challenge_verify(keyagent_get_module_label(server::stm), quote, &challenge_attrs, &err)) {
-        keyagent_buffer_ptr swk = NULL;
-        keyagent_buffer_ptr sw_issuer = NULL;
+    k_attributes_ptr challenge_attrs = NULL;
+    if (__keyagent_stm_challenge_verify(keyagent_get_module_label(server::stm), quote, &challenge_attrs, &err)) {
+        k_buffer_ptr swk = NULL;
+        k_buffer_ptr sw_issuer = NULL;
         guint length;
         const char **tmp = (const char **)g_hash_table_get_keys_as_array (challenge_attrs->hash, &length);
 
@@ -205,30 +206,30 @@ verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Ses
         char *encoded_swk = NULL;
 		//TODO need to change key size
 		swk_type_op  *swk_op = get_swk_info(swk_type_str);
-		swk = keyagent_buffer_alloc(NULL, swk_op->keybits/8);
-        keyagent_buffer_ptr CHALLENGE_KEYTYPE = NULL;
+		swk = k_buffer_alloc(NULL, swk_op->keybits/8);
+        k_buffer_ptr CHALLENGE_KEYTYPE = NULL;
         KEYAGENT_KEY_GET_BYTEARRAY_ATTR(challenge_attrs, CHALLENGE_KEYTYPE, CHALLENGE_KEYTYPE);
-        if (strcmp((const char *)keyagent_buffer_data(CHALLENGE_KEYTYPE), "RSA") == 0) {
-            keyagent_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
+        if (strcmp((const char *)k_buffer_data(CHALLENGE_KEYTYPE), "RSA") == 0) {
+            k_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
             KEYAGENT_KEY_GET_BYTEARRAY_ATTR(challenge_attrs, CHALLENGE_RSA_PUBLIC_KEY, CHALLENGE_RSA_PUBLIC_KEY);
 
-            BIO* bio = BIO_new_mem_buf(keyagent_buffer_data(CHALLENGE_RSA_PUBLIC_KEY), keyagent_buffer_length(CHALLENGE_RSA_PUBLIC_KEY));
+            BIO* bio = BIO_new_mem_buf(k_buffer_data(CHALLENGE_RSA_PUBLIC_KEY), k_buffer_length(CHALLENGE_RSA_PUBLIC_KEY));
             RSA *rsa = d2i_RSA_PUBKEY_bio(bio, NULL);
             BIO_free(bio);
 
-            keyagent_buffer_ptr encrypted_swk = keyagent_buffer_alloc(NULL, RSA_size(rsa));
+            k_buffer_ptr encrypted_swk = k_buffer_alloc(NULL, RSA_size(rsa));
 
-            RAND_bytes((unsigned char *)keyagent_buffer_data(swk), keyagent_buffer_length(swk));
-            int encrypt_len = RSA_public_encrypt(keyagent_buffer_length(swk), keyagent_buffer_data(swk), 
-                keyagent_buffer_data(encrypted_swk), rsa, RSA_PKCS1_OAEP_PADDING);
-            encoded_swk = g_base64_encode(keyagent_buffer_data(encrypted_swk), keyagent_buffer_length(encrypted_swk));
-            keyagent_buffer_unref(encrypted_swk);
+            RAND_bytes((unsigned char *)k_buffer_data(swk), k_buffer_length(swk));
+            int encrypt_len = RSA_public_encrypt(k_buffer_length(swk), k_buffer_data(swk), 
+                k_buffer_data(encrypted_swk), rsa, RSA_PKCS1_OAEP_PADDING);
+            encoded_swk = g_base64_encode(k_buffer_data(encrypted_swk), k_buffer_length(encrypted_swk));
+            k_buffer_unref(encrypted_swk);
             if (rsa) RSA_free(rsa);
         }
         const char *stmlabel = get_session_stmlabel(session_id);
         set_session(get_client_ip(session), stmlabel, session_id, swk, swk_op);
-        keyagent_buffer_unref(swk);
-        keyagent_attributes_unref(challenge_attrs);
+        k_buffer_unref(swk);
+        k_attributes_unref(challenge_attrs);
         return encoded_swk;
     } else
         return NULL;
@@ -394,7 +395,7 @@ get_challenge_info(char *client_ip, std::string keyid, int *http_code, testserve
 }
 
 static
-int encrypt(keyagent_buffer_ptr plaintext, void *swk_info_ptr, keyagent_buffer_ptr iv, keyagent_buffer_ptr ciphertext) {
+int encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv, k_buffer_ptr ciphertext) {
 	server_swk *swk_info = (server_swk *)swk_info_ptr;
 	if( swk_info->swk_op->encrypt_func )
 	{
@@ -408,7 +409,7 @@ int encrypt(keyagent_buffer_ptr plaintext, void *swk_info_ptr, keyagent_buffer_p
 
 }
 
-int aes_gcm_encrypt(keyagent_buffer_ptr plaintext, void *swk_info_ptr, keyagent_buffer_ptr iv, keyagent_buffer_ptr ciphertext) {
+int aes_gcm_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv, k_buffer_ptr ciphertext) {
 	server_swk *swk_info = (server_swk *)swk_info_ptr;
     EVP_CIPHER_CTX *ctx;
     int len;
@@ -416,23 +417,23 @@ int aes_gcm_encrypt(keyagent_buffer_ptr plaintext, void *swk_info_ptr, keyagent_
 
 	k_debug_msg("AES:GCM-keybit:%d\n", swk_info->swk_op->keybits);
 
-	keyagent_buffer_ptr key = swk_info->swk;
+	k_buffer_ptr key = swk_info->swk;
 
     if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
 
     assert(EVP_EncryptInit_ex(ctx, swk_info->swk_op->cipher_func(), NULL, NULL, NULL) == 1);
-    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, keyagent_buffer_length(iv), NULL) == 1);
-    assert(EVP_EncryptInit_ex(ctx, NULL, NULL, (unsigned char *)keyagent_buffer_data(key), (unsigned  char *)keyagent_buffer_data(iv)) == 1);
-    assert(EVP_EncryptUpdate(ctx, keyagent_buffer_data(ciphertext), &len, keyagent_buffer_data(plaintext), keyagent_buffer_length(plaintext)) == 1);
+    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, k_buffer_length(iv), NULL) == 1);
+    assert(EVP_EncryptInit_ex(ctx, NULL, NULL, (unsigned char *)k_buffer_data(key), (unsigned  char *)k_buffer_data(iv)) == 1);
+    assert(EVP_EncryptUpdate(ctx, k_buffer_data(ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext)) == 1);
     ciphertext_len = len;
-    assert(EVP_EncryptFinal_ex(ctx, keyagent_buffer_data(ciphertext) + len, &len) == 1);
+    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(ciphertext) + len, &len) == 1);
     ciphertext_len += len;
-    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, TAG_SIZE, (unsigned char *) keyagent_buffer_data(ciphertext) + ciphertext_len) == 1);
+    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, TAG_SIZE, (unsigned char *) k_buffer_data(ciphertext) + ciphertext_len) == 1);
     EVP_CIPHER_CTX_free(ctx);
     return ciphertext_len;
 }
 
-int aes_cbc_encrypt(keyagent_buffer_ptr plaintext, void *swk_info_ptr, keyagent_buffer_ptr iv, keyagent_buffer_ptr ciphertext) {
+int aes_cbc_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv, k_buffer_ptr ciphertext) {
 
 	server_swk *swk_info = (server_swk *)swk_info_ptr;
     EVP_CIPHER_CTX *ctx;
@@ -440,15 +441,15 @@ int aes_cbc_encrypt(keyagent_buffer_ptr plaintext, void *swk_info_ptr, keyagent_
     int ciphertext_len;
 	k_debug_msg("AES:CBC-keybit:%d\n",  swk_info->swk_op->keybits);
 
-	keyagent_buffer_ptr key = swk_info->swk;
-	keyagent_debug_with_checksum("SERVER:CBC_ENCRYPT:KEY", keyagent_buffer_data(key), keyagent_buffer_length(key));
+	k_buffer_ptr key = swk_info->swk;
+	k_debug_generate_checksum("SERVER:CBC_ENCRYPT:KEY", k_buffer_data(key), k_buffer_length(key));
 
     if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
 
-    assert(EVP_EncryptInit_ex(ctx, swk_info->swk_op->cipher_func(), NULL, keyagent_buffer_data(key), keyagent_buffer_data(iv)) == 1);
-    assert(EVP_EncryptUpdate(ctx, keyagent_buffer_data(ciphertext), &len, keyagent_buffer_data(plaintext), keyagent_buffer_length(plaintext)) == 1);
+    assert(EVP_EncryptInit_ex(ctx, swk_info->swk_op->cipher_func(), NULL, k_buffer_data(key), k_buffer_data(iv)) == 1);
+    assert(EVP_EncryptUpdate(ctx, k_buffer_data(ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext)) == 1);
     ciphertext_len = len;
-    assert(EVP_EncryptFinal_ex(ctx, keyagent_buffer_data(ciphertext) + len, &len) == 1);
+    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(ciphertext) + len, &len) == 1);
     ciphertext_len += len;
     EVP_CIPHER_CTX_free(ctx);
     return ciphertext_len;
@@ -457,10 +458,10 @@ int aes_cbc_encrypt(keyagent_buffer_ptr plaintext, void *swk_info_ptr, keyagent_
 
 
 
-static keyagent_buffer_ptr
-prepare_and_sign_cms(keyagent_buffer_ptr input_data)
+static k_buffer_ptr
+prepare_and_sign_cms(k_buffer_ptr input_data)
 {
-    keyagent_buffer_ptr cms_bytes = NULL;
+    k_buffer_ptr cms_bytes = NULL;
     CMS_ContentInfo *sign_cms = NULL;
     CMS_SignerInfo *si;
     BIO *input_bio = NULL;
@@ -470,7 +471,7 @@ prepare_and_sign_cms(keyagent_buffer_ptr input_data)
     BUF_MEM *bptr = 0;
 
     input_bio = BIO_new(BIO_s_mem());
-    BIO_write(input_bio, keyagent_buffer_data(input_data), keyagent_buffer_length(input_data));
+    BIO_write(input_bio, k_buffer_data(input_data), k_buffer_length(input_data));
     ret = BIO_get_mem_ptr(input_bio, &bptr);
 
     sign_cms = CMS_sign(NULL, NULL, NULL, input_bio, flags);
@@ -482,49 +483,49 @@ prepare_and_sign_cms(keyagent_buffer_ptr input_data)
     ret = BIO_get_mem_ptr(cms_bio, &bptr);
 
     CMS_ContentInfo_free(sign_cms);
-    cms_bytes = keyagent_buffer_alloc(bptr->data, bptr->length);
+    cms_bytes = k_buffer_alloc(bptr->data, bptr->length);
     BIO_free(input_bio);
     BIO_free(cms_bio);
     return cms_bytes;
 }
 
 static gboolean
-wrap_key(keyagent_keytype type, keyagent_attributes_ptr attrs, server_swk *swk_info, keyagent_buffer_ptr keydata)
+wrap_key(keyagent_keytype type, k_attributes_ptr attrs, server_swk *swk_info, k_buffer_ptr keydata)
 {
-	keyagent_buffer_ptr swk=swk_info->swk;
-    keyagent_buffer_ptr iv = generate_iv();
-    keyagent_buffer_ptr tmp = keyagent_buffer_ref(keydata);
-    keyagent_buffer_ptr wrapped_key = NULL;
-    keyagent_buffer_ptr input_bytes = NULL;
-    keyagent_buffer_ptr KEYDATA = NULL;
+	k_buffer_ptr swk=swk_info->swk;
+    k_buffer_ptr iv = generate_iv();
+    k_buffer_ptr tmp = k_buffer_ref(keydata);
+    k_buffer_ptr wrapped_key = NULL;
+    k_buffer_ptr input_bytes = NULL;
+    k_buffer_ptr KEYDATA = NULL;
     keyagent_keytransfer_t *keytransfer = NULL;
 
-    keyagent_debug_with_checksum("SERVER:PKCS8", keyagent_buffer_data(tmp), keyagent_buffer_length(tmp));
-    keyagent_debug_with_checksum("SERVER:IV", keyagent_buffer_data(iv), keyagent_buffer_length(iv));
+    k_debug_generate_checksum("SERVER:PKCS8", k_buffer_data(tmp), k_buffer_length(tmp));
+    k_debug_generate_checksum("SERVER:IV", k_buffer_data(iv), k_buffer_length(iv));
 
-    wrapped_key = keyagent_buffer_alloc(NULL, keyagent_buffer_length(tmp) + TAG_SIZE);
+    wrapped_key = k_buffer_alloc(NULL, k_buffer_length(tmp) + TAG_SIZE);
     encrypt(tmp, swk_info, iv, wrapped_key);
-    keyagent_debug_with_checksum("SERVER:PKCS8:WRAPPED", keyagent_buffer_data(wrapped_key), keyagent_buffer_length(wrapped_key));
+    k_debug_generate_checksum("SERVER:PKCS8:WRAPPED", k_buffer_data(wrapped_key), k_buffer_length(wrapped_key));
 
-    input_bytes = keyagent_buffer_alloc(NULL, sizeof(keyagent_keytransfer_t));
-    keytransfer = (keyagent_keytransfer_t *)keyagent_buffer_data(input_bytes);
-    keytransfer->iv_length = keyagent_buffer_length(iv);
+    input_bytes = k_buffer_alloc(NULL, sizeof(keyagent_keytransfer_t));
+    keytransfer = (keyagent_keytransfer_t *)k_buffer_data(input_bytes);
+    keytransfer->iv_length = k_buffer_length(iv);
     keytransfer->tag_size = TAG_SIZE;
-    keytransfer->wrap_size = keyagent_buffer_length(wrapped_key);
+    keytransfer->wrap_size = k_buffer_length(wrapped_key);
     
-    keyagent_buffer_append(input_bytes, keyagent_buffer_data(iv), keyagent_buffer_length(iv));
-    keyagent_buffer_append(input_bytes, keyagent_buffer_data(wrapped_key), keyagent_buffer_length(wrapped_key));
-    keyagent_debug_with_checksum("SERVER:CMS:PAYLOAD", keyagent_buffer_data(input_bytes), keyagent_buffer_length(input_bytes));
+    k_buffer_append(input_bytes, k_buffer_data(iv), k_buffer_length(iv));
+    k_buffer_append(input_bytes, k_buffer_data(wrapped_key), k_buffer_length(wrapped_key));
+    k_debug_generate_checksum("SERVER:CMS:PAYLOAD", k_buffer_data(input_bytes), k_buffer_length(input_bytes));
 
     KEYDATA = prepare_and_sign_cms(input_bytes);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
-    keyagent_debug_with_checksum("SERVER:CMS", keyagent_buffer_data(KEYDATA), keyagent_buffer_length(KEYDATA));
+    k_debug_generate_checksum("SERVER:CMS", k_buffer_data(KEYDATA), k_buffer_length(KEYDATA));
     
-    keyagent_buffer_unref(tmp);
-    keyagent_buffer_unref(KEYDATA);
-    keyagent_buffer_unref(wrapped_key);
-    keyagent_buffer_unref(input_bytes);
-    keyagent_buffer_unref(iv);
+    k_buffer_unref(tmp);
+    k_buffer_unref(KEYDATA);
+    k_buffer_unref(wrapped_key);
+    k_buffer_unref(input_bytes);
+    k_buffer_unref(iv);
 }
 
 Json::Value
@@ -539,11 +540,11 @@ get_kms_key_info(std::string keyid, int *http_code, char *session_id)
         if (!key_info) {
             key_info					= new key_info_t();
             g_hash_table_insert(server::key_hash_table, strdup(keyid.c_str()), key_info);
-            key_info->key_attrs			= keyagent_attributes_alloc();
+            key_info->key_attrs			= k_attributes_alloc();
             key_info->keytype           = convert_key_to_attr_hash(key_info->key_attrs, &key_info->keydata);
         }
 		//TODO changing the swk encrypt data
-		//keyagent_buffer_ptr swk         = get_session_swk(session_id);
+		//k_buffer_ptr swk         = get_session_swk(session_id);
 		server_swk *swk_info			= get_session_swk_info(session_id);
         wrap_key(key_info->keytype, key_info->key_attrs, swk_info, key_info->keydata);
         Json::Value json_data           = keyattrs_to_json(key_info->key_attrs->hash);

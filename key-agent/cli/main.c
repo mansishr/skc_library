@@ -66,7 +66,8 @@ main (int argc, char *argv[])
 
 
 	if (keyurl)
-		keyagent_loadkey(keyurl, &error);
+		if (!keyagent_loadkey(keyurl, &error))
+            k_info_error(error);
 
 	g_free(configfile);
 

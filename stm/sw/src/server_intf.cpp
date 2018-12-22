@@ -27,14 +27,14 @@ using BIO_MEM_ptr = std::unique_ptr<BIO, decltype(&::BIO_free)>;
 
 
 namespace server_sw_stm {
-    keyagent_buffer_ptr CHALLENGE_KEYTYPE;
+    k_buffer_ptr CHALLENGE_KEYTYPE;
 }
 
 extern "C" void
 server_stm_init(const char *config_directory, GError **err)
 {
-    server_sw_stm::CHALLENGE_KEYTYPE = keyagent_buffer_alloc(NULL, strlen("RSA")+1);
-    strcpy((char *)keyagent_buffer_data(server_sw_stm::CHALLENGE_KEYTYPE), "RSA");
+    server_sw_stm::CHALLENGE_KEYTYPE = k_buffer_alloc(NULL, strlen("RSA")+1);
+    strcpy((char *)k_buffer_data(server_sw_stm::CHALLENGE_KEYTYPE), "RSA");
 }
 
 extern "C" gboolean
@@ -104,12 +104,12 @@ stm_challenge_generate_request(const gchar **request, GError **error)
 }
 
 extern "C" gboolean
-stm_challenge_verify(keyagent_buffer_ptr quote, keyagent_attributes_ptr *challenge_attrs, GError **error)
+stm_challenge_verify(k_buffer_ptr quote, k_attributes_ptr *challenge_attrs, GError **error)
 {
     gboolean ret = FALSE;
-    keyagent_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
-    keyagent_buffer_ptr CHALLENGE_KEYTYPE = keyagent_buffer_ref(server_sw_stm::CHALLENGE_KEYTYPE);
-    keyagent_buffer_ptr SW_ISSUER = NULL;
+    k_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
+    k_buffer_ptr CHALLENGE_KEYTYPE = k_buffer_ref(server_sw_stm::CHALLENGE_KEYTYPE);
+    k_buffer_ptr SW_ISSUER = NULL;
     BIO* bio = NULL;
     EVP_PKEY *pkey = NULL;
     RSA *rsa = NULL;
@@ -118,9 +118,9 @@ stm_challenge_verify(keyagent_buffer_ptr quote, keyagent_attributes_ptr *challen
 
     *challenge_attrs = NULL;
 
-    bio = BIO_new_mem_buf(keyagent_buffer_data(quote), keyagent_buffer_length(quote));
-    SW_ISSUER = keyagent_buffer_alloc(NULL, STM_ISSUER_SIZE);
-    BIO_read(bio, keyagent_buffer_data(SW_ISSUER), keyagent_buffer_length(SW_ISSUER));
+    bio = BIO_new_mem_buf(k_buffer_data(quote), k_buffer_length(quote));
+    SW_ISSUER = k_buffer_alloc(NULL, STM_ISSUER_SIZE);
+    BIO_read(bio, k_buffer_data(SW_ISSUER), k_buffer_length(SW_ISSUER));
     pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
     rsa = EVP_PKEY_get1_RSA(pkey);
     BIO_free(bio);
@@ -130,18 +130,18 @@ stm_challenge_verify(keyagent_buffer_ptr quote, keyagent_attributes_ptr *challen
     i2d_RSA_PUBKEY_bio(mbio.get(), rsa);
     BUF_MEM *mem = NULL;
     BIO_get_mem_ptr(mbio.get(), &mem);
-    CHALLENGE_RSA_PUBLIC_KEY = keyagent_buffer_alloc(mem->data, mem->length);
+    CHALLENGE_RSA_PUBLIC_KEY = k_buffer_alloc(mem->data, mem->length);
 
-    *challenge_attrs = keyagent_attributes_alloc();
+    *challenge_attrs = k_attributes_alloc();
 
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, CHALLENGE_KEYTYPE);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, CHALLENGE_RSA_PUBLIC_KEY);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, SW_ISSUER);
     ret = TRUE;
 out:
-    if (CHALLENGE_RSA_PUBLIC_KEY) keyagent_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
-    if (SW_ISSUER) keyagent_buffer_unref(SW_ISSUER);
-    if (CHALLENGE_KEYTYPE) keyagent_buffer_unref(CHALLENGE_KEYTYPE);
+    if (CHALLENGE_RSA_PUBLIC_KEY) k_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
+    if (SW_ISSUER) k_buffer_unref(SW_ISSUER);
+    if (CHALLENGE_KEYTYPE) k_buffer_unref(CHALLENGE_KEYTYPE);
     if (pkey) EVP_PKEY_free(pkey);
     if (rsa) RSA_free(rsa);
     return ret;

@@ -15,13 +15,13 @@ typedef enum {
 
 DECLARE_STM_INTERFACE(init, const gchar *, (const char *config_directory, stm_mode mode, GError **err));
 DECLARE_STM_INTERFACE(activate, gboolean , (GError **err));
-DECLARE_STM_INTERFACE(create_challenge, gboolean, (keyagent_buffer_ptr *challenge, GError **));
-DECLARE_STM_INTERFACE(set_session, gboolean, (GQuark swk_type, keyagent_buffer_ptr, GError **));
-DECLARE_STM_INTERFACE(load_key, gboolean, (GQuark swk_type,keyagent_keytype type, keyagent_attributes_ptr, GError **));
+DECLARE_STM_INTERFACE(create_challenge, gboolean, (k_buffer_ptr *challenge, GError **));
+DECLARE_STM_INTERFACE(set_session, gboolean, (keyagent_stm_session_details *, GError **));
+DECLARE_STM_INTERFACE(load_key, gboolean, (keyagent_stm_loadkey_details *, GError **));
 DECLARE_STM_INTERFACE(challenge_generate_request, gboolean, (const gchar **, GError **));
-DECLARE_STM_INTERFACE(challenge_verify, gboolean, (keyagent_buffer_ptr quote, keyagent_attributes_ptr *, GError **));
-DECLARE_STM_INTERFACE(seal_key, gboolean, (keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_buffer_ptr *sealed_data, GError **));
-DECLARE_STM_INTERFACE(unseal_key, gboolean, (keyagent_keytype type, keyagent_buffer_ptr sealed_data, keyagent_attributes_ptr *attrs, GError **));
+DECLARE_STM_INTERFACE(challenge_verify, gboolean, (k_buffer_ptr quote, k_attributes_ptr *, GError **));
+DECLARE_STM_INTERFACE(seal_key, gboolean, (keyagent_keytype type, k_attributes_ptr attrs, k_buffer_ptr *sealed_data, GError **));
+DECLARE_STM_INTERFACE(unseal_key, gboolean, (keyagent_keytype type, k_buffer_ptr sealed_data, k_attributes_ptr *attrs, GError **));
 
 typedef struct {
     DECLARE_STM_OP(init);

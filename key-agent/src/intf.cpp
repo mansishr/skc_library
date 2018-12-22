@@ -10,6 +10,13 @@
 #include "key-agent/stm/stm.h"
 #include "key-agent/npm/npm.h"
 
+#include <syslog.h>
+#include <iostream>
+#include <sstream>
+#include <vector>
+
+using namespace std;
+
 namespace keyagent {
     GString *configdirectory;
 	GString *configfilename;
@@ -25,6 +32,9 @@ namespace keyagent {
 	GHashTable *session_hash;
 	GHashTable *swk_type_hash;
     GRWLock rwlock;
+    keyagent_npm_callbacks npm_ops;
+    keyagent_stm_callbacks stm_ops;
+    keyagent_apimodule_ops apimodule_ops;
 }
 
 /* Return GList of paths described in location string */
@@ -97,6 +107,8 @@ do_keyagent_init(const char *filename, GError **err)
 		return FALSE;
 	}
 
+    LOOKUP_KEYAGENT_INTERNAL_NPM_OPS(&keyagent::npm_ops);
+    LOOKUP_KEYAGENT_INTERNAL_STM_OPS(&keyagent::stm_ops);
 	keyagent::npm_hash = g_hash_table_new (g_str_hash, g_str_equal);
 	keyagent::stm_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
 	keyagent::key_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, keyagent_key_hash_key_free, keyagent_key_hash_value_free);
@@ -154,6 +166,7 @@ keyagent_init(const char *filename, GError **err)
     if (error != NULL)
     {
         g_propagate_error(err, error);
+        k_critical_error(error);
         return FALSE;
     }
     return TRUE;
@@ -171,7 +184,7 @@ _loadkey(gpointer keyid, gpointer data, gpointer user_data)
 	keyagent_npm_real *npm = (keyagent_npm_real *)data;
 	loadkey_t *loadkey  = (loadkey_t *)user_data;
     g_autoptr(GError) tmp_error = NULL;
-
+    keyagent_keyload_details details;
 
 	if (!npm->initialized)
 		return ret;
@@ -179,11 +192,21 @@ _loadkey(gpointer keyid, gpointer data, gpointer user_data)
 	if (!NPM_MODULE_OP(npm,register)(loadkey->url, &tmp_error))
 		goto out;
 
-	ret = TRUE;
-	if (NPM_MODULE_OP(npm,key_load)(loadkey->url, loadkey->err) == FALSE)
-		goto out;
-	k_debug_msg("%s mapped to npm %s", loadkey->url, keyagent_get_module_label(npm));
+    memset(&details, 0, sizeof(details));
+    details.url = loadkey->url;
+    details.stm_names = __keyagent_stm_get_names();
+    details.ssl_opts.certfile = strdup(keyagent::cert->str);
+    details.ssl_opts.keyname = strdup(keyagent::certkey->str);
+    details.ssl_opts.certtype = CERTIFICATE_FILE_FORMAT;
+    details.ssl_opts.keytype = CERTIFICATE_FILE_FORMAT;
+    LOOKUP_KEYAGENT_INTERNAL_NPM_OPS(&details.cbs);
 
+	ret = TRUE;
+	NPM_MODULE_OP(npm,key_load)(&details, loadkey->err);
+
+    if (details.stm_names) g_string_free(details.stm_names, TRUE);
+    free((void *)details.ssl_opts.certfile);
+    free((void *)details.ssl_opts.keyname);
 out:
 	return ret;
 }
@@ -199,7 +222,7 @@ keyagent_loadkey(keyagent_url url, GError **err)
 
     g_rw_lock_writer_lock(&keyagent::rwlock);
 
-	if ((key = keyagent_key_lookup(url)) != NULL)
+	if ((key = __keyagent_key_lookup(url)) != NULL)
 	{
 		k_debug_msg("found key %p for url %s cached!", key, url);
 		goto out;
@@ -208,18 +231,18 @@ keyagent_loadkey(keyagent_url url, GError **err)
 	if( !g_hash_table_find(keyagent::npm_hash, _loadkey, &loadkey) )
 	{
 		k_set_error (err, KEYAGENT_ERROR_NPM_URL_UNSUPPORTED, 
-				            "Warining: Error in NPM Register\n");
+				            "Warning: Error in NPM Register. URL is not supported\n");
 		goto out;
 	}
 
-	if ((key = keyagent_key_lookup(url)) == NULL)
+	if ((key = __keyagent_key_lookup(url)) == NULL)
 	{
 		k_critical_msg("Not able to load key %s!", url);
         goto out;
 	}
 
-	if (!keyagent_stm_load_key(key, err)) {
-        keyagent_key_free(key);
+	if (!__keyagent_stm_load_key(key, err)) {
+        __keyagent_key_free(key);
         key = NULL;
     }
     out:
@@ -227,5 +250,11 @@ keyagent_loadkey(keyagent_url url, GError **err)
     return key;
 }
 
-
-
+extern "C"
+gboolean
+keyagent_apimodule_register(keyagent_apimodule_ops *ops, GError **err)
+{
+	g_return_val_if_fail( (err || (err?*err:NULL)) && ops, FALSE );
+    memcpy(&keyagent::apimodule_ops,ops, sizeof(keyagent_apimodule_ops));
+    return TRUE;
+}

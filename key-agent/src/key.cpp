@@ -32,16 +32,16 @@ keyagent_key_get_session_cache_id(keyagent_key *_key)
 }
 
 extern "C" keyagent_key *
-keyagent_key_lookup(const char *url)
+__keyagent_key_lookup(const char *url)
 {
     GQuark key_url_quark = g_quark_from_string(url);
     return (keyagent_key *)g_hash_table_lookup(keyagent::key_hash, GINT_TO_POINTER(key_url_quark));
 }
 
 extern "C" GQuark
-keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes_ptr attrs, const char *session_id, gint cache_id, GError **error)
+__keyagent_key_create_with_cacheid(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, gint cache_id, GError **error)
 {
-    DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, keyagent_key_lookup(url));
+    DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, __keyagent_key_lookup(url));
     GQuark key_quark = g_quark_from_string(url);
     keyagent_session *session = NULL;
 
@@ -54,7 +54,7 @@ keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes
         return 0;
     }
 
-    session = keyagent_session_lookup(session_id);
+    session = __keyagent_session_lookup(session_id);
     if (!session) {
         if (error && *error)
             k_critical_error(*error);
@@ -66,28 +66,28 @@ keyagent_key_create(keyagent_url url, keyagent_keytype type, keyagent_attributes
     key->url = g_string_new(url);
     g_hash_table_insert(keyagent::key_hash, GINT_TO_POINTER(key_quark), key);
 	key->type = type;
-	key->attributes = keyagent_attributes_ref(attrs);
+	key->attributes = k_attributes_ref(attrs);
 	key->session = session;
     keyagent_key_set_cache_id((keyagent_key *)key, cache_id);
 out:
     if (cache_id == -1)
         keyagent_cache_key((keyagent_key *)key, error);
 
-    keyagent_stm_set_session((keyagent_session *)session, error);
+    __keyagent_stm_set_session((keyagent_session *)session, error);
     return key_quark;
 }
 
 extern "C" gboolean
-keyagent_key_policy_add(keyagent_url url, keyagent_attributes_ptr policy_attrs, gint cache_id, GError **error)
+__keyagent_key_policy_add(keyagent_url url, k_attributes_ptr policy_attrs, gint cache_id, GError **error)
 {
 	gboolean ret = FALSE;
-    DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, keyagent_key_lookup(url));
+    DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, __keyagent_key_lookup(url));
 	if(!key || !policy_attrs)
 	{
 		goto out;
 	}
 	key = (keyagent_key_real *)key;
-	key->policy_attributes = keyagent_attributes_ref(policy_attrs);
+	key->policy_attributes = k_attributes_ref(policy_attrs);
 	ret=TRUE;
 out:
     if (cache_id == -1)
@@ -95,8 +95,14 @@ out:
 	return ret;
 }
 
+extern "C" GQuark
+__keyagent_key_create(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error)
+{
+    return __keyagent_key_create_with_cacheid(url, type, attrs, session_id, -1, error);
+}
+
 extern "C" gboolean
-keyagent_key_free(keyagent_key *_key)
+__keyagent_key_free(keyagent_key *_key)
 {
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, _key);
 
@@ -117,10 +123,10 @@ keyagent_key_hash_value_free(gpointer data)
     keyagent_key_real *key = (keyagent_key_real *)data;
     keyagent_uncache_key((keyagent_key *)key, &tmp_error);
     g_string_free(key->url, TRUE);
-	keyagent_attributes_unref(key->attributes);
+	k_attributes_unref(key->attributes);
 	if( key->policy_attributes)
 	{
-		keyagent_attributes_unref(key->policy_attributes);
+		k_attributes_unref(key->policy_attributes);
 	}
     g_free(key);
 }
@@ -165,7 +171,7 @@ keyagent_key_remove_by_session(keyagent_session *session)
 }
 
 extern "C" gboolean
-keyagent_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type){
+__keyagent_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type){
 	GTimeVal ctime;
 	gint status                         = -1;
 	gboolean ret						= FALSE;
@@ -193,15 +199,15 @@ keyagent_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type){
 
 #define VALIDATE_KEY_POLICY_ATTR(KEY, VAL) do { \
 	gboolean RET = FALSE; \
-    keyagent_policy_buffer_ptr tmp; \
+    k_policy_buffer_ptr tmp; \
     KEYAGENT_KEY_GET_POLICY_ATTR((KEY)->policy_attributes, VAL, tmp); \
-    RET = keyagent_key_validate_usage_policy(keyagent_policy_buffer_data(tmp), #VAL); \
+    RET = __keyagent_key_validate_usage_policy(k_policy_buffer_data(tmp), #VAL); \
 	if (RET == FALSE) \
 		return RET; \
 } while (0)
 
 extern "C" gboolean 
-validate_key_usage_policy(keyagent_key_real *key)
+__validate_key_usage_policy(keyagent_key_real *key)
 {
 	VALIDATE_KEY_POLICY_ATTR(key, NOT_BEFORE);
 	VALIDATE_KEY_POLICY_ATTR(key, NOT_AFTER);
@@ -212,13 +218,13 @@ extern "C" gboolean
 keyagent_key_checkpolicy(keyagent_url url, int op, gint size, GError **err)  
 {
 	gboolean ret = FALSE;
-    DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, keyagent_key_lookup(url));
+    DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, __keyagent_key_lookup(url));
 	if( key == NULL )
 	{
 		k_critical_msg("Invalid key url:%s\n", url);
 		return ret;
 	}
-	ret = validate_key_usage_policy(key);
+	ret = __validate_key_usage_policy(key);
 	if( ret != TRUE )
 	{   
 		k_critical_msg("Invalid key usage policy_date\n");

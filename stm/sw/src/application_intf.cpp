@@ -27,8 +27,8 @@ namespace application_sw_stm {
     GString *configfile;
     gboolean debug;
     RSA *session_keypair;
-    keyagent_buffer_ptr sw_issuer;
-    keyagent_buffer_ptr swk;
+    k_buffer_ptr sw_issuer;
+    k_buffer_ptr swk;
 
     static const gchar *private_string = \
 "-----BEGIN PRIVATE KEY-----\n"
@@ -72,11 +72,11 @@ application_stm_init(const char *config_directory, GError **err)
 
     application_sw_stm::configfile = g_string_new(g_build_filename(config_directory, "sw_stm.ini", NULL));
     void *config = key_config_openfile(application_sw_stm::configfile->str, err);
-    application_sw_stm::sw_issuer = keyagent_buffer_alloc(NULL, STM_ISSUER_SIZE);
+    application_sw_stm::sw_issuer = k_buffer_alloc(NULL, STM_ISSUER_SIZE);
     if (config) {
         init_delay = key_config_get_integer_optional(config, "testing", "initdelay", 0);
         char *tmp = key_config_get_string_optional(config, "core", "issuer", "Intel-1");
-        memcpy(keyagent_buffer_data(application_sw_stm::sw_issuer), tmp, strlen(tmp));
+        memcpy(k_buffer_data(application_sw_stm::sw_issuer), tmp, strlen(tmp));
         g_free(tmp);
     }
     BIO *mem = BIO_new(BIO_s_mem());
@@ -97,44 +97,43 @@ application_stm_activate(GError **err)
 
 // self validating whether quote contains a valid public key
 void
-debug_initialize_challenge_from_quote(keyagent_buffer_ptr quote)
+debug_initialize_challenge_from_quote(k_buffer_ptr quote)
 {
-    keyagent_debug_with_checksum("CLIENT:CKSUM:PEM", keyagent_buffer_data(quote), keyagent_buffer_length(quote));
-    BIO* bio = BIO_new_mem_buf(keyagent_buffer_data(quote) + STM_ISSUER_SIZE, keyagent_buffer_length(quote) - STM_ISSUER_SIZE);
+    k_debug_generate_checksum("CLIENT:CKSUM:PEM", k_buffer_data(quote), k_buffer_length(quote));
+    BIO* bio = BIO_new_mem_buf(k_buffer_data(quote) + STM_ISSUER_SIZE, k_buffer_length(quote) - STM_ISSUER_SIZE);
     EVP_PKEY *pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
     RSA *rsa = EVP_PKEY_get1_RSA(pkey);
     BIO_free(bio);
 }
 
 extern "C" gboolean
-stm_create_challenge(keyagent_buffer_ptr *challenge, GError **err)
+stm_create_challenge(k_buffer_ptr *challenge, GError **err)
 {
     BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
-    BIO_write(bio.get(), keyagent_buffer_data(application_sw_stm::sw_issuer), STM_ISSUER_SIZE);
+    BIO_write(bio.get(), k_buffer_data(application_sw_stm::sw_issuer), STM_ISSUER_SIZE);
     PEM_write_bio_RSA_PUBKEY(bio.get(), application_sw_stm::session_keypair);
     BUF_MEM *mem = NULL;
     BIO_get_mem_ptr(bio.get(), &mem);
 
-    *challenge = keyagent_buffer_alloc(mem->data, mem->length);
+    *challenge = k_buffer_alloc(mem->data, mem->length);
     //debug_initialize_challenge_from_quote(challenge);
     return TRUE;
 }
 
 
 extern "C" gboolean
-stm_set_session(GQuark swk_type, keyagent_buffer_ptr session, GError **error)
+stm_set_session(keyagent_stm_session_details *details, GError **error)
 {
     gboolean ret = FALSE;
-    keyagent_debug_with_checksum("CLIENT:SESSION:PROTECTED", keyagent_buffer_data(session), keyagent_buffer_length(session));
-	int keybits = keyagent_get_swk_keybit(swk_type);
+    k_debug_generate_checksum("CLIENT:SESSION:PROTECTED", k_buffer_data(details->session), k_buffer_length(details->session));
 
-	application_sw_stm::swk = keyagent_buffer_alloc(NULL, keybits/8);
+	application_sw_stm::swk = k_buffer_alloc(NULL, details->swk_size_in_bits/8);
 
     int result = RSA_private_decrypt(RSA_size(application_sw_stm::session_keypair),
-                     (const unsigned char *)keyagent_buffer_data(session), keyagent_buffer_data(application_sw_stm::swk), application_sw_stm::session_keypair,
+                     (const unsigned char *)k_buffer_data(details->session), k_buffer_data(application_sw_stm::swk), application_sw_stm::session_keypair,
                                      RSA_PKCS1_OAEP_PADDING);
 
-    keyagent_debug_with_checksum("CLIENT:SESSION:REAL", keyagent_buffer_data(application_sw_stm::swk), keyagent_buffer_length(application_sw_stm::swk));
+    k_debug_generate_checksum("CLIENT:SESSION:REAL", k_buffer_data(application_sw_stm::swk), k_buffer_length(application_sw_stm::swk));
 
     if (result == -1) {
         stm_log_openssl_error("Error dencrypting message");
@@ -143,35 +142,6 @@ stm_set_session(GQuark swk_type, keyagent_buffer_ptr session, GError **error)
 
     return ret;
 }
-
-
-static
-int decrypt(keyagent_buffer_ptr plaintext, keyagent_buffer_ptr key, keyagent_buffer_ptr iv, keyagent_buffer_ptr ciphertext, int tag_len) {
-    EVP_CIPHER_CTX *ctx;
-    int outlen, rv;
-    int msglen = keyagent_buffer_length(ciphertext) - tag_len;
-    uint8_t *tag = keyagent_buffer_data(ciphertext) + msglen;
-
-    if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
-
-    EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL);
-    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, keyagent_buffer_length(iv), NULL);
-    EVP_DecryptInit_ex(ctx, NULL, NULL, keyagent_buffer_data(key), keyagent_buffer_data(iv));
-    EVP_DecryptUpdate(ctx, keyagent_buffer_data(plaintext), &outlen, keyagent_buffer_data(ciphertext), msglen);
-    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, tag_len, tag);
-    rv = EVP_DecryptFinal_ex(ctx, keyagent_buffer_data(plaintext), &outlen);
-    EVP_CIPHER_CTX_free(ctx);
-    return outlen;
-}
-
-#define BIGNUM_FOR_ATTR_NAME(N) b_##N
-#define DECLARE_BIGNUM_FOR_ATTR(N) BIGNUM *BIGNUM_FOR_ATTR_NAME(N) = NULL
-#define ATTR_TO_BN_RSA_HASH(VAL) do { \
-    keyagent_buffer_ptr RSA_##VAL; \
-    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, RSA_##VAL, RSA_##VAL); \
-    BIGNUM_FOR_ATTR_NAME(VAL) = BN_bin2bn(keyagent_buffer_data(RSA_##VAL), keyagent_buffer_length(RSA_##VAL), NULL); \
-} while(0)
-
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
@@ -285,28 +255,28 @@ int RSA_set0_crt_params(RSA *r, BIGNUM *dmp1, BIGNUM *dmq1, BIGNUM *iqmp)
 #endif
 
 static void
-test_rsa_wrapped_key(EVP_PKEY *pkey, keyagent_attributes_ptr attrs)
+test_rsa_wrapped_key(EVP_PKEY *pkey, k_attributes_ptr attrs)
 {
     RSA *rsa_key = EVP_PKEY_get1_RSA(pkey);
 
     if (!rsa_key)
         return;
 
-    keyagent_buffer_ptr STM_TEST_DATA;
+    k_buffer_ptr STM_TEST_DATA;
     KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_TEST_DATA, STM_TEST_DATA);
-    keyagent_buffer_ptr STM_TEST_SIG;
+    k_buffer_ptr STM_TEST_SIG;
     KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_TEST_SIG, STM_TEST_SIG);
 
     k_debug_msg("rsa_sig %p %s\n", rsa_key,
-        (RSA_verify(NID_sha1, keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA),
-        keyagent_buffer_data(STM_TEST_SIG),
-        keyagent_buffer_length(STM_TEST_SIG), rsa_key) == 1 ? "PASSED" : "FAILED"));
+        (RSA_verify(NID_sha1, k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA),
+        k_buffer_data(STM_TEST_SIG),
+        k_buffer_length(STM_TEST_SIG), rsa_key) == 1 ? "PASSED" : "FAILED"));
 
     RSA_free(rsa_key);
 }
 
 static void
-test_ecc_wrapped_key(EVP_PKEY *pkey, keyagent_attributes_ptr attrs)
+test_ecc_wrapped_key(EVP_PKEY *pkey, k_attributes_ptr attrs)
 {
     EC_KEY *eckey = EVP_PKEY_get1_EC_KEY(pkey);
 
@@ -316,93 +286,107 @@ test_ecc_wrapped_key(EVP_PKEY *pkey, keyagent_attributes_ptr attrs)
     const unsigned char *data = NULL;
     int len = 0;
 
-    keyagent_buffer_ptr STM_TEST_DATA;
+    k_buffer_ptr STM_TEST_DATA;
     KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_TEST_DATA, STM_TEST_DATA);
-    keyagent_buffer_ptr STM_TEST_SIG;
+    k_buffer_ptr STM_TEST_SIG;
     KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, STM_TEST_SIG, STM_TEST_SIG);
     ECDSA_SIG* _sig = NULL;
-    data = keyagent_buffer_data(STM_TEST_SIG);
-    len = keyagent_buffer_length(STM_TEST_SIG);
+    data = k_buffer_data(STM_TEST_SIG);
+    len = k_buffer_length(STM_TEST_SIG);
     _sig =  d2i_ECDSA_SIG(NULL, &data, len);
     k_debug_msg("ec_sig %p %s\n", _sig,
-        (ECDSA_do_verify(keyagent_buffer_data(STM_TEST_DATA), keyagent_buffer_length(STM_TEST_DATA), _sig, eckey) == 1 ? "PASSED" : "FAILED"));
+        (ECDSA_do_verify(k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA), _sig, eckey) == 1 ? "PASSED" : "FAILED"));
 
     EC_KEY_free(eckey);
 
 }
 
 extern "C" gboolean
-stm_load_key(GQuark swk_quark, keyagent_keytype type, keyagent_attributes_ptr attrs, GError **error)
+stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
 {
     gboolean ret = FALSE;
-    keyagent_buffer_ptr tmp = NULL;
-    keyagent_buffer_ptr iv = NULL;
-    keyagent_buffer_ptr wrapped_key = NULL;
-    keyagent_buffer_ptr pkcs8 = NULL;
+    k_buffer_ptr tmp = NULL;
+    k_buffer_ptr iv = NULL;
+    k_buffer_ptr wrapped_key = NULL;
+    k_buffer_ptr pkcs8 = NULL;
     keyagent_keytransfer_t *keytransfer = NULL;
-    keyagent_buffer_ptr keydata = NULL;
+    k_buffer_ptr keydata = NULL;
     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
     EVP_PKEY *pkey = NULL;
     const unsigned char *tmpp = NULL;
 
-    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, KEYDATA, tmp);
-    keyagent_debug_with_checksum("STM:CMS", keyagent_buffer_data(tmp), keyagent_buffer_length(tmp));
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(details->attrs, KEYDATA, tmp);
+    k_debug_generate_checksum("STM:CMS", k_buffer_data(tmp), k_buffer_length(tmp));
 
 
-    if (!keyagent_verify_and_extract_cms_message(tmp, &keydata, error))
+    if (!KEYAGENT_STM_OP(&details->cbs,verify_and_extract_cms_message)(tmp, &keydata, error))
         goto out;
 
-    keyagent_debug_with_checksum("STM:PAYLOAD", keyagent_buffer_data(keydata), keyagent_buffer_length(keydata));
+    k_debug_generate_checksum("STM:PAYLOAD", k_buffer_data(keydata), k_buffer_length(keydata));
 
-    keytransfer = (keyagent_keytransfer_t *)keyagent_buffer_data(keydata);
-    iv = keyagent_buffer_alloc(keyagent_buffer_data(keydata) + sizeof(keyagent_keytransfer_t),  keytransfer->iv_length);
-    wrapped_key = keyagent_buffer_alloc(keyagent_buffer_data(keydata) + sizeof(keyagent_keytransfer_t) + 
+    keytransfer = (keyagent_keytransfer_t *)k_buffer_data(keydata);
+    iv = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t),  keytransfer->iv_length);
+    wrapped_key = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t) + 
         keytransfer->iv_length, keytransfer->wrap_size);
-    keyagent_debug_with_checksum("STM:IV", keyagent_buffer_data(iv), keyagent_buffer_length(iv));
-    keyagent_debug_with_checksum("STM:PKCS8:WRAPPED", keyagent_buffer_data(wrapped_key), keyagent_buffer_length(wrapped_key));
+    k_debug_generate_checksum("STM:IV", k_buffer_data(iv), k_buffer_length(iv));
+    k_debug_generate_checksum("STM:PKCS8:WRAPPED", k_buffer_data(wrapped_key), k_buffer_length(wrapped_key));
 
-    pkcs8 = keyagent_aes_data_decrypt(swk_quark, wrapped_key, application_sw_stm::swk, keytransfer->tag_size, iv);
-    keyagent_debug_with_checksum("STM:PKCS8", keyagent_buffer_data(pkcs8), keyagent_buffer_length(pkcs8));
-    tmpp = keyagent_buffer_data(pkcs8);
-    p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, &tmpp,  keyagent_buffer_length(pkcs8));
+    pkcs8 = KEYAGENT_STM_OP(&details->cbs,aes_decrypt)(details->swk_quark, wrapped_key, application_sw_stm::swk, keytransfer->tag_size, iv);
+    k_debug_generate_checksum("STM:PKCS8", k_buffer_data(pkcs8), k_buffer_length(pkcs8));
+    tmpp = k_buffer_data(pkcs8);
+    p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, &tmpp,  k_buffer_length(pkcs8));
 
     if (!p8inf)
         goto out;
 
+    if (details->apimodule_ops.apimodule_func_loadkey) {
+        keyagent_apimodule_loadkey_details apimodule_details;
+        apimodule_details.type = details->type;
+        apimodule_details.key = pkcs8;
+        apimodule_details.url = details->url;
+        (details->apimodule_ops.apimodule_func_loadkey)(&apimodule_details, error);
+		if( *error )
+		{
+			k_set_error (error, STM_ERROR_API_MODULE_LOADKEY, 
+				"API Module loadkey error");
+			goto out;
+		}
+    }
+        
     pkey = EVP_PKCS82PKEY(p8inf);
 	if(pkey == NULL)
 	{
 		goto out;
 	}
 
-    switch (type) {
+    switch (details->type) {
     case KEYAGENT_RSAKEY:
-        test_rsa_wrapped_key(pkey, attrs);
+        test_rsa_wrapped_key(pkey, details->attrs);
         break;
     case KEYAGENT_ECKEY:
-        test_ecc_wrapped_key(pkey, attrs);
+        test_ecc_wrapped_key(pkey, details->attrs);
         break;
     }
     ret = TRUE;
 out:
     if (p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
     if (pkey)  EVP_PKEY_free(pkey);
-    keyagent_buffer_unref(keydata);
-    keyagent_buffer_unref(wrapped_key);
-    keyagent_buffer_unref(pkcs8);
-    keyagent_buffer_unref(tmp);
-    keyagent_buffer_unref(iv);
+    k_buffer_unref(keydata);
+    k_buffer_unref(wrapped_key);
+    k_buffer_unref(pkcs8);
+    k_buffer_unref(tmp);
+    k_buffer_unref(iv);
     return ret;
 }
 
 extern "C" gboolean
-stm_seal_key(keyagent_keytype type, keyagent_attributes_ptr attrs, keyagent_buffer_ptr *sealed_data, GError **error)
+stm_seal_key(keyagent_keytype type, k_attributes_ptr attrs, k_buffer_ptr *sealed_data, GError **error)
 {
     return FALSE;
 }
 
 extern "C" gboolean
-stm_unseal_key(keyagent_keytype type, keyagent_buffer_ptr sealed_data, keyagent_attributes_ptr *wrapped_attrs, GError **error)
+stm_unseal_key(keyagent_keytype type, k_buffer_ptr sealed_data, k_attributes_ptr *wrapped_attrs, GError **error)
 {
     return FALSE;
 }

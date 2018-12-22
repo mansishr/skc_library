@@ -48,7 +48,7 @@ void json_print(Json::Value &val);
 Json::Value parse_data(std::string httpData);
 gchar * generate_checksum(gchar *data, int size);
 void debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size);
-keyagent_keytype convert_key_to_attr_hash(keyagent_attributes_ptr attrs, keyagent_buffer_ptr *keydata);
+keyagent_keytype convert_key_to_attr_hash(k_attributes_ptr attrs, k_buffer_ptr *keydata);
 Json::Value keyattrs_to_json(GHashTable *attr_hash);
 
 
@@ -74,29 +74,29 @@ typedef struct {
 
 typedef struct {
     //std::string keyid;
-    keyagent_attributes_ptr key_attrs;
+    k_attributes_ptr key_attrs;
     keyagent_keytype keytype;
-    keyagent_buffer_ptr keydata;
+    k_buffer_ptr keydata;
 } key_info_t;
 
 /*static const char *supported_swk_types[] = {"AES192-CTR", "AES256-CTR", "AES128-GCM", "AES192-GCM", "AES256-GCM", "AES128-CBC", */
 /*"AES192-CBC", "AES256-CBC","AES128-XTS", "AES256-XTS", NULL};*/
 static const char *supported_swk_types[] = { "AES128-GCM", "AES192-GCM", "AES256-GCM","AES128-CBC","AES192-CBC", "AES256-CBC", NULL};
-int aes_gcm_encrypt(keyagent_buffer_ptr plaintext, void *swk_info, keyagent_buffer_ptr iv, keyagent_buffer_ptr ciphertext);
-int aes_cbc_encrypt(keyagent_buffer_ptr plaintext, void *swk_info, keyagent_buffer_ptr iv, keyagent_buffer_ptr ciphertext);
+int aes_gcm_encrypt(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr iv, k_buffer_ptr ciphertext);
+int aes_cbc_encrypt(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr iv, k_buffer_ptr ciphertext);
 
 void key_info_free(gpointer data);
 void client_hash_value_free(gpointer data);
 void session_hash_value_free(gpointer data);
 
 //void *get_session_state(const char *client_ip, const char *stmlabel);
-void set_session(const char *client_ip, const char *stmlabel, const char *session_id, keyagent_buffer_ptr swk, swk_type_op *op);
+void set_session(const char *client_ip, const char *stmlabel, const char *session_id, k_buffer_ptr swk, swk_type_op *op);
 gchar *get_session_id(const char *client_ip, const char *stmlabel);
 const gchar *create_challenge(const char *client_ip);
 
 const gchar *create_challenge(std::string keyid);
-keyagent_buffer_ptr decode64_json_attr(Json::Value json_data, const char *name);
-keyagent_buffer_ptr decode64_data(keyagent_buffer_ptr ptr);
+k_buffer_ptr decode64_json_attr(Json::Value json_data, const char *name);
+k_buffer_ptr decode64_data(k_buffer_ptr ptr);
 
 void challenge_info_free(gpointer data);
 
@@ -104,7 +104,7 @@ void key_info_free(gpointer data);
 void print_input_headers(const char *label, const shared_ptr< Session > session);
 
 std::string json_to_string(Json::Value &input);
-keyagent_buffer_ptr generate_iv();
+k_buffer_ptr generate_iv();
 
 #endif
 

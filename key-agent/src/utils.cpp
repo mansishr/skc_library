@@ -10,26 +10,8 @@
 
 using namespace keyagent;
 
-extern "C"
-gchar *
-keyagent_generate_checksum(gchar *data, int size)
-{
-    return g_compute_checksum_for_data (G_CHECKSUM_SHA256, (const guchar *)data, (gsize) size);
-}
-
-extern "C" void
-keyagent_debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size)
-{
-    gchar *tmp =  keyagent_generate_checksum((char *)buf, size);
-    std::stringstream ss;
-    ss << std::hex << tmp;
-    std::string tmp1 = ss.str();
-    k_debug_msg("%s %s\n", label, tmp1.c_str());
-    g_free(tmp);
-}
-
-extern "C" keyagent_buffer_ptr
-keyagent_aes_data_decrypt(GQuark swk_type, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv)
+extern "C" k_buffer_ptr
+__keyagent_aes_decrypt(GQuark swk_type, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
 {
     swk_type_op *op = (swk_type_op *)g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(swk_type));
     if (op == NULL || op->cipher_func == NULL || op->decrypt_func == NULL) {
@@ -40,7 +22,7 @@ keyagent_aes_data_decrypt(GQuark swk_type, keyagent_buffer_ptr msg, keyagent_buf
 
 }
 extern "C" int
-keyagent_get_swk_keybit( GQuark swk_type )
+__keyagent_get_swk_size( GQuark swk_type )
 {
     swk_type_op *op = (swk_type_op *)g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(swk_type));
     if (op == NULL ) {
@@ -50,18 +32,18 @@ keyagent_get_swk_keybit( GQuark swk_type )
 	return op->keybits;
 }
 
-extern "C" keyagent_buffer_ptr
-aes_gcm_decrypt(swk_type_op *op, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv)
+extern "C" k_buffer_ptr
+aes_gcm_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
 {
     CRYPTO_malloc_init();
     ERR_load_crypto_strings();
     OpenSSL_add_all_algorithms();
 
-	keyagent_buffer_ptr result;
+	k_buffer_ptr result;
     EVP_CIPHER_CTX *ctx;
     int outlen, rv;
-    int msglen = keyagent_buffer_length(msg) - tlen;
-    uint8_t *tag = keyagent_buffer_data(msg) + msglen;
+    int msglen = k_buffer_length(msg) - tlen;
+    uint8_t *tag = k_buffer_data(msg) + msglen;
 	k_debug_msg("AES:GCM:-keybit:%d\n", op->keybits);
 
     ctx = EVP_CIPHER_CTX_new();
@@ -70,30 +52,30 @@ aes_gcm_decrypt(swk_type_op *op, keyagent_buffer_ptr msg, keyagent_buffer_ptr ke
         return NULL;
     }
 
-    result = keyagent_buffer_alloc(NULL,msglen);
+    result = k_buffer_alloc(NULL,msglen);
 
 	EVP_DecryptInit_ex(ctx, op->cipher_func(), NULL, NULL, NULL);
-    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, keyagent_buffer_length(iv), NULL);
-    EVP_DecryptInit_ex(ctx, NULL, NULL, keyagent_buffer_data(key), keyagent_buffer_data(iv));
-    EVP_DecryptUpdate(ctx, keyagent_buffer_data(result), &outlen, keyagent_buffer_data(msg), msglen);
+    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, k_buffer_length(iv), NULL);
+    EVP_DecryptInit_ex(ctx, NULL, NULL, k_buffer_data(key), k_buffer_data(iv));
+    EVP_DecryptUpdate(ctx, k_buffer_data(result), &outlen, k_buffer_data(msg), msglen);
     EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, tlen, tag);
-    rv = EVP_DecryptFinal_ex(ctx, keyagent_buffer_data(result), &outlen);
+    rv = EVP_DecryptFinal_ex(ctx, k_buffer_data(result), &outlen);
     EVP_CIPHER_CTX_free(ctx);
     return result;
 }
 
-extern "C" keyagent_buffer_ptr
-aes_cbc_decrypt(swk_type_op *op, keyagent_buffer_ptr msg, keyagent_buffer_ptr key, int tlen, keyagent_buffer_ptr iv)
+extern "C" k_buffer_ptr
+aes_cbc_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
 {
     CRYPTO_malloc_init();
     ERR_load_crypto_strings();
     OpenSSL_add_all_algorithms();
 
-	keyagent_buffer_ptr result;
+	k_buffer_ptr result;
     EVP_CIPHER_CTX *ctx;
     int outlen, rv;
-	int msglen = keyagent_buffer_length(msg);
-    uint8_t *tag = keyagent_buffer_data(msg) + msglen;
+	int msglen = k_buffer_length(msg);
+    uint8_t *tag = k_buffer_data(msg) + msglen;
 
     ctx = EVP_CIPHER_CTX_new();
     if (ctx == NULL) {
@@ -102,12 +84,12 @@ aes_cbc_decrypt(swk_type_op *op, keyagent_buffer_ptr msg, keyagent_buffer_ptr ke
     }
 
 	k_debug_msg("AES:CBC-keybit:%d\n", op->keybits);
-    result = keyagent_buffer_alloc(NULL,msglen);
+    result = k_buffer_alloc(NULL,msglen);
 
-    EVP_DecryptInit_ex(ctx, op->cipher_func(), NULL, keyagent_buffer_data(key), keyagent_buffer_data(iv));
-    EVP_DecryptUpdate(ctx, keyagent_buffer_data(result), &outlen, keyagent_buffer_data(msg), msglen);
+    EVP_DecryptInit_ex(ctx, op->cipher_func(), NULL, k_buffer_data(key), k_buffer_data(iv));
+    EVP_DecryptUpdate(ctx, k_buffer_data(result), &outlen, k_buffer_data(msg), msglen);
 	msglen = outlen;
-    rv = EVP_DecryptFinal_ex(ctx, keyagent_buffer_data(result)+outlen , &outlen);
+    rv = EVP_DecryptFinal_ex(ctx, k_buffer_data(result)+outlen , &outlen);
 	msglen += outlen;
     EVP_CIPHER_CTX_free(ctx);
     return result;
@@ -149,7 +131,7 @@ cms_cb(int ok, X509_STORE_CTX *ctx)
 }
 
 extern "C" gboolean
-keyagent_verify_and_extract_cms_message(keyagent_buffer_ptr msg, keyagent_buffer_ptr *data, GError **error)
+__keyagent_verify_and_extract_cms_message(k_buffer_ptr msg, k_buffer_ptr *data, GError **error)
 {
     X509_STORE *store = NULL;
     CMS_ContentInfo *verify_cms = NULL;
@@ -162,7 +144,7 @@ keyagent_verify_and_extract_cms_message(keyagent_buffer_ptr msg, keyagent_buffer
     flags &= ~CMS_DETACHED;
 
     input_bio = BIO_new(BIO_s_mem());
-    BIO_write(input_bio, keyagent_buffer_data(msg), keyagent_buffer_length(msg));
+    BIO_write(input_bio, k_buffer_data(msg), k_buffer_length(msg));
     if (!(verify_cms = d2i_CMS_bio(input_bio, NULL))) {
         k_set_error (error, KEYAGENT_ERROR_BADCMS_MSG,
             "%s: %s", __func__, "The input msg cann't be converted into cms");
@@ -180,7 +162,7 @@ keyagent_verify_and_extract_cms_message(keyagent_buffer_ptr msg, keyagent_buffer
             "%s: %s", __func__, "cms message failed to verify");
     }
     BIO_get_mem_ptr(result_bio, &bptr);
-    *data = keyagent_buffer_alloc(bptr->data, bptr->length);
+    *data = k_buffer_alloc(bptr->data, bptr->length);
     ret = TRUE;
 out:
     if (store) X509_STORE_free(store);
