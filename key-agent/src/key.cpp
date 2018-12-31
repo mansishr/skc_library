@@ -10,35 +10,35 @@ using namespace keyagent;
 
 KEYAGENT_DEFINE_ATTRIBUTES()
 
-extern "C" void
-keyagent_key_set_cache_id(keyagent_key *_key, gint cache_id)
+extern "C" void DLL_LOCAL
+__keyagent_key_set_cache_id(keyagent_key *_key, gint cache_id)
 {
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, _key);
     key->cache_state.id = cache_id;
 }
 
-extern "C" gint
-keyagent_key_get_cache_id(keyagent_key *_key)
+extern "C" gint DLL_LOCAL
+__keyagent_key_get_cache_id(keyagent_key *_key)
 {
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, _key);
     return key->cache_state.id;
 }
 
-extern "C" gint
-keyagent_key_get_session_cache_id(keyagent_key *_key)
+extern "C" gint DLL_LOCAL
+__keyagent_key_get_session_cache_id(keyagent_key *_key)
 {
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, _key);
-    return keyagent_session_get_cache_id(key->session);
+    return __keyagent_session_get_cache_id(key->session);
 }
 
-extern "C" keyagent_key *
+DLL_LOCAL keyagent_key * 
 __keyagent_key_lookup(const char *url)
 {
     GQuark key_url_quark = g_quark_from_string(url);
     return (keyagent_key *)g_hash_table_lookup(keyagent::key_hash, GINT_TO_POINTER(key_url_quark));
 }
 
-extern "C" GQuark
+extern "C" GQuark DLL_LOCAL
 __keyagent_key_create_with_cacheid(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, gint cache_id, GError **error)
 {
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, __keyagent_key_lookup(url));
@@ -68,16 +68,16 @@ __keyagent_key_create_with_cacheid(keyagent_url url, keyagent_keytype type, k_at
 	key->type = type;
 	key->attributes = k_attributes_ref(attrs);
 	key->session = session;
-    keyagent_key_set_cache_id((keyagent_key *)key, cache_id);
+    __keyagent_key_set_cache_id((keyagent_key *)key, cache_id);
 out:
     if (cache_id == -1)
-        keyagent_cache_key((keyagent_key *)key, error);
+        __keyagent_cache_key((keyagent_key *)key, error);
 
     __keyagent_stm_set_session((keyagent_session *)session, error);
     return key_quark;
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_key_policy_add(keyagent_url url, k_attributes_ptr policy_attrs, gint cache_id, GError **error)
 {
 	gboolean ret = FALSE;
@@ -91,17 +91,17 @@ __keyagent_key_policy_add(keyagent_url url, k_attributes_ptr policy_attrs, gint 
 	ret=TRUE;
 out:
     if (cache_id == -1)
-        keyagent_cache_key_policy((keyagent_key *)key, error);
+        __keyagent_cache_key_policy((keyagent_key *)key, error);
 	return ret;
 }
 
-extern "C" GQuark
+extern "C" GQuark DLL_LOCAL
 __keyagent_key_create(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error)
 {
     return __keyagent_key_create_with_cacheid(url, type, attrs, session_id, -1, error);
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_key_free(keyagent_key *_key)
 {
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, _key);
@@ -111,17 +111,17 @@ __keyagent_key_free(keyagent_key *_key)
     return TRUE;
 }
 
-extern "C" void
-keyagent_key_hash_key_free(gpointer data)
+extern "C" void DLL_LOCAL
+__keyagent_key_hash_key_free(gpointer data)
 {
 }
 
-extern "C" void
-keyagent_key_hash_value_free(gpointer data)
+extern "C" void DLL_LOCAL
+__keyagent_key_hash_value_free(gpointer data)
 {
     g_autoptr(GError) tmp_error = NULL;
     keyagent_key_real *key = (keyagent_key_real *)data;
-    keyagent_uncache_key((keyagent_key *)key, &tmp_error);
+    __keyagent_uncache_key((keyagent_key *)key, &tmp_error);
     g_string_free(key->url, TRUE);
 	k_attributes_unref(key->attributes);
 	if( key->policy_attributes)
@@ -131,11 +131,11 @@ keyagent_key_hash_value_free(gpointer data)
     g_free(key);
 }
 
-extern "C" const char *
-keyagent_key_get_stmname(keyagent_key *_key, GError **error)
+DLL_LOCAL const char * 
+__keyagent_key_get_stmname(keyagent_key *_key, GError **error)
 {
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, _key);
-    return keyagent_session_get_stmname(key->session, error);
+    return __keyagent_session_get_stmname(key->session, error);
 }
 
 typedef struct {
@@ -144,7 +144,7 @@ typedef struct {
 } delete_key_list;
 
 static void
-build_delete_key_list(gpointer hashkey, gpointer data, gpointer user_data)
+__build_delete_key_list(gpointer hashkey, gpointer data, gpointer user_data)
 {
     keyagent_key_real *key = (keyagent_key_real*)data;
     delete_key_list *list = (delete_key_list *)user_data;
@@ -154,23 +154,23 @@ build_delete_key_list(gpointer hashkey, gpointer data, gpointer user_data)
 }
 
 static void
-delete_key(gpointer data, gpointer user_data)
+__delete_key(gpointer data, gpointer user_data)
 {
     keyagent_key_real *key = (keyagent_key_real*)data;
     g_hash_table_remove(keyagent::key_hash, key->url->str);
 }
 
-extern "C" void
-keyagent_key_remove_by_session(keyagent_session *session)
+extern "C" void DLL_LOCAL
+__keyagent_key_remove_by_session(keyagent_session *session)
 {
     delete_key_list list = {NULL,NULL};
     list.session = (keyagent_session_real *)session;
-    g_hash_table_foreach(keyagent::key_hash, build_delete_key_list, &list);
-    g_list_foreach(list.l, delete_key, NULL);
+    g_hash_table_foreach(keyagent::key_hash, __build_delete_key_list, &list);
+    g_list_foreach(list.l, __delete_key, NULL);
     g_list_free(list.l);
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type){
 	GTimeVal ctime;
 	gint status                         = -1;
@@ -206,7 +206,7 @@ __keyagent_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type)
 		return RET; \
 } while (0)
 
-extern "C" gboolean 
+extern "C" gboolean  DLL_LOCAL
 __validate_key_usage_policy(keyagent_key_real *key)
 {
 	VALIDATE_KEY_POLICY_ATTR(key, NOT_BEFORE);
@@ -228,7 +228,7 @@ keyagent_key_checkpolicy(keyagent_url url, int op, gint size, GError **err)
 	if( ret != TRUE )
 	{   
 		k_critical_msg("Invalid key usage policy_date\n");
-		keyagent_key_hash_value_free(key);
+		__keyagent_key_hash_value_free(key);
 	}
 	return ret;
 }

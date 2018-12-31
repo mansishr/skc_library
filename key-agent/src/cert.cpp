@@ -7,11 +7,12 @@
 #include <libgen.h>
 #include "internal.h"
 #include "k_errors.h"
+#include "k_types.h"
 #include "config-file/key_configfile.h"
 
 using namespace keyagent;
 
-extern "C" gboolean 
+extern "C" gboolean  DLL_LOCAL
 __keyagent_get_certificate_files(GString *cert_filename, GString *certkey_filename, GError **err)
 {
 	g_return_val_if_fail( (keyagent::cert || keyagent::certkey), FALSE );

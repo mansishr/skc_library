@@ -1,8 +1,17 @@
 #ifndef __K_TYPES_H__
 #define __K_TYPES_H__
-
 /*#include "k_errors.h"*/
+#include "config.h"
 #include <glib.h>
+
+
+#if (( __GNUC__ >= 4 ) && (!DHSM2_KEYAGENT_DLL_API_VISIBLITY))
+    #define DLL_PUBLIC __attribute__ ((visibility ("default")))
+    #define DLL_LOCAL  __attribute__ ((visibility ("hidden")))
+#else
+    #define DLL_PUBLIC
+    #define DLL_LOCAL
+#endif
 
 typedef struct {
 	GByteArray *bytes;

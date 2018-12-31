@@ -10,6 +10,7 @@
 #include <libgda/gda-blob-op.h>
 #include <sql-parser/gda-sql-parser.h>
 
+
 namespace keyagent {
     namespace localcache {
         GString *provider_name;
@@ -26,14 +27,14 @@ namespace keyagent {
     }
 }
 
-extern "C" gint
-keyagent_cache_generate_fake_id()
+extern "C" gint DLL_LOCAL
+__keyagent_cache_generate_fake_id()
 {
     g_atomic_int_add(&keyagent::localcache::fake_cache_ids, 1);
 }
 
-static gboolean
-open_cache_connection(GError **error)
+gboolean DLL_LOCAL
+__open_cache_connection(GError **error)
 {
     GdaConnection *cnc;
     GdaSqlParser *parser;
@@ -58,8 +59,8 @@ open_cache_connection(GError **error)
     return TRUE;
 }
 
-static gboolean
-run_sql_non_select (const gchar *sql, GError **error)
+gboolean DLL_LOCAL
+__run_sql_non_select (const gchar *sql, GError **error)
 {
     GdaStatement *stmt;
     gint nrows;
@@ -78,17 +79,17 @@ run_sql_non_select (const gchar *sql, GError **error)
 }
 
 
-static gboolean
-create_cache_tables(GError **error)
+gboolean DLL_LOCAL
+__create_cache_tables(GError **error)
 {
     gboolean ret = FALSE;
-    if (!run_sql_non_select ("CREATE TABLE keys (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, sealed_data BLOB NOT NULL, session_id VARCHAR(64) NOT NULL, key_type INTEGER NOT NULL, url VARCHAR (256) NOT NULL UNIQUE ON CONFLICT REPLACE)", error))
+    if (!__run_sql_non_select ("CREATE TABLE keys (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, sealed_data BLOB NOT NULL, session_id VARCHAR(64) NOT NULL, key_type INTEGER NOT NULL, url VARCHAR (256) NOT NULL UNIQUE ON CONFLICT REPLACE)", error))
         goto out;
-    if (!run_sql_non_select ("CREATE TABLE sessions (id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, stm_label VARCHAR (64) NOT NULL UNIQUE ON CONFLICT REPLACE, swk BLOB NOT NULL, session_id VARCHAR (64), swk_type VARCHAR (64))", error))
+    if (!__run_sql_non_select ("CREATE TABLE sessions (id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, stm_label VARCHAR (64) NOT NULL UNIQUE ON CONFLICT REPLACE, swk BLOB NOT NULL, session_id VARCHAR (64), swk_type VARCHAR (64))", error))
         goto out;
-    if (!run_sql_non_select ("CREATE TABLE key_policy_attributes (keyattr_policy_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, key_id INTEGER NOT NULL REFERENCES keys (id) ON UPDATE CASCADE, attr_name VARCHAR(64) NOT NULL, attr_value VARCHAR(256) NOT NULL, UNIQUE (key_id, attr_name) ON CONFLICT REPLACE)", error))
+    if (!__run_sql_non_select ("CREATE TABLE key_policy_attributes (keyattr_policy_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, key_id INTEGER NOT NULL REFERENCES keys (id) ON UPDATE CASCADE, attr_name VARCHAR(64) NOT NULL, attr_value VARCHAR(256) NOT NULL, UNIQUE (key_id, attr_name) ON CONFLICT REPLACE)", error))
         goto out;
-    if (!run_sql_non_select ("CREATE TABLE key_attributes (keyattr_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, key_id INTEGER NOT NULL REFERENCES keys (id) ON UPDATE CASCADE, attr_name VARCHAR(64) NOT NULL, attr_value BLOB NOT NULL, UNIQUE (key_id, attr_name) ON CONFLICT REPLACE)", error)) {
+    if (!__run_sql_non_select ("CREATE TABLE key_attributes (keyattr_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, key_id INTEGER NOT NULL REFERENCES keys (id) ON UPDATE CASCADE, attr_name VARCHAR(64) NOT NULL, attr_value BLOB NOT NULL, UNIQUE (key_id, attr_name) ON CONFLICT REPLACE)", error)) {
         k_critical_error(*error);
         goto out;
     }
@@ -98,8 +99,8 @@ create_cache_tables(GError **error)
     return ret;
 }
 
-extern "C" gboolean
-keyagent_cache_init(GError **err)
+extern "C" gboolean DLL_LOCAL
+__keyagent_cache_init(GError **err)
 {
     GString *tmp = g_string_new(NULL);
     g_string_append_printf(tmp, PKGDATA "/var/cache/keyagent_cache");
@@ -131,19 +132,19 @@ keyagent_cache_init(GError **err)
 
         return FALSE;
     }
-    if (!open_cache_connection(err))
+    if (!__open_cache_connection(err))
         return FALSE;
 
-    if (!create_cache_tables(err))
+    if (!__create_cache_tables(err))
         return FALSE;
 
-    if (keyagent::localcache::cache_sessions && !keyagent_cache_loadsessions(err))
+    if (keyagent::localcache::cache_sessions && !__keyagent_cache_loadsessions(err))
         return FALSE;
 
-    if (keyagent::localcache::cache_keys && !keyagent_cache_loadkeys(err))
+    if (keyagent::localcache::cache_keys && !__keyagent_cache_loadkeys(err))
         return FALSE;
 
-    if (keyagent::localcache::cache_keys && !keyagent_cache_loadkeys_policy_attr(err))
+    if (keyagent::localcache::cache_keys && !__keyagent_cache_loadkeys_policy_attr(err))
         return FALSE;
 
     return TRUE;

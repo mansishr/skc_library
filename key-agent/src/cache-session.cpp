@@ -17,8 +17,8 @@ typedef struct {
 	char *swk_type;
 } session_data;
 
-static void
-session_data_free(session_data *data)
+void DLL_LOCAL
+__session_data_free(session_data *data)
 {
     if (data->label)
         g_free(data->label);
@@ -33,8 +33,8 @@ session_data_free(session_data *data)
     g_free(data);
 }
 
-static session_data *
-get_session_from_model(GdaDataModel *model, int row, GError **error) {
+DLL_LOCAL session_data * 
+__get_session_from_model(GdaDataModel *model, int row, GError **error) {
     session_data *data = g_new0(session_data, 1);
 
     GdaBlob *blob = NULL;
@@ -72,8 +72,8 @@ out:
     return data;
 }
 
-extern "C" gboolean
-keyagent_cache_loadsessions(GError **error)
+extern "C" gboolean DLL_LOCAL
+__keyagent_cache_loadsessions(GError **error)
 {
     GdaSqlParser *parser;
     GdaStatement *stmt;
@@ -96,22 +96,22 @@ keyagent_cache_loadsessions(GError **error)
 
     ret = TRUE;
     for (i = 0; i < rows; ++i) {
-        session_data *data = get_session_from_model(model, i, error);
+        session_data *data = __get_session_from_model(model, i, error);
         if (!data) {
             ret = FALSE;
             break;
         }
 
         __keyagent_session_create(data->label, data->session_id, data->swk, data->swk_type, data->id, error);
-        session_data_free(data);
+        __session_data_free(data);
     }
     g_object_unref (model);
     out:
     return ret;
 }
 
-static session_data *
-get_session(const char *label, GError **error)
+DLL_LOCAL session_data * 
+__get_session(const char *label, GError **error)
 {
     GdaSqlParser *parser;
     GdaStatement *stmt;
@@ -137,14 +137,14 @@ get_session(const char *label, GError **error)
     g_object_unref (stmt);
     if (!model) goto out;
 
-    session_data = get_session_from_model(model, 0, error);
+    session_data = __get_session_from_model(model, 0, error);
     g_object_unref (model);
     out:
     return session_data;
 }
 
-extern "C" gboolean
-keyagent_cache_session(keyagent_session *_session, GError **error)
+extern "C" gboolean DLL_LOCAL
+__keyagent_cache_session(keyagent_session *_session, GError **error)
 {
     GdaStatement *stmt;
     GdaSet *params;
@@ -157,7 +157,7 @@ keyagent_cache_session(keyagent_session *_session, GError **error)
 
     g_rw_lock_writer_lock(&keyagent::localcache::cache_rwlock);
     if (!keyagent::localcache::cache_sessions) {
-        id = keyagent_cache_generate_fake_id();
+        id = __keyagent_cache_generate_fake_id();
         goto out;
     }
 
@@ -173,11 +173,11 @@ keyagent_cache_session(keyagent_session *_session, GError **error)
         goto out;
     }
     gda_connection_commit_transaction(GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), NULL, NULL);
-    session_data = get_session(session->name->str, error);
+    session_data = __get_session(session->name->str, error);
     id = session_data->id;
-    session_data_free(session_data);
+    __session_data_free(session_data);
 out:
-    keyagent_session_set_cache_id(_session, id);
+    __keyagent_session_set_cache_id(_session, id);
     g_rw_lock_writer_unlock(&keyagent::localcache::cache_rwlock);
     return ret;
 }

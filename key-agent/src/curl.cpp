@@ -5,8 +5,8 @@
 #include "key-agent/key_agent.h"
 #include "key-agent/types.h"
 
-static size_t
-write_byte_array(void *contents, size_t size, size_t nmemb, void *userp)
+size_t DLL_LOCAL
+__write_byte_array(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t realsize = size * nmemb;
 	k_buffer_ptr mem = (k_buffer_ptr )userp;
@@ -15,8 +15,8 @@ write_byte_array(void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 
-static size_t 
-get_response_header(void *header_buffer,   size_t size,   size_t nmemb,   void *userp)
+size_t DLL_LOCAL
+__get_response_header(void *header_buffer,   size_t size,   size_t nmemb,   void *userp)
 {
 	size_t realsize				= size * nmemb;
 	GPtrArray *res_headers		= ( GPtrArray *)userp;
@@ -31,8 +31,8 @@ get_response_header(void *header_buffer,   size_t size,   size_t nmemb,   void *
         } \
 } while (0)
 
-static void
-build_header_list(gpointer data, gpointer user_data)
+void DLL_LOCAL
+__build_header_list(gpointer data, gpointer user_data)
 {
         struct curl_slist **header_list = (struct curl_slist **)user_data;
 		gchar *s = (gchar *)data;
@@ -40,7 +40,7 @@ build_header_list(gpointer data, gpointer user_data)
 }
 
 extern "C"
-int 
+int DLL_LOCAL
 __keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, gboolean verbose)
 {
     CURL *curl;
@@ -68,14 +68,14 @@ __keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrA
 	if (postdata) 
 		SETOPT(curl, CURLOPT_POSTFIELDS, postdata->str);
 
-	g_ptr_array_foreach (headers, build_header_list, &header_list);
+	g_ptr_array_foreach (headers, __build_header_list, &header_list);
 
     SETOPT(curl, CURLOPT_HTTPHEADER, header_list);
-    SETOPT(curl, CURLOPT_WRITEFUNCTION, write_byte_array);
+    SETOPT(curl, CURLOPT_WRITEFUNCTION, __write_byte_array);
     SETOPT(curl, CURLOPT_WRITEDATA, returndata);
 	if ( response_headers )
 	{
-		SETOPT(curl, CURLOPT_HEADERFUNCTION, get_response_header);
+		SETOPT(curl, CURLOPT_HEADERFUNCTION, __get_response_header);
 		SETOPT(curl, CURLOPT_HEADERDATA, response_headers);
 	}
 

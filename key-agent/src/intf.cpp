@@ -38,8 +38,8 @@ namespace keyagent {
 }
 
 /* Return GList of paths described in location string */
-static GList *
-handle_wildcards (GString *location)
+DLL_LOCAL GList *
+__handle_wildcards (GString *location)
 {
     GList *res = NULL;
     gchar *path = g_path_get_dirname (location->str);
@@ -70,14 +70,14 @@ out:
     return res;
 }
 
-static void
-free_char_pointer(gpointer data)
+DLL_LOCAL void
+__free_char_pointer(gpointer data)
 {
 	g_free(data);
 }
 
-gboolean
-do_keyagent_init(const char *filename, GError **err)
+DLL_LOCAL gboolean
+__do_keyagent_init(const char *filename, GError **err)
 {
 
     g_rw_lock_init (&keyagent::rwlock);
@@ -111,40 +111,40 @@ do_keyagent_init(const char *filename, GError **err)
     LOOKUP_KEYAGENT_INTERNAL_STM_OPS(&keyagent::stm_ops);
 	keyagent::npm_hash = g_hash_table_new (g_str_hash, g_str_equal);
 	keyagent::stm_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
-	keyagent::key_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, keyagent_key_hash_key_free, keyagent_key_hash_value_free);
-	keyagent::session_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, keyagent_session_hash_key_free, keyagent_session_hash_value_free);
+	keyagent::key_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, __keyagent_key_hash_key_free, __keyagent_key_hash_value_free);
+	keyagent::session_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, __keyagent_session_hash_key_free, __keyagent_session_hash_value_free);
 
 
 	GString *pattern = g_string_new(keyagent::npm_directory->str);
 	g_string_append(pattern, "/npm_*.so");
-	GList *modules = handle_wildcards(pattern);
+	GList *modules = __handle_wildcards(pattern);
 	if (!modules) {
 		k_critical_msg("Did not find any npms that matched pattern %s", pattern->str);
 		return FALSE;
 	}
-	g_list_foreach(modules, initialize_npm, err); 
-	g_list_free_full(modules, free_char_pointer);  
+	g_list_foreach(modules, __initialize_npm, err); 
+	g_list_free_full(modules, __free_char_pointer);  
 
 	g_string_assign(pattern, keyagent::stm_directory->str);
 	g_string_append(pattern, "/stm_*.so");
-	modules = handle_wildcards(pattern);
+	modules = __handle_wildcards(pattern);
 	if (!modules) {
 		k_critical_msg("Did not find any stms that matched pattern %s", pattern->str);
 		return FALSE;
 	}
 
-    if (!keyagent_session_init(err))
+    if (!__keyagent_session_init(err))
         return FALSE;
 
-	g_list_foreach(modules, initialize_stm, err); 
-	g_list_free_full(modules, free_char_pointer);  
+	g_list_foreach(modules, __initialize_stm, err); 
+	g_list_free_full(modules, __free_char_pointer);  
 
     keyagent::key_directory = g_string_new(key_config_get_string(keyagent::config, "core", "key-directory", err));
 	if (*err != NULL) {
 		return FALSE;
 	}
 
-    if (!keyagent_cache_init(err))
+    if (!__keyagent_cache_init(err))
         return FALSE;
 
 
@@ -152,14 +152,14 @@ do_keyagent_init(const char *filename, GError **err)
 }
 
 
-extern "C" gboolean
+extern "C" gboolean DLL_PUBLIC
 keyagent_init(const char *filename, GError **err)
 {
     static gsize init = 0;
     static GError *error = NULL;
     if (g_once_init_enter (&init))
     {
-        do_keyagent_init(filename, &error);
+        __do_keyagent_init(filename, &error);
         g_once_init_leave (&init, 1);
     }
 
@@ -177,7 +177,7 @@ typedef struct {
     GError **err;
 } loadkey_t;
 
-static gboolean
+DLL_LOCAL gboolean
 _loadkey(gpointer keyid, gpointer data, gpointer user_data)
 {
 	gboolean ret = FALSE;
@@ -211,7 +211,7 @@ out:
 	return ret;
 }
           
-extern "C" keyagent_key *
+extern "C" keyagent_key * DLL_PUBLIC
 keyagent_loadkey(keyagent_url url, GError **err)
 {
 	keyagent_key *key = NULL;
@@ -251,7 +251,7 @@ keyagent_loadkey(keyagent_url url, GError **err)
 }
 
 extern "C"
-gboolean
+gboolean DLL_PUBLIC
 keyagent_apimodule_register(keyagent_apimodule_ops *ops, GError **err)
 {
 	g_return_val_if_fail( (err || (err?*err:NULL)) && ops, FALSE );

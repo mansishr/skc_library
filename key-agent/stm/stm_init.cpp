@@ -12,8 +12,8 @@
 
 using namespace keyagent;
 
-extern "C" void
-initialize_stm(gpointer data, gpointer user_data)
+extern "C" void DLL_LOCAL 
+__initialize_stm(gpointer data, gpointer user_data)
 {
     GError **err = (GError **)user_data;
     const char *filename = (const char *)data;
@@ -52,8 +52,8 @@ initialize_stm(gpointer data, gpointer user_data)
     return;
 }
 
-static void
-show_stms(gpointer key, gpointer data, gpointer user_data)
+DLL_LOCAL void
+__show_stms(gpointer key, gpointer data, gpointer user_data)
 {
     keyagent_stm_real *stm = (keyagent_stm_real *)data;
     g_print("STM - %s (%s) - %s\n",keyagent_get_module_label(stm),
@@ -61,15 +61,15 @@ show_stms(gpointer key, gpointer data, gpointer user_data)
             stm->module_name->str);
 }
 
-extern "C" void
+extern "C" void DLL_PUBLIC
 keyagent_stm_showlist()
 {
     g_print("\n");
-    g_hash_table_foreach(keyagent::stm_hash, show_stms, NULL);
+    g_hash_table_foreach(keyagent::stm_hash, __show_stms, NULL);
 }
 
-static void
-get_stm_names(gpointer key, gpointer data, gpointer user_data)
+DLL_LOCAL void
+__get_stm_names(gpointer key, gpointer data, gpointer user_data)
 {
     keyagent_stm_real *stm = (keyagent_stm_real *)data;
     GString *names = (GString *)user_data;
@@ -79,15 +79,15 @@ get_stm_names(gpointer key, gpointer data, gpointer user_data)
     g_string_append(names, keyagent_get_module_label(stm));
 }
 
-extern "C" GString *
+DLL_LOCAL GString *
 __keyagent_stm_get_names()
 {
     GString *names = g_string_new(NULL);
-    g_hash_table_foreach(keyagent::stm_hash, get_stm_names, names);
+    g_hash_table_foreach(keyagent::stm_hash, __get_stm_names, names);
     return names;
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_stm_get_by_name(const char *name, keyagent_module **module)
 {
     g_return_val_if_fail((name && module), FALSE);
@@ -100,13 +100,13 @@ __keyagent_stm_get_by_name(const char *name, keyagent_module **module)
     return TRUE;
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_stm_set_session(keyagent_session *session, GError **error)
 {
     g_return_val_if_fail(session != NULL, FALSE);
     keyagent_stm_real *lstm = NULL;
     keyagent_stm_session_details details;
-    __keyagent_stm_get_by_name(keyagent_session_get_stmname(session, error), (keyagent_module **)&lstm);
+    __keyagent_stm_get_by_name(__keyagent_session_get_stmname(session, error), (keyagent_module **)&lstm);
 
     g_return_val_if_fail(lstm != NULL, FALSE);
 
@@ -124,7 +124,7 @@ __keyagent_stm_set_session(keyagent_session *session, GError **error)
     return TRUE;
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_stm_get_challenge(const char *name, k_buffer_ptr *challenge, GError **error)
 {
 	//g_return_val_if_fail(name && challenge, FALSE);
@@ -146,7 +146,7 @@ __keyagent_stm_get_challenge(const char *name, k_buffer_ptr *challenge, GError *
     return STM_MODULE_OP(lstm,create_challenge)(challenge, error);
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attributes_ptr *challenge_attrs, GError **error)
 {
     g_return_val_if_fail(name && quote && challenge_attrs, FALSE);
@@ -156,7 +156,7 @@ __keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attribut
     return STM_MODULE_OP(lstm,challenge_verify)(quote, challenge_attrs, error);
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_stm_load_key(keyagent_key *_key, GError **error)
 {
     gboolean ret = FALSE;
@@ -169,7 +169,7 @@ __keyagent_stm_load_key(keyagent_key *_key, GError **error)
         return FALSE;
     }
     keyagent_stm_real *lstm = NULL;
-    __keyagent_stm_get_by_name(keyagent_key_get_stmname(_key, error), (keyagent_module **)&lstm);
+    __keyagent_stm_get_by_name(__keyagent_key_get_stmname(_key, error), (keyagent_module **)&lstm);
     g_return_val_if_fail(lstm != NULL || lstm->session != NULL, FALSE);
 
     

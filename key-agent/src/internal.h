@@ -135,19 +135,19 @@ typedef struct swk_op{
 extern "C" {
 #endif
 
-void initialize_stm(gpointer data, gpointer user_data);
-void initialize_npm(gpointer data, gpointer user_data);
-gboolean keyagent_cache_init(GError **err);
+void __initialize_stm(gpointer data, gpointer user_data);
+void __initialize_npm(gpointer data, gpointer user_data);
+gboolean __keyagent_cache_init(GError **err);
 
-void keyagent_session_hash_key_free(gpointer data);
-void keyagent_session_hash_value_free(gpointer data);
-void keyagent_key_hash_key_free(gpointer data);
-void keyagent_key_hash_value_free(gpointer data);
+void __keyagent_session_hash_key_free(gpointer data);
+void __keyagent_session_hash_value_free(gpointer data);
+void __keyagent_key_hash_key_free(gpointer data);
+void __keyagent_key_hash_value_free(gpointer data);
 
-gboolean keyagent_cache_loadsessions(GError **error);
-gboolean keyagent_cache_session(keyagent_session *session, GError **error);
-const char *keyagent_session_get_stmname(keyagent_session *session, GError **error);
-const char *keyagent_key_get_stmname(keyagent_key *key, GError **error);
+gboolean __keyagent_cache_loadsessions(GError **error);
+gboolean __keyagent_cache_session(keyagent_session *session, GError **error);
+const char *__keyagent_session_get_stmname(keyagent_session *session, GError **error);
+const char *__keyagent_key_get_stmname(keyagent_key *key, GError **error);
 
 keyagent_key * __keyagent_key_lookup(const char *url);
 gboolean __keyagent_key_free(keyagent_key *);
@@ -161,26 +161,26 @@ GQuark __keyagent_key_create(keyagent_url url, keyagent_keytype type, k_attribut
 GQuark __keyagent_key_create_with_cacheid(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, 
     const char *session_id, gint cache_id, GError **error);
 
-gboolean keyagent_cache_loadkeys(GError **error);
-gboolean keyagent_cache_key(keyagent_key *key, GError **error);
-gboolean keyagent_uncache_key(keyagent_key *key, GError **error);
-gboolean keyagent_cache_loadkeys_policy_attr(GError **error);
+gboolean __keyagent_cache_loadkeys(GError **error);
+gboolean __keyagent_cache_key(keyagent_key *key, GError **error);
+gboolean __keyagent_uncache_key(keyagent_key *key, GError **error);
+gboolean __keyagent_cache_loadkeys_policy_attr(GError **error);
 
-gboolean keyagent_cache_key_policy(keyagent_key *_key, GError **error);
+gboolean __keyagent_cache_key_policy(keyagent_key *_key, GError **error);
 
-void keyagent_session_set_cache_id(keyagent_session *, gint id);
-gint keyagent_session_get_cache_id(keyagent_session *d);
-void keyagent_key_set_cache_id(keyagent_key *, gint id);
-gint keyagent_key_get_cache_id(keyagent_key *);
-gint keyagent_key_get_session_cache_id(keyagent_key *);
+void __keyagent_session_set_cache_id(keyagent_session *, gint id);
+gint __keyagent_session_get_cache_id(keyagent_session *d);
+void __keyagent_key_set_cache_id(keyagent_key *, gint id);
+gint __keyagent_key_get_cache_id(keyagent_key *);
+gint __keyagent_key_get_session_cache_id(keyagent_key *);
 //keyagent_session *keyagent_session_id_lookup(gint id);
-gint keyagent_cache_generate_fake_id();
-void keyagent_key_remove_by_session(keyagent_session *);
+gint __keyagent_cache_generate_fake_id();
+void __keyagent_key_remove_by_session(keyagent_session *);
 
-GQuark keyagent_session_make_swktype(const char *type);
-gboolean keyagent_session_init(GError **error);
-k_buffer_ptr aes_gcm_decrypt(swk_type_op *sw_op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv);
-k_buffer_ptr aes_cbc_decrypt(swk_type_op *sw_op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv);
+GQuark __keyagent_session_make_swktype(const char *type);
+gboolean __keyagent_session_init(GError **error);
+k_buffer_ptr __aes_gcm_decrypt(swk_type_op *sw_op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv);
+k_buffer_ptr __aes_cbc_decrypt(swk_type_op *sw_op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv);
 
 GString *__keyagent_stm_get_names();
 gboolean __keyagent_stm_get_by_name(const char *name, keyagent_module **);

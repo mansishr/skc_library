@@ -12,8 +12,8 @@
 using namespace keyagent;
 
 
-extern "C" void
-initialize_npm(gpointer data, gpointer user_data)
+extern "C" void DLL_LOCAL
+__initialize_npm(gpointer data, gpointer user_data)
 {
     GError **err = (GError **)user_data;
     const char *filename = (const char *)data;
@@ -51,8 +51,8 @@ initialize_npm(gpointer data, gpointer user_data)
     return;
 }
 
-static void
-show_npms(gpointer key, gpointer data, gpointer user_data)
+DLL_LOCAL void
+__show_npms(gpointer key, gpointer data, gpointer user_data)
 {
     keyagent_npm_real *npm = (keyagent_npm_real *)data;
     g_print("NPM - %s (%s) - %s\n", keyagent_get_module_label(npm),
@@ -60,9 +60,9 @@ show_npms(gpointer key, gpointer data, gpointer user_data)
             npm->module_name->str);
 }
 
-extern "C" void
+extern "C" void DLL_PUBLIC
 keyagent_npm_showlist()
 {
     g_print("\n");
-    g_hash_table_foreach(keyagent::npm_hash, show_npms, NULL);
+    g_hash_table_foreach(keyagent::npm_hash, __show_npms, NULL);
 }

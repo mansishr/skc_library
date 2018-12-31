@@ -1,4 +1,5 @@
 #define G_LOG_DOMAIN "keyagent-utils"
+#include "key_agent.h"
 #include "internal.h"
 #include "k_errors.h"
 #include <iostream>
@@ -10,7 +11,7 @@
 
 using namespace keyagent;
 
-extern "C" k_buffer_ptr
+extern "C" k_buffer_ptr DLL_LOCAL 
 __keyagent_aes_decrypt(GQuark swk_type, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
 {
     swk_type_op *op = (swk_type_op *)g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(swk_type));
@@ -21,7 +22,7 @@ __keyagent_aes_decrypt(GQuark swk_type, k_buffer_ptr msg, k_buffer_ptr key, int 
 	return op->decrypt_func(op, msg, key, tlen, iv);
 
 }
-extern "C" int
+extern "C" int DLL_LOCAL 
 __keyagent_get_swk_size( GQuark swk_type )
 {
     swk_type_op *op = (swk_type_op *)g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(swk_type));
@@ -32,8 +33,8 @@ __keyagent_get_swk_size( GQuark swk_type )
 	return op->keybits;
 }
 
-extern "C" k_buffer_ptr
-aes_gcm_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
+extern "C" k_buffer_ptr DLL_LOCAL
+__aes_gcm_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
 {
     CRYPTO_malloc_init();
     ERR_load_crypto_strings();
@@ -64,8 +65,8 @@ aes_gcm_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k
     return result;
 }
 
-extern "C" k_buffer_ptr
-aes_cbc_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
+extern "C" k_buffer_ptr DLL_LOCAL
+__aes_cbc_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
 {
     CRYPTO_malloc_init();
     ERR_load_crypto_strings();
@@ -95,8 +96,8 @@ aes_cbc_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k
     return result;
 }
 
-static X509_STORE *
-cms_setup_verify()
+DLL_LOCAL X509_STORE * 
+__cms_setup_verify()
 {
     X509_STORE *store;
     X509_LOOKUP *lookup;
@@ -119,7 +120,7 @@ cms_setup_verify()
     return NULL;
 }
 
-extern "C" int 
+extern "C" int  DLL_LOCAL
 cms_cb(int ok, X509_STORE_CTX *ctx)
 {
     int error;
@@ -130,7 +131,7 @@ cms_cb(int ok, X509_STORE_CTX *ctx)
     return ok;
 }
 
-extern "C" gboolean
+extern "C" gboolean DLL_LOCAL
 __keyagent_verify_and_extract_cms_message(k_buffer_ptr msg, k_buffer_ptr *data, GError **error)
 {
     X509_STORE *store = NULL;
@@ -150,7 +151,7 @@ __keyagent_verify_and_extract_cms_message(k_buffer_ptr msg, k_buffer_ptr *data, 
             "%s: %s", __func__, "The input msg cann't be converted into cms");
         goto out;
     }
-    if (!(store = cms_setup_verify())) {
+    if (!(store = __cms_setup_verify())) {
         k_set_error (error, KEYAGENT_ERROR_BADCMS_MSG,
             "%s: %s", __func__, "Cannot initialize cms verify");
         goto out;
