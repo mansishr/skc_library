@@ -76,6 +76,7 @@ AC_CONFIG_FILES([
 	src/Makefile
 	cli/Makefile
 	tests/Makefile
+	tests/test_app/Makefile
 ])
 
 AC_OUTPUT
