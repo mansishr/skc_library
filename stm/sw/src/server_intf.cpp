@@ -26,15 +26,10 @@ using namespace std;
 using BIO_MEM_ptr = std::unique_ptr<BIO, decltype(&::BIO_free)>;
 
 
-namespace server_sw_stm {
-    keyagent_buffer_ptr CHALLENGE_KEYTYPE;
-}
 
 extern "C" void
 server_stm_init(const char *config_directory, GError **err)
 {
-    server_sw_stm::CHALLENGE_KEYTYPE = keyagent_buffer_alloc(NULL, strlen("RSA")+1);
-    strcpy((char *)keyagent_buffer_data(server_sw_stm::CHALLENGE_KEYTYPE), "RSA");
 }
 
 extern "C" gboolean
@@ -108,7 +103,6 @@ stm_challenge_verify(keyagent_buffer_ptr quote, keyagent_attribute_set_ptr *chal
 {
     gboolean ret = FALSE;
     keyagent_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
-    keyagent_buffer_ptr CHALLENGE_KEYTYPE = keyagent_buffer_ref(server_sw_stm::CHALLENGE_KEYTYPE);
     keyagent_buffer_ptr SW_ISSUER = NULL;
     BIO* bio = NULL;
     EVP_PKEY *pkey = NULL;
@@ -116,6 +110,10 @@ stm_challenge_verify(keyagent_buffer_ptr quote, keyagent_attribute_set_ptr *chal
     int len = 0;
     unsigned char *tmp = NULL;
     keyagent_attribute_set_ptr challenge_set = NULL;
+
+    keyagent_buffer_ptr CHALLENGE_KEYTYPE;
+    CHALLENGE_KEYTYPE = keyagent_buffer_alloc(NULL, strlen("RSA")+1);
+    strcpy((char *)keyagent_buffer_data(CHALLENGE_KEYTYPE), "RSA");
 
     *challenge_attrs = NULL;
 
@@ -138,9 +136,6 @@ stm_challenge_verify(keyagent_buffer_ptr quote, keyagent_attribute_set_ptr *chal
     keyagent_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_RSA_PUBLIC_KEY", CHALLENGE_RSA_PUBLIC_KEY);
     keyagent_attribute_set_add_attribute(challenge_set, (char *)"SW_ISSUER", SW_ISSUER);
 
-    //KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, CHALLENGE_KEYTYPE);
-    //KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, CHALLENGE_RSA_PUBLIC_KEY);
-    //KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(*challenge_attrs, SW_ISSUER);
     ret = TRUE;
 out:
     if (CHALLENGE_RSA_PUBLIC_KEY) keyagent_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
