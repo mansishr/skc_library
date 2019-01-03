@@ -334,7 +334,7 @@ key_info_free(gpointer data)
 }
 
 extern "C" gboolean
-__keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attributes_ptr *challenge_attrs, GError **error)
+__keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_attrs, GError **error)
 {
     keyagent_stm_real *lstm = (keyagent_stm_real *)server::stm;
     return STM_MODULE_OP(lstm,challenge_verify)(quote, challenge_attrs, error);

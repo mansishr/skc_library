@@ -49,4 +49,6 @@ key-agent/cli/keyagent-cli
 testserver/testserver
 npm/kms/tests/test_kms_npm
 npm/tests/test_app/npm_tapp
+key-agent/tests/test_app/keyagent_testapp
+*.Po
 G[R|P|T|F|L]*

@@ -51,6 +51,75 @@ typedef struct {
 } keyagent_ssl_opts;
 
 typedef struct {
+    char *name;
+    k_buffer_ptr value;
+} keyagent_attribute;
+
+typedef keyagent_attribute *	keyagent_attribute_ptr;
+
+typedef struct {
+    int ref_count;
+    int count;
+    int _count;
+    keyagent_attribute_ptr attrs;
+} keyagent_attribute_set;
+
+typedef keyagent_attribute_set *	keyagent_attribute_set_ptr;
+
+static inline keyagent_attribute_set_ptr
+keyagent_attribute_set_alloc(int count)
+{
+    keyagent_attribute_set *set = g_new0(keyagent_attribute_set, 1);
+    set->_count = count;
+    set->ref_count = 1;
+    set->attrs = g_new0(keyagent_attribute, count);
+    return set;
+}
+
+static inline void
+keyagent_attribute_set_add_attribute(keyagent_attribute_set_ptr set, char *name, k_buffer_ptr value)
+{
+    keyagent_attribute_ptr attr = set->attrs;
+    if (set->count >= set->_count)
+        return;
+
+    attr += set->count;
+    attr->name = g_strdup(name);
+    attr->value = k_buffer_ref(value);
+    ++set->count;
+}
+
+static inline k_buffer_ptr
+keyagent_attribute_set_get_attribute(keyagent_attribute_set_ptr set, char *name)
+{
+    keyagent_attribute_ptr attr;
+    int i;
+
+    for (i = 0, attr = set->attrs; i < set->_count; i++, attr++) {
+        if (!strcmp(name, attr->name))
+            return k_buffer_ref(attr->value);
+    }
+    return NULL;
+}
+
+static inline void
+keyagent_attribute_set_unref(keyagent_attribute_set_ptr set)
+{
+    keyagent_attribute_ptr attr;
+    int i;
+
+    if (!g_atomic_int_dec_and_test (&set->ref_count))
+        return;
+    
+    for (i = 0, attr = set->attrs; i < set->_count; i++, attr++) {
+        g_free(attr->name);
+        k_buffer_unref(attr->value);
+    }
+    
+    g_free(set->attrs);
+}
+
+typedef struct {
     GString  *url;
     keyagent_keytype type;
 } keyagent_key;
@@ -341,7 +410,7 @@ DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_get_challenge, gboolean, (const char *
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_get_ids,GString *,());
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_create, gboolean, (const char *name, const char *session_id, k_buffer_ptr swk, const char *swk_type, gint cache_id, GError **));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_lookup_swktype, GQuark, (const char *type));
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_challenge_verify, gboolean, (const char *name, k_buffer_ptr quote, k_attributes_ptr *challenge_attrs, GError **));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_challenge_verify, gboolean, (const char *name, k_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_attrs, GError **));
 
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,https_send,int, (GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, gboolean verbose));
 
