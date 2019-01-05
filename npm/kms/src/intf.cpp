@@ -11,6 +11,8 @@
 
 using namespace std;
 
+KEYAGENT_DEFINE_ATTRIBUTES()
+
 namespace kms_npm
 {
 	GString *configfile;
