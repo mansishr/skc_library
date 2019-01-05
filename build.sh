@@ -16,7 +16,7 @@
 	echo "INFO: KeyAgent: AutoConfigure completed"		
 
 	echo "INFO: KeyAgent: compilation started"
-	./configure --prefix=/opt/dhsm2/workload --enable-always-build-tests
+	./configure --prefix=/tmp/foo --disable-static --disable-gost
 	echo "INFO: KeyAgent: compilation completed"
 
 	echo "INFO: KeyAgent build started"
