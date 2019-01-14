@@ -97,7 +97,7 @@ stm_challenge_generate_request(const gchar **request, GError **error)
 }
 
 extern "C" gboolean
-stm_challenge_verify(k_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_attrs, GError **error)
+stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, GError **error)
 {
     gboolean ret = FALSE;
     k_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
@@ -107,7 +107,7 @@ stm_challenge_verify(k_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_a
     RSA *rsa = NULL;
     int len = 0;
     unsigned char *tmp = NULL;
-    keyagent_attribute_set_ptr challenge_set = NULL;
+    k_attribute_set_ptr challenge_set = NULL;
 
     k_buffer_ptr CHALLENGE_KEYTYPE;
     CHALLENGE_KEYTYPE = k_buffer_alloc(NULL, strlen("RSA")+1);
@@ -129,10 +129,10 @@ stm_challenge_verify(k_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_a
     BIO_get_mem_ptr(mbio.get(), &mem);
     CHALLENGE_RSA_PUBLIC_KEY = k_buffer_alloc(mem->data, mem->length);
 
-    *challenge_attrs = challenge_set = keyagent_attribute_set_alloc(3);
-    keyagent_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_KEYTYPE", CHALLENGE_KEYTYPE);
-    keyagent_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_RSA_PUBLIC_KEY", CHALLENGE_RSA_PUBLIC_KEY);
-    keyagent_attribute_set_add_attribute(challenge_set, (char *)"SW_ISSUER", SW_ISSUER);
+    *challenge_attrs = challenge_set = k_attribute_set_alloc(3);
+    k_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_KEYTYPE", CHALLENGE_KEYTYPE);
+    k_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_RSA_PUBLIC_KEY", CHALLENGE_RSA_PUBLIC_KEY);
+    k_attribute_set_add_attribute(challenge_set, (char *)"SW_ISSUER", SW_ISSUER);
 
     ret = TRUE;
 out:

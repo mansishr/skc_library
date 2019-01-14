@@ -14,6 +14,7 @@ AC_DEFUN([DHSM_SETUP],
 
 	full_sysconfdir=`eval eval eval eval eval echo "${sysconfdir}" | sed "s#NONE#${prefix}#" | sed "s#NONE#${ac_default_prefix}#"` 
 	default_dhsm2_conf_path="`eval echo ${full_sysconfdir} | sed s,NONE,$ac_default_prefix,g`"
+	default_dhsm2_install_path="`eval echo ${prefix} | sed s,NONE,$ac_default_prefix,g`"
 
     GLIB_TESTS
     TOPDIR="$srcdir/$1"
@@ -34,5 +35,12 @@ AC_DEFUN([DHSM_SETUP],
 	)
 	 
 	AC_SUBST([default_dhsm2_conf_path])
+
+	AC_DEFINE_UNQUOTED(
+		[DHSM2_INSTALL_DIR],
+		["$default_dhsm2_install_path"],
+		[The default installation directory]
+	)
+	AC_SUBST([default_dhsm2_install_path])
 ])
 

@@ -156,15 +156,14 @@ __keyagent_session_get_stmname(keyagent_session *_session, GError **error)
 extern "C" GQuark DLL_LOCAL
 __keyagent_session_make_swktype(const char *type) 
 {
-    GRegex *regex = NULL;
-    gchar *res = NULL;
 
-    regex = g_regex_new ("-", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    res = g_regex_replace_literal (regex, type, -1, 0,"_", (GRegexMatchFlags)0, NULL);
-    GQuark q = keyagent_quark_to_string("SWKTYPE", res);
-    g_free (res);
-    g_regex_unref (regex);
-    return q;
+	char **split = g_strsplit(type, "-", -1);
+	gchar *res = g_strjoinv("_", split);
+	g_strfreev(split);
+
+	GQuark q = keyagent_quark_to_string("SWKTYPE", res);
+	g_free (res);
+	return q;
 }
 
 extern "C" GQuark DLL_LOCAL

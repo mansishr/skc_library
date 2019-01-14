@@ -19,7 +19,7 @@ DECLARE_STM_INTERFACE(create_challenge, gboolean, (k_buffer_ptr *challenge, GErr
 DECLARE_STM_INTERFACE(set_session, gboolean, (keyagent_stm_session_details *, GError **));
 DECLARE_STM_INTERFACE(load_key, gboolean, (keyagent_stm_loadkey_details *, GError **));
 DECLARE_STM_INTERFACE(challenge_generate_request, gboolean, (const gchar **, GError **));
-DECLARE_STM_INTERFACE(challenge_verify, gboolean, (k_buffer_ptr quote, keyagent_attribute_set_ptr *, GError **));
+DECLARE_STM_INTERFACE(challenge_verify, gboolean, (k_buffer_ptr quote, k_attribute_set_ptr *, GError **));
 DECLARE_STM_INTERFACE(seal_key, gboolean, (keyagent_keytype type, k_attributes_ptr attrs, k_buffer_ptr *sealed_data, GError **));
 DECLARE_STM_INTERFACE(unseal_key, gboolean, (keyagent_keytype type, k_buffer_ptr sealed_data, k_attributes_ptr *attrs, GError **));
 

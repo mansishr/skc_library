@@ -3,13 +3,16 @@
     echo -ne "${NC}Building Key Agent: "
 	
 	echo "INFO: Set proxy"
-	source set_proxy.sh
+	source ./scripts/set_proxy.sh
 
 	echo "setting http proxy:"$http_proxy
 	echo "setting htpps proxy:"$https_proxy
     	
 	echo -ne "${NC}Installing pre-requisites: "
-	yum install curl-devel openssl-devel glib Jsoncpp-devel libgda-devel libgda-sqlite -y
+	yum install curl-devel openssl-devel glib jsoncpp-devel libgda-devel libgda-sqlite -y
+
+	git submodule init
+	git submodule update
 	
 	echo "INFO: KeyAgent: AutoConfigure started"
     	autoreconf -i

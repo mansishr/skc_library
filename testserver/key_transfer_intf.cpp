@@ -192,28 +192,28 @@ verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Ses
     k_buffer_ptr quote = decode64_json_attr(jsondata, "quote");
     GError *err = NULL;
 
-    keyagent_attribute_set_ptr challenge_attrs = NULL;
+    k_attribute_set_ptr challenge_attrs = NULL;
     if (__keyagent_stm_challenge_verify(keyagent_get_module_label(server::stm), quote, &challenge_attrs, &err)) {
         k_buffer_ptr swk = NULL;
         k_buffer_ptr sw_issuer = NULL;
         guint length;
         int i;
-        keyagent_attribute_ptr attr = NULL;
+        k_attribute_ptr attr = NULL;
         //const char **tmp = (const char **)g_hash_table_get_keys_as_array (challenge_attrs->hash, &length);
         //k_info_msg("challenge_attrs %p %d", tmp, length);
         for (i = 0, attr = challenge_attrs->attrs; i < challenge_attrs->count; ++i, ++attr) 
             k_info_msg("%d is %s", i, (attr->name ? attr->name : "NULL"));
 
-        sw_issuer = keyagent_attribute_set_get_attribute(challenge_attrs, (char *)"SW_ISSUER");
+        sw_issuer = k_attribute_set_get_attribute(challenge_attrs, (char *)"SW_ISSUER");
         char *encoded_swk = NULL;
 		//TODO need to change key size
 		swk_type_op  *swk_op = get_swk_info(swk_type_str);
 		swk = k_buffer_alloc(NULL, swk_op->keybits/8);
         k_buffer_ptr CHALLENGE_KEYTYPE = NULL;
-        CHALLENGE_KEYTYPE = keyagent_attribute_set_get_attribute(challenge_attrs, (char *)"CHALLENGE_KEYTYPE");
+        CHALLENGE_KEYTYPE = k_attribute_set_get_attribute(challenge_attrs, (char *)"CHALLENGE_KEYTYPE");
         if (strcmp((const char *)k_buffer_data(CHALLENGE_KEYTYPE), "RSA") == 0) {
             k_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
-            CHALLENGE_RSA_PUBLIC_KEY = keyagent_attribute_set_get_attribute(challenge_attrs, (char *)"CHALLENGE_RSA_PUBLIC_KEY");
+            CHALLENGE_RSA_PUBLIC_KEY = k_attribute_set_get_attribute(challenge_attrs, (char *)"CHALLENGE_RSA_PUBLIC_KEY");
 
             BIO* bio = BIO_new_mem_buf(k_buffer_data(CHALLENGE_RSA_PUBLIC_KEY), k_buffer_length(CHALLENGE_RSA_PUBLIC_KEY));
             RSA *rsa = d2i_RSA_PUBKEY_bio(bio, NULL);
@@ -231,7 +231,7 @@ verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Ses
         const char *stmlabel = get_session_stmlabel(session_id);
         set_session(get_client_ip(session), stmlabel, session_id, swk, swk_op);
         k_buffer_unref(swk);
-        keyagent_attribute_set_unref(challenge_attrs);
+        k_attribute_set_unref(challenge_attrs);
         return encoded_swk;
     } else
         return NULL;
@@ -543,7 +543,7 @@ get_kms_key_info(std::string keyid, int *http_code, char *session_id)
             key_info					= new key_info_t();
             g_hash_table_insert(server::key_hash_table, strdup(keyid.c_str()), key_info);
             key_info->key_attrs			= k_attributes_alloc();
-            key_info->keytype           = convert_key_to_attr_hash(key_info->key_attrs, &key_info->keydata);
+            key_info->keytype           = convert_key_to_attr_hash((gchar *)keyid.c_str(), key_info->key_attrs, &key_info->keydata);
         }
 		//TODO changing the swk encrypt data
 		//k_buffer_ptr swk         = get_session_swk(session_id);

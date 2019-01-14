@@ -147,7 +147,7 @@ __keyagent_stm_get_challenge(const char *name, k_buffer_ptr *challenge, GError *
 }
 
 extern "C" gboolean DLL_LOCAL
-__keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_attrs, GError **error)
+__keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, GError **error)
 {
     g_return_val_if_fail(name && quote && challenge_attrs, FALSE);
     keyagent_stm_real *lstm = NULL;

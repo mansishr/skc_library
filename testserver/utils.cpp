@@ -18,6 +18,7 @@
 #include "key-agent/src/internal.h"
 
 
+using namespace server;
 using namespace std;
 
 extern "C" {
@@ -108,9 +109,158 @@ std::string json_to_string(Json::Value &input) {
     return Json::writeString(builder, input);
 }
 
-k_buffer_ptr
-convert_rsa_key_to_attr_hash(k_attributes_ptr attrs)
+X509_REQ* gen_X509Req(gchar *keyid, EVP_PKEY *pkey)
 {
+    int             ret = 0;
+ 
+    int             nVersion = 1;
+ 
+    X509_REQ        *x509_req = NULL;
+    X509_NAME       *x509_name = NULL;
+    BIO             *out = NULL, *bio_err = NULL;
+ 
+    const char      *szCountry = "CA";
+    const char      *szProvince = "BC";
+    const char      *szCity = "Vancouver";
+    const char      *szOrganization = "intel";
+    const char      *szCommon = "dhsm2";
+ 
+	//const char      *szPath = "/tmp/dhsm2_key.csr";
+
+	GString *szPath=NULL;
+
+	
+	szPath = g_string_new(server::cert_key_path->str);
+	g_string_append(szPath, "/");
+	g_string_append(szPath, keyid);
+	g_string_append(szPath, "_key.csr");
+
+	k_debug_msg("Certfile :%s", szPath->str);
+ 
+	
+ 
+    // 2. set version of x509 req
+    x509_req = X509_REQ_new();
+    ret = X509_REQ_set_version(x509_req, nVersion);
+    if (ret != 1){
+        goto free_all;
+    }
+ 
+    // 3. set subject of x509 req
+    x509_name = X509_REQ_get_subject_name(x509_req);
+ 
+    ret = X509_NAME_add_entry_by_txt(x509_name,"C", MBSTRING_ASC, (const unsigned char*)szCountry, -1, -1, 0);
+    if (ret != 1){
+        goto free_all;
+    }
+ 
+    ret = X509_NAME_add_entry_by_txt(x509_name,"ST", MBSTRING_ASC, (const unsigned char*)szProvince, -1, -1, 0);
+    if (ret != 1){
+        goto free_all;
+    }
+ 
+    ret = X509_NAME_add_entry_by_txt(x509_name,"L", MBSTRING_ASC, (const unsigned char*)szCity, -1, -1, 0);
+    if (ret != 1){
+        goto free_all;
+    }   
+ 
+    ret = X509_NAME_add_entry_by_txt(x509_name,"O", MBSTRING_ASC, (const unsigned char*)szOrganization, -1, -1, 0);
+    if (ret != 1){
+        goto free_all;
+    }
+ 
+    ret = X509_NAME_add_entry_by_txt(x509_name,"CN", MBSTRING_ASC, (const unsigned char*)szCommon, -1, -1, 0);
+    if (ret != 1){
+        goto free_all;
+    }
+ 
+    // 4. set public key of x509 req
+    ret = X509_REQ_set_pubkey(x509_req, pkey);
+    if (ret != 1){
+        goto free_all;
+    }
+ 
+    // 5. set sign key of x509 req
+    ret = X509_REQ_sign(x509_req, pkey, EVP_sha1());    // return x509_req->signature->length
+    if (ret <= 0){
+        goto free_all;
+    }
+ 
+	k_debug_msg("Writing my CSR");	
+    out = BIO_new_file(szPath->str,"w");
+    ret = PEM_write_bio_X509_REQ(out, x509_req);
+ 
+    // 6. free
+free_all:
+	//X509_REQ_free(x509_req);
+	BIO_free_all(out);
+	if(szPath) g_string_free(szPath, TRUE);
+
+    return x509_req;
+}
+
+int gen_X509(gchar *keyid, X509_REQ *req, EVP_PKEY *pkey)
+{
+    int ret = 0;
+    EVP_PKEY *tmppkey;
+    X509V3_CTX ext_ctx;
+	X509 *x509ss = NULL;
+    STACK_OF(X509_EXTENSION) *exts = NULL;
+	//const char      *certpath = "/tmp/dhsm2_key.cert";
+	GString *certpath=NULL;
+
+	certpath = g_string_new(server::cert_key_path->str);
+	g_string_append(certpath, "/");
+	g_string_append(certpath, keyid);
+	g_string_append(certpath, "_key.cert");
+
+	k_debug_msg("Certfile :%s", certpath->str);
+
+
+	BIO *out= NULL;
+
+    if ((x509ss = X509_new()) == NULL)
+        goto end;
+
+	if(!X509_set_version(x509ss, 2))
+		goto end;
+
+	ASN1_INTEGER_set(X509_get_serialNumber(x509ss), 1);
+
+    if (!X509_set_issuer_name(x509ss, X509_REQ_get_subject_name(req)))
+        goto end;
+	X509_gmtime_adj(X509_get_notBefore(x509ss), 0);
+	X509_gmtime_adj(X509_get_notAfter(x509ss), 31536000L);
+
+    if (!X509_set_subject_name(x509ss, X509_REQ_get_subject_name(req)))
+        goto end;
+
+    tmppkey = X509_REQ_get_pubkey(req);
+    if (!tmppkey || !X509_set_pubkey(x509ss, tmppkey))
+        goto end;
+
+
+	//X509V3_CTX                   ctx;
+	//X509V3_set_ctx(&ctx, cacert, newcert, NULL, NULL, 0);
+	   //X509_EXTENSION *ext;
+	
+	if (!X509_sign(x509ss,pkey,EVP_md5()))
+        goto end;
+
+    out = BIO_new_file(certpath->str,"w");
+	PEM_write_bio_X509(out, x509ss);
+    ret = 1;
+end:
+   BIO_free_all(out);
+   X509_free(x509ss);
+   if(certpath) g_string_free(certpath, TRUE);
+   return ret;
+}
+
+extern "C" k_buffer_ptr
+convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
+{
+    FILE *pfile = NULL;
     BIGNUM *bne = NULL;
     int bits = 2048;
     unsigned long  e = RSA_F4;
@@ -119,10 +269,12 @@ convert_rsa_key_to_attr_hash(k_attributes_ptr attrs)
     gboolean ret = FALSE;
     EVP_PKEY *pkey = NULL;
     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+	X509_REQ *req = NULL;
     k_buffer_ptr KEYDATA = NULL;
     unsigned char *tmp = NULL;
     k_buffer_ptr STM_TEST_DATA = NULL;
     k_buffer_ptr STM_TEST_SIG = NULL;
+	GString *key_file = NULL;
 
     OpenSSL_add_all_algorithms();
     ERR_load_BIO_strings();
@@ -132,6 +284,7 @@ convert_rsa_key_to_attr_hash(k_attributes_ptr attrs)
     if (BN_set_word(bne,e) != 1) 
         goto out;
 
+
     rsa = RSA_new();
     if (RSA_generate_key_ex(rsa, bits, bne, NULL) != 1)
         goto out;
@@ -139,6 +292,42 @@ convert_rsa_key_to_attr_hash(k_attributes_ptr attrs)
     pkey = EVP_PKEY_new();
     if (!EVP_PKEY_set1_RSA(pkey, rsa))
         goto out;
+
+	if( server::generate_cert_with_key == TRUE )
+	{  
+		key_file = g_string_new(server::cert_key_path->str);
+		g_string_append(key_file, "/");
+		g_string_append(key_file, keyid);
+		g_string_append(key_file, "_key.pem");
+
+		k_debug_msg("Key file:%s", key_file->str);
+
+		pfile=fopen(key_file->str, "w");
+		if(!pfile )
+		{
+			//k_critical_msg("File Open Error");	
+			goto out;
+		}
+
+		if(!PEM_write_PrivateKey(pfile,pkey,NULL,NULL, 0,NULL,NULL))
+		{
+			//k_critical_msg("PEM_write_PrivateKey failed");	
+			goto out;
+		}
+		req = gen_X509Req(keyid, pkey);
+		if( !req )
+		{
+			k_critical_msg("CSR Gen fail");	
+			goto out;
+		}
+
+		if(gen_X509(keyid, req, pkey) != 1)
+		{
+			k_critical_msg("CSR Gen fail");	
+			goto out;
+		}
+		 
+    }
 
     p8inf = EVP_PKEY2PKCS8(pkey);
     if (!p8inf)
@@ -168,11 +357,14 @@ out:
     if (pkey) EVP_PKEY_free(pkey);
     if (rsa) RSA_free(rsa);
     if (bne) BN_free(bne);
+	if (key_file) g_string_free( key_file, TRUE);
+	if (pfile) fclose(pfile);
+    X509_REQ_free(req);
     return KEYDATA;
 }
 
 k_buffer_ptr
-convert_ecc_key_to_attr_hash(k_attributes_ptr attrs)
+convert_ecc_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 {
     EC_KEY *ec_key = NULL;
     int eccgrp;
@@ -235,18 +427,25 @@ out:
     return KEYDATA;
 }
 
-keyagent_keytype convert_key_to_attr_hash(k_attributes_ptr attrs, k_buffer_ptr *keydata)
+keyagent_keytype convert_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs, k_buffer_ptr *keydata)
 {
+	//TODO for checking Nginix
+	if( server::generate_cert_with_key == TRUE )
+	{
+		*keydata = convert_rsa_key_to_attr_hash(keyid, attrs);
+		return KEYAGENT_RSAKEY;
+	}
+
     static GRand *rand = NULL;
 
     if (!rand)
         rand = g_rand_new();
 
     if (g_rand_boolean(rand)) {
-        *keydata = convert_rsa_key_to_attr_hash(attrs);
+        *keydata = convert_rsa_key_to_attr_hash(keyid, attrs);
         return KEYAGENT_RSAKEY;
     }
-    *keydata = convert_ecc_key_to_attr_hash(attrs);
+    *keydata = convert_ecc_key_to_attr_hash(keyid, attrs);
     return KEYAGENT_ECKEY;
 }
 
@@ -334,7 +533,7 @@ key_info_free(gpointer data)
 }
 
 extern "C" gboolean
-__keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_attrs, GError **error)
+__keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, GError **error)
 {
     keyagent_stm_real *lstm = (keyagent_stm_real *)server::stm;
     return STM_MODULE_OP(lstm,challenge_verify)(quote, challenge_attrs, error);

@@ -25,6 +25,7 @@
 
 using namespace std;
 
+
 namespace reference_npm {
 	GString *configfile;
 	GString *server_url;

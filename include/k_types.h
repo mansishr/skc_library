@@ -110,7 +110,7 @@ k_policy_buffer_alloc()
 }
 
 static inline void
-keyagent_attribute_free(gpointer _data)
+k_attribute_free(gpointer _data)
 {
     k_buffer_ptr data = (k_buffer_ptr)_data;
     k_buffer_unref(data);
@@ -120,7 +120,7 @@ static inline  k_attributes_ptr
 k_attributes_alloc() {
     k_attributes_ptr ptr = g_new0(k_attributes, 1);
     ptr->ref_count = 1;
-    ptr->hash = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, keyagent_attribute_free);
+    ptr->hash = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, k_attribute_free);
     return ptr;
 }
 
@@ -141,5 +141,74 @@ k_attributes_unref(k_attributes_ptr attrs)
 }
 
 
+
+typedef struct {
+    char *name;
+    k_buffer_ptr value;
+} k_attribute;
+
+typedef k_attribute *	k_attribute_ptr;
+
+typedef struct {
+    int ref_count;
+    int count;
+    int _count;
+    k_attribute_ptr attrs;
+} k_attribute_set;
+
+typedef k_attribute_set *	k_attribute_set_ptr;
+
+static inline k_attribute_set_ptr
+k_attribute_set_alloc(int count)
+{
+    k_attribute_set *set = g_new0(k_attribute_set, 1);
+    set->_count = count;
+    set->ref_count = 1;
+    set->attrs = g_new0(k_attribute, count);
+    return set;
+}
+
+static inline void
+k_attribute_set_add_attribute(k_attribute_set_ptr set, char *name, k_buffer_ptr value)
+{
+    k_attribute_ptr attr = set->attrs;
+    if (set->count >= set->_count)
+        return;
+
+    attr += set->count;
+    attr->name = g_strdup(name);
+    attr->value = k_buffer_ref(value);
+    ++set->count;
+}
+
+static inline k_buffer_ptr
+k_attribute_set_get_attribute(k_attribute_set_ptr set, char *name)
+{
+    k_attribute_ptr attr;
+    int i;
+
+    for (i = 0, attr = set->attrs; i < set->_count; i++, attr++) {
+        if (!strcmp(name, attr->name))
+            return k_buffer_ref(attr->value);
+    }
+    return NULL;
+}
+
+static inline void
+k_attribute_set_unref(k_attribute_set_ptr set)
+{
+    k_attribute_ptr attr;
+    int i;
+
+    if (!g_atomic_int_dec_and_test (&set->ref_count))
+        return;
+    
+    for (i = 0, attr = set->attrs; i < set->_count; i++, attr++) {
+        g_free(attr->name);
+        k_buffer_unref(attr->value);
+    }
+    
+    g_free(set->attrs);
+}
 
 #endif

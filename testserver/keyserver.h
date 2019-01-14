@@ -48,7 +48,7 @@ void json_print(Json::Value &val);
 Json::Value parse_data(std::string httpData);
 gchar * generate_checksum(gchar *data, int size);
 void debug_with_checksum(const gchar *label, unsigned char *buf, unsigned int size);
-keyagent_keytype convert_key_to_attr_hash(k_attributes_ptr attrs, k_buffer_ptr *keydata);
+keyagent_keytype convert_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs, k_buffer_ptr *keydata);
 Json::Value keyattrs_to_json(GHashTable *attr_hash);
 
 
@@ -66,6 +66,9 @@ namespace server {
     extern keyagent_module *stm;
     extern X509 *cert;
     extern EVP_PKEY *cert_key;
+	extern gboolean generate_cert_with_key;
+	extern GString *cert_key_path;
+	extern GString *stm_filename;
 }
 
 typedef struct {

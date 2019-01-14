@@ -191,7 +191,7 @@ gboolean __keyagent_session_create(const char *name, const char *session_id, k_b
 gboolean __keyagent_stm_set_session(keyagent_session *, GError **);
 GQuark __keyagent_session_lookup_swktype(const char *type);
 gboolean  __keyagent_stm_get_challenge(const char *name, k_buffer_ptr *challenge, GError **);
-gboolean __keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, keyagent_attribute_set_ptr *challenge_attrs, GError **);
+gboolean __keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, GError **);
 
 #ifdef  __cplusplus
 }
