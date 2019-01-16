@@ -220,7 +220,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
     builder.settings_["indentation"] = "";
     post_data = g_string_new(Json::writeString(builder, session_data).c_str());
 	res_status = KEYAGENT_NPM_OP(&info->details->cbs,https_send)(session_url, headers, post_data, NULL, return_data, 
-        &info->details->ssl_opts, reference_npm::debug);
+        &info->details->ssl_opts, NULL, reference_npm::debug);
 
 	if (res_status == -1 || res_status == 0)
 	{
@@ -337,7 +337,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
     res_headers = g_ptr_array_new ();
 
 	res_status =  KEYAGENT_NPM_OP(&info->details->cbs,https_send)(url, headers, NULL, res_headers, return_data, 
-        &info->details->ssl_opts, reference_npm::debug);
+        &info->details->ssl_opts, NULL, reference_npm::debug);
 
 	if (res_status == -1  || res_status == 0)
 	{

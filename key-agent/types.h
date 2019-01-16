@@ -344,7 +344,7 @@ DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_create, gboolean, (const char *nam
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_lookup_swktype, GQuark, (const char *type));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_challenge_verify, gboolean, (const char *name, k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, GError **));
 
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,https_send,int, (GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, gboolean verbose));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,https_send,int, (GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, GString *userpwd, gboolean verbose));
 
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_create, GQuark,(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_policy_add, gboolean, (keyagent_url url, k_attributes_ptr policy_attrs, gint cache_id, GError **error));
