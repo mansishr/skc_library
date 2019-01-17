@@ -1,33 +1,41 @@
 #!/bin/bash
+script_dir=$(dirname $0)
+source ${script_dir}/config.ini
 
-    echo -ne "${NC}Building Key Agent: "
-	
-	echo "INFO: Set proxy"
-	source ./scripts/set_proxy.sh
+if [ -f ${script_dir}/$UTILS_SOURCE ]; then
+    source ${script_dir}/$UTILS_SOURCE
+else
+    echo -e "Utils Script not found Error, Exit." && exit 1
+fi
 
-	echo "setting http proxy:"$http_proxy
-	echo "setting htpps proxy:"$https_proxy
-    	
-	echo -ne "${NC}Installing pre-requisites: "
-	yum install curl-devel openssl-devel glib jsoncpp-devel libgda-devel libgda-sqlite -y
+set_log $FLAG_ENABLE "DHSM2_WORKLOAD"
 
-	git submodule init
-	git submodule update
-	
-	echo "INFO: KeyAgent: AutoConfigure started"
-    	autoreconf -i
-	echo "INFO: KeyAgent: AutoConfigure completed"		
+check_pre_condition $FLAG_ENABLE 
+if [ $? -ne $CODE_EXEC_SUCCESS ]; then
+	exit_script $LOG_ERROR "Pre conditions not satisfied" $CODE_ERROR
+fi
 
-	echo "INFO: KeyAgent: compilation started"
-	./configure --prefix=/tmp/foo --disable-static --disable-gost
-	echo "INFO: KeyAgent: compilation completed"
+install_pre_requisites
+if [ $? -ne $CODE_EXEC_SUCCESS ]; then
+	exit_script $LOG_ERROR "Pre-requisties installation" $CODE_ERROR
+fi
 
-	echo "INFO: KeyAgent build started"
-	make 
-	echo "INFO: KeyAgent build completed"
+download_deps
 
-	echo "INFO: KeyAgent: Installation started"
-	make install
-	echo "INFO: KeyAgent: Installation completed"
-	
-	exit 0
+log_msg $LOG_DEBUG "KeyAgent: AutoConfigure started"
+$(exec_linux_cmd "autoreconf -i" $EXEC_RULE_ABORT "autoconf" $CODE_EXEC_SUCCESS)
+log_msg $LOG_DEBUG "KeyAgent: AutoConfigure completed"		
+
+log_msg $LOG_DEBUG "KeyAgent: compilation started"
+$(exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --disable-gost" $EXEC_RULE_ABORT "configure" $CODE_EXEC_SUCCESS)
+log_msg $LOG_DEBUG "KeyAgent: compilation completed"
+
+log_msg $LOG_DEBUG "KeyAgent build started"
+$(exec_linux_cmd "make" $EXEC_RULE_ABORT "make" $CODE_EXEC_SUCCESS)
+log_msg $LOG_DEBUG "KeyAgent build completed"
+
+log_msg $LOG_DEBUG "KeyAgent: Installation started"
+$(exec_linux_cmd "make install" $EXEC_RULE_ABORT "make install" $CODE_EXEC_SUCCESS)
+log_msg $LOG_DEBUG "KeyAgent: Installation completed"
+
+exit_script $LOG_DEBUG "Workload component installed in path:${DHSM2_INSTALL_DIR} successfully" $CODE_EXEC_SUCCESS
