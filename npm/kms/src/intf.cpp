@@ -19,6 +19,7 @@ namespace kms_npm
 	GString *server_url;
 	gboolean debug;
 	gboolean policy_support				= FALSE;
+	GString *userpwd;
 }
 
 std::string get_json_value(Json::Value value, const char *key)
@@ -211,7 +212,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
     post_data							= g_string_new(Json::writeString(builder, session_data).c_str());
 
 	res_status                          =  KEYAGENT_NPM_OP(&info->details->cbs,https_send)(session_url, headers, post_data, 
-			                                    NULL, return_data,&info->details->ssl_opts, kms_npm::debug);
+			                                    NULL, return_data,&info->details->ssl_opts, kms_npm::userpwd, kms_npm::debug);
 	if (res_status == -1 || res_status == 0)
 	{
 		k_set_error (error, NPM_ERROR_KEYSERVER_ERROR,
@@ -340,7 +341,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	return_data							= k_buffer_alloc(NULL,0);
 	res_headers							= g_ptr_array_new ();
 	res_status                          = KEYAGENT_NPM_OP(&info->details->cbs,https_send)(url, headers, NULL, 
-			                                    res_headers, return_data,&info->details->ssl_opts, kms_npm::debug);
+			                                    res_headers, return_data,&info->details->ssl_opts, kms_npm::userpwd, kms_npm::debug);
 
 	if (res_status == -1 || res_status == 0)
 	{
@@ -407,7 +408,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 			policy_ret_data				= k_buffer_alloc(NULL,0);
 			res_status					= KEYAGENT_NPM_OP(&info->details->cbs,https_send)(policy_url, policy_headers, NULL, NULL, policy_ret_data, 
-			                                                 &info->details->ssl_opts, kms_npm::debug);
+			                                                 &info->details->ssl_opts, kms_npm::userpwd, kms_npm::debug);
 			if( res_status != 200)
 			{			
 				k_set_error(err, NPM_ERROR_LOAD_KEY, "Error in policy fetching\n");
@@ -460,6 +461,7 @@ npm_init(const char *config_directory, GError **err)
 	g_return_val_if_fail( ((err || (err?*err:NULL)) && config_directory), NULL );
 	void *config						= NULL;
 	gchar *server						= NULL;
+	gchar *userpwd						= NULL;
 	gboolean ret						= TRUE;
 	int err_flag						= FALSE;
 	const char *retval;
@@ -483,6 +485,10 @@ npm_init(const char *config_directory, GError **err)
 	kms_npm::debug						= key_config_get_boolean_optional(config, "core", "debug", FALSE);
 	kms_npm::policy_support             = key_config_get_boolean_optional(config, "core", "policy_support", FALSE); 
 
+	userpwd								= key_config_get_string_optional(config, "core", "userpwd", NULL);
+    if (userpwd)
+	    kms_npm::userpwd				= g_string_new(userpwd);
+
 	if (*err) {
 		err_flag						= TRUE;
 		npm_finalize(err);
@@ -502,6 +508,7 @@ npm_finalize(GError **err)
 	k_debug_msg("NPM Finalize\n");
 	k_string_free(kms_npm::configfile, TRUE);
 	k_string_free(kms_npm::server_url, TRUE);
+	k_string_free(kms_npm::userpwd, TRUE);
 }
 
 extern "C" gboolean

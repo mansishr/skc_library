@@ -41,7 +41,7 @@ __build_header_list(gpointer data, gpointer user_data)
 
 extern "C"
 int DLL_LOCAL
-__keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, gboolean verbose)
+__keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, GString *userpwd, gboolean verbose)
 {
     CURL *curl;
     struct curl_slist *header_list = NULL;
@@ -73,6 +73,10 @@ __keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrA
     SETOPT(curl, CURLOPT_HTTPHEADER, header_list);
     SETOPT(curl, CURLOPT_WRITEFUNCTION, __write_byte_array);
     SETOPT(curl, CURLOPT_WRITEDATA, returndata);
+
+    if (userpwd) {
+		SETOPT(curl, CURLOPT_USERPWD, userpwd->str);
+    }
 	if ( response_headers )
 	{
 		SETOPT(curl, CURLOPT_HEADERFUNCTION, __get_response_header);
