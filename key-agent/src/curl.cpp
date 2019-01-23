@@ -76,6 +76,7 @@ __keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrA
 
     if (userpwd) {
 		SETOPT(curl, CURLOPT_USERPWD, userpwd->str);
+    	SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 0);
     }
 	if ( response_headers )
 	{

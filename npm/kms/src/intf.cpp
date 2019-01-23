@@ -40,7 +40,7 @@ void get_session_id_from_header(gpointer data, gpointer user_data)
     gchar **tokens                      =  NULL;
     if ( g_str_has_prefix (str,"Session-ID:") == TRUE )
     {
-        tokens                          = g_strsplit_set (str,":",-1);
+        tokens                          = g_strsplit(str,":",-1);
 		*tokens_ptr                     = tokens;
         return;
     }
@@ -114,7 +114,6 @@ decode64_json_attr(Json::Value json_data, const char *name)
 		return k_buffer_alloc(tmp, len);
 	} catch (exception  e) {
 		k_critical_msg("%s\n", e.what());
-		//throw e;
 	}
 	return k_buffer_alloc(NULL, 0);
 }
@@ -312,14 +311,15 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	gchar **url_tokens                  = NULL;
 	gchar **session_id_tokens           = NULL;
     gchar *session_id                   = NULL;
+        gchar *keytype_str			= NULL;
 	
 	url_tokens							= g_strsplit (info->url, ":", -1) ;
 	session_ids							= KEYAGENT_NPM_OP(&info->details->cbs,session_get_ids)();
 
 	url									= g_string_new(kms_npm::server_url->str);
-	g_string_append(url, "/keys/");
+	g_string_append(url, "/v1/keys/");
 	g_string_append(url, url_tokens[1]);
-	g_string_append(url, "/transfer/");
+	g_string_append(url, "/dhsm2-transfer");
 
 	headers								= g_ptr_array_new ();
 	g_ptr_array_add (headers, (gpointer) "Accept: application/json");
@@ -356,7 +356,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	if (res_status == 401) {
 		try {
 			status						= get_json_value(transfer_data, (const char *)"status");
-			type						= get_json_value(transfer_data["faults"], (const char *)"type");
+			type						= get_json_value(transfer_data["faults"][0], (const char *)"type");
         } catch (exception& e){
 			//k_critical_msg("%s\n", e.what());
 				k_set_error (err, NPM_ERROR_JSON_PARSE,
@@ -376,11 +376,22 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 		try {
 			key_id_str				    = get_json_value(transfer_data["data"], "id");
-			keytype						= ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECKEY);
+			keytype_str				    = (gchar *)get_json_value(transfer_data["data"], "algorithm").c_str();
+
+                        if ( g_strcmp0((const char*) keytype_str, (const char*)"RSA") == 0)
+			    keytype =  KEYAGENT_RSAKEY;
+                        else if ( g_strcmp0((const char*) keytype_str, (const char*)"EC") == 0)
+                            keytype = KEYAGENT_ECKEY;
+                        else if ( g_strcmp0((const char*) keytype_str, (const char*)"AES") == 0)
+                            keytype = KEYAGENT_AESKEY;
+
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
+#ifdef TEST_WAK_DATA
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);
-			policy_url					= g_string_new(get_json_value(transfer_data["data"]["policy"]["link"]["key-usage"], "href").c_str());
+#endif
+			if (kms_npm::policy_support == TRUE)
+				policy_url					= g_string_new(get_json_value(transfer_data["data"]["policy"]["link"]["key-usage"], "href").c_str());
         } catch (exception& e){
 				k_set_error (err, NPM_ERROR_JSON_PARSE,
 						"NPM JSON Parse error: %s\n", e.what());
@@ -393,13 +404,15 @@ __npm_loadkey(loadkey_info *info, GError **err)
 						"NPM Invalid session data\n");
 			goto cleanup;
 		}
-		session_id                      = g_strstrip(session_id_tokens[1]);
+		session_id                      = g_strstrip((gchar*)session_id_tokens[2]);
 		if (session_id == NULL)
 		{
 			k_set_error (err, NPM_ERROR_INVALID_SESSION_DATA,
 						"Session data not found for stm label:%s\n", session_id_tokens[1]);
 			goto cleanup;
 		}
+		k_debug_msg("Session Id:%s", session_id);
+
 		if( policy_url != NULL && kms_npm::policy_support == TRUE )
 		{
 			policy_headers				= g_ptr_array_new ();
@@ -435,6 +448,10 @@ __npm_loadkey(loadkey_info *info, GError **err)
 		{
             ret                         = (KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->url, keytype, attrs, session_id, err)? TRUE : FALSE);
 		}
+	}
+	else{
+		k_set_error(err, NPM_ERROR_INVALID_STATUS, "Invalid http response:%d", res_status);
+		goto cleanup;
 	}
 	goto cleanup;
 

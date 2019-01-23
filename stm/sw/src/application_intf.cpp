@@ -73,6 +73,7 @@ application_stm_init(const char *config_directory, GError **err)
     application_sw_stm::configfile = g_string_new(g_build_filename(config_directory, "sw_stm.ini", NULL));
     void *config = key_config_openfile(application_sw_stm::configfile->str, err);
     application_sw_stm::sw_issuer = k_buffer_alloc(NULL, STM_ISSUER_SIZE);
+    memset(k_buffer_data(application_sw_stm::sw_issuer), ' ',STM_ISSUER_SIZE);
     if (config) {
         init_delay = key_config_get_integer_optional(config, "testing", "initdelay", 0);
         char *tmp = key_config_get_string_optional(config, "core", "issuer", "Intel-1");
@@ -115,8 +116,9 @@ stm_create_challenge(k_buffer_ptr *challenge, GError **err)
     BUF_MEM *mem = NULL;
     BIO_get_mem_ptr(bio.get(), &mem);
 
-    *challenge = k_buffer_alloc(mem->data, mem->length);
-    //debug_initialize_challenge_from_quote(challenge);
+    gchar *data=g_strdup(mem->data);
+
+    *challenge = k_buffer_alloc(data, mem->length);
     return TRUE;
 }
 
@@ -139,6 +141,8 @@ stm_set_session(keyagent_stm_session_details *details, GError **error)
         stm_log_openssl_error("Error dencrypting message");
     } else
         ret = TRUE;
+
+    k_debug_msg("App Key(WAK) decryption is successful"); 
 
     return ret;
 }
@@ -304,6 +308,7 @@ test_ecc_wrapped_key(EVP_PKEY *pkey, k_attributes_ptr attrs)
 extern "C" gboolean
 stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
 {
+    int i =0;
     gboolean ret = FALSE;
     k_buffer_ptr tmp = NULL;
     k_buffer_ptr iv = NULL;
@@ -318,13 +323,13 @@ stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
     KEYAGENT_KEY_GET_BYTEARRAY_ATTR(details->attrs, KEYDATA, tmp);
     k_debug_generate_checksum("STM:CMS", k_buffer_data(tmp), k_buffer_length(tmp));
 
-
     if (!KEYAGENT_STM_OP(&details->cbs,verify_and_extract_cms_message)(tmp, &keydata, error))
         goto out;
 
     k_debug_generate_checksum("STM:PAYLOAD", k_buffer_data(keydata), k_buffer_length(keydata));
 
     keytransfer = (keyagent_keytransfer_t *)k_buffer_data(keydata);
+    k_debug_msg( "Keytype:%d, IV size:%d, Tag Size:%d, Wrap Key size:%d", details->type, keytransfer->iv_length, keytransfer->tag_size, keytransfer->wrap_size);
     iv = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t),  keytransfer->iv_length);
     wrapped_key = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t) + 
         keytransfer->iv_length, keytransfer->wrap_size);
@@ -332,12 +337,16 @@ stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
     k_debug_generate_checksum("STM:PKCS8:WRAPPED", k_buffer_data(wrapped_key), k_buffer_length(wrapped_key));
 
     pkcs8 = KEYAGENT_STM_OP(&details->cbs,aes_decrypt)(details->swk_quark, wrapped_key, application_sw_stm::swk, keytransfer->tag_size, iv);
-    k_debug_generate_checksum("STM:PKCS8", k_buffer_data(pkcs8), k_buffer_length(pkcs8));
-    tmpp = k_buffer_data(pkcs8);
-    p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, &tmpp,  k_buffer_length(pkcs8));
+    k_debug_generate_checksum("After Decryption of App Key: STM:PKCS8", k_buffer_data(pkcs8), k_buffer_length(pkcs8));
 
-    if (!p8inf)
-        goto out;
+    if ( details->type == KEYAGENT_RSAKEY || details->type == KEYAGENT_ECKEY  )  
+    {
+    	tmpp = k_buffer_data(pkcs8);
+    	p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, &tmpp,  k_buffer_length(pkcs8));
+
+    	if (!p8inf)
+            goto out;
+    }
 
     if (details->apimodule_ops.apimodule_func_loadkey) {
         keyagent_apimodule_loadkey_details apimodule_details;
@@ -351,6 +360,13 @@ stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
 				"API Module loadkey error");
 			goto out;
 		}
+        k_debug_msg("API Module Load key done successfully");
+    }
+    if ( details->type == KEYAGENT_AESKEY  )  	
+    {
+	ret=TRUE;
+        goto out;
+	
     }
         
     pkey = EVP_PKCS82PKEY(p8inf);
