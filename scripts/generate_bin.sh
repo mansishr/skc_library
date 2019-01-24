@@ -27,10 +27,9 @@ if [ ! -d $DHSM2_COMPONENT_INSTALL_DIR ]; then
 fi
 
 
-mkdir -p $build_dir/install_dir
 mkdir -p $build_dir/scripts/
 
-cp -r $DHSM2_COMPONENT_INSTALL_DIR/* -t $build_dir/install_dir/
+tar -cvf $build_dir/workload_bins.tar.gz $DHSM2_COMPONENT_INSTALL_DIR/
 if [ $? -ne 0 ]; then
 	exit_script $LOG_ERROR "Error in copy binaries from ${DHSM2_COMPONENT_INSTALL_DIR}" $CODE_EXEC_ERROR
 fi 
@@ -61,11 +60,8 @@ if [ $? -ne $CODE_EXEC_SUCCESS ]; then
 	exit_script $LOG_ERROR "Pre-requisties installation" $CODE_ERROR
 fi
 rm -rf $DHSM2_COMPONENT_INSTALL_DIR
-mkdir $DHSM2_COMPONENT_INSTALL_DIR
-cp -r install_dir/* $DHSM2_COMPONENT_INSTALL_DIR/
-if [ \$? -ne 0 ]; then
-	exit_script \$LOG_ERROR \"Error in copy bin\" \$CODE_EXEC_ERROR
-fi
+#sudo mkdir $DHSM2_COMPONENT_INSTALL_DIR
+sudo tar -xvf workload_bins.tar.gz -C /
 exit 0" > ${DHSM2_COMPONENT_DEPLOY_SCRIPT}
 
 chmod 777 ${DHSM2_COMPONENT_DEPLOY_SCRIPT}
