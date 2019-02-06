@@ -170,7 +170,7 @@ check_proxy()
 
 
 check_linux_version() {
-	OS=$(cat /etc/*release | grep ^NAME | tr -d 'NAME="')
+	OS=$(cat /etc/*release | grep ^NAME | cut -d'"' -f2)
 	VER=$(cat /etc/*release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
 
 	PARAM_OS=$1
