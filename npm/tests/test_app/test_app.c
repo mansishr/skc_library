@@ -45,11 +45,12 @@ void* load_npm_module(module_info *conf)
 
 	g_autoptr(GError) tmp_error				= NULL;
 	conf->npm.module				        = g_module_open (conf->module_path->str, G_MODULE_BIND_LAZY);
-        g_assert_nonnull(conf->npm.module);
+    g_assert_nonnull(conf->npm.module);
 	keyagent_npm_real *npm					= (keyagent_npm_real *)&conf->npm;
-        LOOKUP_NPM_INTERFACES(npm, KEYAGENT_ERROR_NPMLOAD);
+    LOOKUP_NPM_INTERFACES(npm, KEYAGENT_ERROR_NPMLOAD);
 	k_debug_msg("Module load is successful\n");
 	return conf->npm.module;
+
 errexit:
 	if( conf->npm.module)
 	{
@@ -68,17 +69,17 @@ gboolean fatal_handler(const gchar *log_domain,
 	
 static void init_npm(module_info *fixture, gconstpointer user_data)
 {
-        g_autoptr(GError) tmp_error                             = NULL;
-        g_autoptr(GError) tmp_error1                            = NULL;
-        g_autoptr(GError) tmp_error2                            = NULL;
-        g_autoptr(GError) error                                 = NULL;
-        module_info *minfo                                      = (module_info *)user_data;
-        keyagent_npm_real *npm                                  = (keyagent_npm_real *)&minfo->npm;
+    g_autoptr(GError) tmp_error                             = NULL;
+    g_autoptr(GError) tmp_error1                            = NULL;
+    g_autoptr(GError) tmp_error2                            = NULL;
+    g_autoptr(GError) error                                 = NULL;
+    module_info *minfo                                      = (module_info *)user_data;
+    keyagent_npm_real *npm                                  = (keyagent_npm_real *)&minfo->npm;
 	g_assert_cmpint(keyagent_init(key_agent_config, &error),==,TRUE);
-        void *init_func                                         = NPM_MODULE_OP(npm, init);
-        g_assert_nonnull(npm);
-        g_assert_nonnull(init_func);
-        g_test_log_set_fatal_handler (fatal_handler, NULL);
+    void *init_func                                         = NPM_MODULE_OP(npm, init);
+    g_assert_nonnull(npm);
+    g_assert_nonnull(init_func);
+    g_test_log_set_fatal_handler (fatal_handler, NULL);
 
 	/*Test case 1: With invalide configuration file PATH*/
 	g_assert_null(NPM_MODULE_OP(npm, init)("./config", &tmp_error));
@@ -93,16 +94,16 @@ static void init_npm(module_info *fixture, gconstpointer user_data)
 
 static void register_npm(module_info *fixture, gconstpointer user_data)
 {
-        g_autoptr(GError) tmp_error                             = NULL;
-        g_autoptr(GError) tmp_error1                            = NULL;
-        g_autoptr(GError) tmp_error2                            = NULL;
-        g_autoptr(GError) tmp_error3                            = NULL;
-        module_info *minfo                                      = (module_info *)user_data;
-        keyagent_npm_real *npm                                  = (keyagent_npm_real *)&minfo->npm;
+    g_autoptr(GError) tmp_error                             = NULL;
+    g_autoptr(GError) tmp_error1                            = NULL;
+    g_autoptr(GError) tmp_error2                            = NULL;
+    g_autoptr(GError) tmp_error3                            = NULL;
+    module_info *minfo                                      = (module_info *)user_data;
+    keyagent_npm_real *npm                                  = (keyagent_npm_real *)&minfo->npm;
 
-        g_assert_nonnull(npm);
-        g_assert_nonnull(NPM_MODULE_OP(npm, register));
-        g_test_log_set_fatal_handler (fatal_handler, NULL);
+    g_assert_nonnull(npm);
+    g_assert_nonnull(NPM_MODULE_OP(npm, register));
+    g_test_log_set_fatal_handler (fatal_handler, NULL);
 
 	/*Test case 1: With valide register and key URL*/
 	g_assert_cmpint(NPM_MODULE_OP(npm, register)(keyurl, &tmp_error), ==, TRUE);
@@ -120,45 +121,48 @@ static void register_npm(module_info *fixture, gconstpointer user_data)
 static void npm_load_key(module_info *fixture, gconstpointer user_data)
 {
 	g_autoptr(GError) tmp_error				= NULL;
-	g_autoptr(GError) tmp_error1				= NULL;
-	g_autoptr(GError) tmp_error2				= NULL;
-	g_autoptr(GError) tmp_error3				= NULL;
-        module_info *minfo                                      = (module_info *)user_data;
+	g_autoptr(GError) tmp_error1			= NULL;
+	g_autoptr(GError) tmp_error2			= NULL;
+	g_autoptr(GError) tmp_error3			= NULL;
+    module_info *minfo                      = (module_info *)user_data;
 	keyagent_npm_real *npm					= (keyagent_npm_real *)&minfo->npm;
 	g_assert_nonnull(npm);
 	g_assert_nonnull(NPM_MODULE_OP(npm, key_load));
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
 
 	/*Test case 1: With valide register URL and key URL*/
-	g_assert_cmpint(NPM_MODULE_OP(npm, key_load)(keyurl, &tmp_error), ==, TRUE);
+	g_assert_null(keyagent_loadkey(keyurl, &tmp_error));
 
 	/*Test case 2: With valide register URL and new key URL*/
-	g_assert_cmpint(NPM_MODULE_OP(npm, key_load)("KMS:a67a6747-bd53-4280-90e0-5d310ba5fed8", &tmp_error2), ==, TRUE);
+	/*g_assert_cmpint(keyagent_loadkey("KMS:a67a6747-bd53-4280-90e0-5d310ba5fed8", &tmp_error2), ==, TRUE);*/
 
 	/*Test case 3: With invalide URL as NULL*/
 	g_assert_cmpint(NPM_MODULE_OP(npm, key_load)(NULL, &tmp_error3), ==, FALSE);
 
 	/*Test case 4: With invalide register URL and invalide key URL*/
-	g_assert_cmpint(NPM_MODULE_OP(npm, key_load)("TEST:a67a6747-bd53-4280-90e0-5d310ba5fe", NULL), ==, FALSE);
+	g_assert_nonnull(keyagent_loadkey("TEST:a67a6747-bd53-4280-90e0-5d310ba5fe", NULL));
 }
 
 void fill_userdata( module_info *data, const char *module_path, char *conf_file_path)
 {
-        data->module_path                                    = g_string_new(module_path);
-        data->module_name                                    = g_string_new(npm_module);
+    data->module_path                                    = g_string_new(module_path);
+    data->module_name                                    = g_string_new(npm_module);
 }
 
 static void fsetup (module_info *fixture, gconstpointer user_data)
 {
+	g_log_set_always_fatal ((GLogLevelFlags) (G_LOG_FATAL_MASK & ~G_LOG_LEVEL_CRITICAL));
+	g_test_log_set_fatal_handler (fatal_handler, NULL);
+	g_test_set_nonfatal_assertions ();
 	module_info *module_data = (module_info *)user_data;
-        g_autoptr(GError) error                                 = NULL;
-        load_npm_module(module_data);
+	g_autoptr(GError) error                                 = NULL;
+    load_npm_module(module_data);
 }
 
 static void fteardown (module_info *fixture, gconstpointer user_data)
 {
 	module_info *module_data = (module_info *)user_data;
-        g_module_close(module_data->npm.module);
+    g_module_close(module_data->npm.module);
 }
 
 int main(int argc, char *argv[])
@@ -177,15 +181,38 @@ int main(int argc, char *argv[])
 	if (debug) { 
 		setenv("G_MESSAGES_DEBUG", "all", 1);
 	}
+	if (!npm_module)
+	{
+		g_print ( "Invalid npm_module \n", argv[0]);
+		exit (1);
+	}
+	if( !key_agent_config)
+	{
+		key_agent_config = g_strconcat (DHSM2_CONF_PATH,"/key-agent.ini", NULL);
+	}
+
+	if( !key_server)
+	{
+		g_print ( "Invalid keyserver \n", argv[0]);
+	    exit (1);
+	}
+
+	if( !keyurl)
+	{
+		g_print ( "Invalid keyurl \n", argv[0]);
+	    exit (1);
+	}
+	npm_config_dir=g_strconcat(DHSM2_INSTALL_DIR,"/etc/", NULL);
+
 	g_autoptr(GError) tmp_error;
 	memset (&module, 0x00, sizeof(module_info));
 	module.error=tmp_error;
+
 	g_test_init(&argc, &argv, NULL);
-	g_test_set_nonfatal_assertions ();
 	fill_userdata(&module,(const char * )npm_module , NULL);
-        g_test_add("/npm_test_app/npm_init", module_info, &module, fsetup, init_npm, fteardown);
-        g_test_add("/npm_test_app/npm_register", module_info, &module, fsetup, register_npm, fteardown);
-        g_test_add("/npm_test_app/npm_load_key", module_info, &module, fsetup, npm_load_key, fteardown);
+    g_test_add("/npm_test_app/npm_init", module_info, &module, fsetup, init_npm, fteardown);
+    g_test_add("/npm_test_app/npm_register", module_info, &module, fsetup, register_npm, fteardown);
+    g_test_add("/npm_test_app/npm_load_key", module_info, &module, fsetup, npm_load_key, fteardown);
 
 	return g_test_run();
 }
