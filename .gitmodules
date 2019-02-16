@@ -2,3 +2,7 @@
 	path = api-module/sw-pkcs11
 	url = ssh://git-amr-1.devtools.intel.com:29418/distributed_hsm-dhsm-core/
 	branch = v3+next-major
+[submodule "safestringlib"]
+	path = safestringlib
+	url = https://github.com/intel/safestringlib.git
+	branch = v1.0.0
