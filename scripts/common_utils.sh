@@ -170,25 +170,40 @@ check_proxy()
 
 
 check_linux_version() {
-	OS=$(cat /etc/*release | grep ^NAME | cut -d'"' -f2)
-	VER=$(cat /etc/*release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
+	local OS=$(cat /etc/*release | grep ^NAME | cut -d'"' -f2)
+	local VER=$(cat /etc/*release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
 
-	PARAM_OS=$1
-	PARAM_VER=$2
+	local os_arr_size=`expr ${#DHSM2_COMPONENT_INSTALL_OS[*]} - 1`;
+	local ver_arr_size=`expr ${#DHSM2_COMPONENT_INSTALL_OS_VER[*]} - 1`;
 	
+	log_msg $LOG_DEBUG "OS Array Size:${os_arr_size}, Ver Array Size:${ver_arr_size}"
 
-    if [ "$OS" == "$PARAM_OS" ]
-    then
+	if [ ${os_arr_size} -ne ${ver_arr_size} ]; then
+		log_msg $LOG_ERROR "OS distribution ${OS} version ${VER} Array data\n"
+		return $CODE_OS_ERROR
+	fi
+	
+	for i in $(seq 0 ${os_arr_size}); do 
+		PARAM_OS="${DHSM2_COMPONENT_INSTALL_OS[$i]}";
+		PARAM_VER="${DHSM2_COMPONENT_INSTALL_OS_VER[$i]}";
+			
+		#log_msg $LOG_DEBUG "Input OS distribution ${OS}:${PARAM_OS} version ${VER}:${PARAM_VER}"
+
+		if [[ "${OS}" = "${PARAM_OS}" ]];then
 		if [ ${VER} != "$PARAM_VER" ] 
 		then
-			log_msg $LOG_ERROR "Error: OS distribution ${OS} version ${VER} NOT Correct!\n"
-			return $CODE_OS_ERROR
+				log_msg $LOG_WARN "Error: OS distribution ${OS} version ${VER} NOT Correct!\n"
+				continue;
+			else 
+				log_msg $LOG_DEBUG "OS distribution ${OS} version ${VER} matched"
+				return $CODE_EXEC_SUCCESS
 		fi
     else
-        log_msg $LOG_ERROR "Error: OS distribution ${OS}:${PARAM_OS} Not Supported\n"
-        return $CODE_OS_ERROR
+			log_msg $LOG_WARN "OS distribution -${OS}:${PARAM_OS}- Not Supported\n"
+			continue;
     fi
-	return $CODE_EXEC_SUCCESS
+    done 
+	return $CODE_OS_ERROR
 } 
 CheckWhetherProcessRunning()
 {
@@ -225,7 +240,7 @@ check_pre_condition()
         fi
     fi
 
-    $(check_linux_version "${DHSM2_COMPONENT_INSTALL_OS}" "${DHSM2_COMPONENT_INSTALL_OS_VER}")
+    $(check_linux_version)
     if [ $? -ne $CODE_EXEC_SUCCESS ]; then
         log_msg $LOG_ERROR "Invalid Enviromnent"
         return $CODE_EXEC_ERROR
