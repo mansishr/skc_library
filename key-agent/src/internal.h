@@ -85,7 +85,8 @@ namespace keyagent {
 	extern void *config;
 	extern GString *npm_directory;
 	extern GString *stm_directory;
-    extern GString *key_directory;
+    extern keyagent_keyserver_key_format keyformat;
+	extern gboolean ssl_verify;
     extern GString *cert;
     extern GString *certkey;
     extern GHashTable *npm_hash;
@@ -129,7 +130,11 @@ typedef struct swk_op{
     } \
 } while (0)
 
-#define CERTIFICATE_FILE_FORMAT "PEM"
+#define FORMAT_PEM "PEM"
+#define FORMAT_ENG "ENG"
+
+#define KEYAGENT_KEY_FORMAT_PEM_STR "PEMFILE"
+#define KEYAGENT_KEY_FORMAT_PKCS11_STR "PKCS11"
 
 #ifdef  __cplusplus
 extern "C" {

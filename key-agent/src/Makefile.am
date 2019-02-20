@@ -16,5 +16,5 @@ libkey_agent_la_SOURCES = \
 	key.cpp \
 	cache-key.cpp
 
-libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ -lcurl -lcrypto $(COMMON_LDFLAGS) $(GMODULE_LIBS) $(GDA_LIBS) \
-	$(TOPDIR)/config-file/src/libkey_configfile.la
+libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ -lcrypto $(COMMON_LDFLAGS) $(GMODULE_LIBS) $(GDA_LIBS) \
+	$(TOPDIR)/config-file/src/libkey_configfile.la ${TOPDIR}/curl/lib/libcurl.la

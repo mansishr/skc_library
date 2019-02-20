@@ -368,6 +368,7 @@ stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
         goto out;
 	
     }
+#ifdef TEST_WAK_DATA
         
     pkey = EVP_PKCS82PKEY(p8inf);
 	if(pkey == NULL)
@@ -383,6 +384,7 @@ stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
         test_ecc_wrapped_key(pkey, details->attrs);
         break;
     }
+#endif
     ret = TRUE;
 out:
     if (p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);

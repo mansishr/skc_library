@@ -23,7 +23,8 @@ namespace keyagent {
 	void *config;
     GString *npm_directory;
     GString *stm_directory;
-    GString *key_directory;
+    keyagent_keyserver_key_format keyformat;
+	gboolean ssl_verify;
     GString *cert;
     GString *certkey;
     GHashTable *npm_hash;
@@ -98,14 +99,34 @@ __do_keyagent_init(const char *filename, GError **err)
 	if (*err != NULL) {
 		return FALSE;
 	}
-    keyagent::cert = g_string_new(key_config_get_string(keyagent::config, "core", "cert", err));
+    keyagent::cert = g_string_new(key_config_get_string(keyagent::config, "keyserver_credentials", "certificate", err));
 	if (*err != NULL) {
 		return FALSE;
 	}
-    keyagent::certkey = g_string_new(key_config_get_string(keyagent::config, "core", "certkey", err));
+    keyagent::certkey = g_string_new(key_config_get_string(keyagent::config, "keyserver_credentials", "certificate_key", err));
 	if (*err != NULL) {
 		return FALSE;
 	}
+
+	gchar *keyformat = key_config_get_string(keyagent::config, "keyserver_credentials", "keyformat", err);
+	if (*err != NULL) {
+		return FALSE;
+	}
+
+	if ( g_strcmp0( keyformat, KEYAGENT_KEY_FORMAT_PKCS11_STR ) == 0) {  keyagent::keyformat = KEYAGENT_KEY_FORMAT_PKCS11;}
+	else if ( g_strcmp0( keyformat, KEYAGENT_KEY_FORMAT_PEM_STR) == 0 ) { keyagent::keyformat = KEYAGENT_KEY_FORMAT_PEM; }
+	else{
+        g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_KEYFORMAT,
+                     "Error in keyformat:%s - received : %s--", g_module_error (), keyformat);
+		return FALSE;
+	}
+
+	keyagent::ssl_verify = key_config_get_boolean(keyagent::config, "keyserver_credentials", "ssl_verify", err);
+	if (*err != NULL) {
+		k_critical_msg("Error in ssl_verfiy attributes\n");
+		return FALSE;
+	}
+
 
     LOOKUP_KEYAGENT_INTERNAL_NPM_OPS(&keyagent::npm_ops);
     LOOKUP_KEYAGENT_INTERNAL_STM_OPS(&keyagent::stm_ops);
@@ -139,14 +160,8 @@ __do_keyagent_init(const char *filename, GError **err)
 	g_list_foreach(modules, __initialize_stm, err); 
 	g_list_free_full(modules, __free_char_pointer);  
 
-    keyagent::key_directory = g_string_new(key_config_get_string(keyagent::config, "core", "key-directory", err));
-	if (*err != NULL) {
-		return FALSE;
-	}
-
     if (!__keyagent_cache_init(err))
         return FALSE;
-
 
     return TRUE;
 }
@@ -197,8 +212,9 @@ _loadkey(gpointer keyid, gpointer data, gpointer user_data)
     details.stm_names = __keyagent_stm_get_names();
     details.ssl_opts.certfile = strdup(keyagent::cert->str);
     details.ssl_opts.keyname = strdup(keyagent::certkey->str);
-    details.ssl_opts.certtype = CERTIFICATE_FILE_FORMAT;
-    details.ssl_opts.keytype = CERTIFICATE_FILE_FORMAT;
+    details.ssl_opts.certtype = FORMAT_PEM;
+	details.ssl_opts.ssl_verify = keyagent::ssl_verify;
+	details.ssl_opts.keytype = (keyagent::keyformat == KEYAGENT_KEY_FORMAT_PEM )?FORMAT_PEM:FORMAT_ENG;
     LOOKUP_KEYAGENT_INTERNAL_NPM_OPS(&details.cbs);
 
 	ret = TRUE;

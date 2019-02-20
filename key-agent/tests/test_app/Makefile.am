@@ -6,5 +6,5 @@ bin_PROGRAMS = \
 keyagent_testapp_SOURCES = \
     test_app.c
 
-keyagent_testapp_LDFLAGS =  -lcurl -ljsoncpp -lcrypto
+keyagent_testapp_LDFLAGS =  -ljsoncpp -lcrypto
 keyagent_testapp_LDADD = $(top_srcdir)/../key-agent/src/libkey_agent.la
