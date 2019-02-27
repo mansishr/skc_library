@@ -64,11 +64,15 @@ namespace server {
     extern gchar *configfile;
     extern GString *configdirectory;
     extern keyagent_module *stm;
+	extern gint port;
     extern X509 *cert;
     extern EVP_PKEY *cert_key;
 	extern gboolean generate_cert_with_key;
+	extern gboolean tls_auth_support;
 	extern GString *cert_key_path;
 	extern GString *stm_filename;
+	extern GString *abs_cert_path;
+	extern GString *abs_dhparam_path;
 }
 
 typedef struct {

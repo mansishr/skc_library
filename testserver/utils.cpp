@@ -125,7 +125,6 @@ X509_REQ* gen_X509Req(gchar *keyid, EVP_PKEY *pkey)
     const char      *szOrganization = "intel";
     const char      *szCommon = "dhsm2";
  
-	//const char      *szPath = "/tmp/dhsm2_key.csr";
 
 	GString *szPath=NULL;
 
@@ -206,7 +205,6 @@ int gen_X509(gchar *keyid, X509_REQ *req, EVP_PKEY *pkey)
     X509V3_CTX ext_ctx;
 	X509 *x509ss = NULL;
     STACK_OF(X509_EXTENSION) *exts = NULL;
-	//const char      *certpath = "/tmp/dhsm2_key.cert";
 	GString *certpath=NULL;
 
 	certpath = g_string_new(server::cert_key_path->str);
@@ -261,6 +259,7 @@ extern "C" k_buffer_ptr
 convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 {
     FILE *pfile = NULL;
+    FILE *pfile_der = NULL;
     BIGNUM *bne = NULL;
     int bits = 2048;
     unsigned long  e = RSA_F4;
@@ -275,10 +274,13 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     k_buffer_ptr STM_TEST_DATA = NULL;
     k_buffer_ptr STM_TEST_SIG = NULL;
 	GString *key_file = NULL;
+	GString *key_file_der=NULL;
 
-    OpenSSL_add_all_algorithms();
-    ERR_load_BIO_strings();
-    ERR_load_crypto_strings();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	OpenSSL_add_all_algorithms();
+	ERR_load_crypto_strings();
+#endif
+	ERR_load_BIO_strings();
 
     bne = BN_new();
     if (BN_set_word(bne,e) != 1) 
@@ -338,7 +340,19 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 
     KEYDATA = k_buffer_alloc(NULL, len);
     tmp = k_buffer_data(KEYDATA);
-    i2d_PKCS8_PRIV_KEY_INFO(p8inf, &tmp);
+	if(i2d_PKCS8_PRIV_KEY_INFO(p8inf, &tmp))
+	{
+		if( server::generate_cert_with_key == TRUE )
+		{  
+			key_file_der = g_string_new(server::cert_key_path->str);
+			g_string_append(key_file_der, "/");
+			g_string_append(key_file_der, keyid);
+			g_string_append(key_file_der, "_key.der");
+			pfile_der = fopen(key_file_der->str, "w+");
+			i2d_PKCS8_PRIV_KEY_INFO_fp(pfile_der ,p8inf);
+		}
+	}
+
 
     STM_TEST_DATA = k_buffer_alloc(NULL, 20);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
@@ -358,7 +372,9 @@ out:
     if (rsa) RSA_free(rsa);
     if (bne) BN_free(bne);
 	if (key_file) g_string_free( key_file, TRUE);
+	if (key_file_der) g_string_free( key_file_der, TRUE);
 	if (pfile) fclose(pfile);
+	if (pfile_der) fclose(pfile_der);
     X509_REQ_free(req);
     return KEYDATA;
 }
@@ -379,9 +395,11 @@ convert_ecc_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     gboolean ret = FALSE;
     ECDSA_SIG* ec_sig = NULL;
 
-    OpenSSL_add_all_algorithms();
-    ERR_load_BIO_strings();
-    ERR_load_crypto_strings();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	OpenSSL_add_all_algorithms();
+	ERR_load_crypto_strings();
+#endif
+	ERR_load_BIO_strings();
 
     eccgrp = OBJ_txt2nid("secp521r1");
     ec_key = EC_KEY_new_by_curve_name(eccgrp);

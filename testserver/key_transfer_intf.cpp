@@ -352,46 +352,46 @@ void keytransfer_authentication_handler( const shared_ptr< Session > session, co
 }
 
 Json::Value
-get_challenge_info(char *client_ip, std::string keyid, int *http_code, testserver_request_type request_type)
+get_challenge_info(char *challenge_type, char *client_ip, std::string keyid, int *http_code, testserver_request_type request_type)
 {
     Json::Value val;
-        Json::Value val1;
-        Json::Value challenge_replyto;
-        Json::Value link;
+    Json::Value val1;
+    Json::Value challenge_replyto;
+    Json::Value link;
  	const gchar *challenge_str; 
- 	gsize	len							= 0;
+ 	gsize len							= 0;
 
     *http_code							= 401;
 
     try {
-        val["status"] = "failure";
-        val["operation"] = "key transfer";
+        val["status"]					= "failure";
+        val["operation"]				= "key transfer";
 
-        val1["type"] = "not-authorized";
-        val["faults"] = val1;
-		challenge_str				= create_challenge(client_ip);
+        val1["type"]					= "not-authorized";
+        val["faults"][0] 				= val1;
+		challenge_str					= create_challenge(client_ip);
 
 		if ( request_type == REQUEST_TYPE_NPM_KMS )
 		{
 			len							= strlen(challenge_str);
 			val["challenge"]			= g_base64_encode((const guchar *)challenge_str, len);
-			challenge_replyto["href"] = "http://localhost:1984/v1/kms/keys/session";
+			challenge_replyto["href"]   = g_strdup_printf("%s://localhost:%i/v1/kms/keys/session",(server::tls_auth_support)?"https":"http", server::port);
 		}
 		else
 		{
 			val["challenge"]			= challenge_str;
-			challenge_replyto["href"] = "http://localhost:1984/keys/session";
+			challenge_replyto["href"]   = g_strdup_printf("%s://localhost:%i/keys/session",(server::tls_auth_support)?"https":"http", server::port);
 		}
 
-        val["challenge_type"]			= "SW";
-        challenge_replyto["method"] = "post";
+        val["challenge_type"]			= challenge_type;
+        challenge_replyto["method"]     = "post";
 
-        link["challenge-replyto"] = challenge_replyto;
-        val["link"] = link;
+        link["challenge-replyto"]       = challenge_replyto;
+        val["link"]						= link;
 
 
     } catch (...) {
-        val["status"] = "failure";
+        val["status"]					= "failure";
     }
     return val;
 }
@@ -559,13 +559,17 @@ get_kms_key_info(std::string keyid, int *http_code, char *session_id)
         val["data"]["algorithm"]		= (key_info->keytype == KEYAGENT_RSAKEY ? "RSA" : "ECC");
 		val["data"]["key_length"]		= "2048";
 		val["data"]["policy"]["link"]
-			["key-usage"]["href"]       = "http://localhost:1984/v1/key-usage-policies/073796eb-9849-4dc2-b374-18628c5635ad";
+			["key-usage"]["href"]       = g_strdup_printf(
+											"%s://localhost:%i/v1/key-usage-policies/073796eb-9849-4dc2-b374-18628c5635ad",
+											(server::tls_auth_support)?"https":"http",server::port );
 
 		val["data"]["policy"]["link"]
 			["key-usage"]["method"]     = "get";
 
 		val["data"]["policy"]["link"]
-		["key-transfer"]["href"]        = "http://localhost:1984/v1/key-transfer-policies/a67a6747-bd53-4280-90e0-5d310ba5fed9";
+		["key-transfer"]["href"]        = g_strdup_printf(
+											"%s://localhost:%i/v1/key-transfer-policies/a67a6747-bd53-4280-90e0-5d310ba5fed9",
+											(server::tls_auth_support)?"https":"http",server::port);
 
 		val["data"]["policy"]["link"]
 			["key-transfer"]["method"]  = "get";
@@ -663,40 +667,52 @@ void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
 
 			char *client_ip			    = NULL;		
             char *session_id            = NULL;
+			char *challenge_str         = NULL;
 
 
-			gchar **results = g_regex_split_simple( "/", (gchar *)request_url.c_str(), G_REGEX_RAW, G_REGEX_MATCH_NOTEMPTY);
-			if ( *results != NULL )
-				keyid					= results[2];
+			gchar **results             = NULL;
+			gchar **results_challenge   = NULL;
+			
+			results						= g_regex_split_simple( "/", (gchar *)request_url.c_str(), G_REGEX_RAW, G_REGEX_MATCH_NOTEMPTY);
+			if ( results != NULL && *results != NULL )
+				keyid					= results[3];
 			else
 				keyid					= "";
 			challenge					= request->get_header( "Accept-Challenge");
 			session_ids					= request->get_header( "Session-ID");
 
-			client_ip					= get_client_ip(session);
-			k_debug_msg("keytransfer client ip:%s\n", client_ip);
+			try{
 
+				client_ip					= get_client_ip(session);
+				results_challenge			= g_regex_split_simple( ",", (gchar *)challenge.c_str(), G_REGEX_RAW, G_REGEX_MATCH_NOTEMPTY);
 
-            // If client didn't send session-id, flush sessions
-            if (session_ids.empty())
-                flush_sessions(client_ip); 
-            else
-                session_id              = validate_and_pick_session(client_ip, session_ids);
+				k_debug_msg("url:%s, keytransfer client ip:%s, challenge:%s\n", request_url.c_str(), client_ip, results_challenge[0]);
 
-			//print_input_headers("TRANSFER", session);
-			headers.insert(std::make_pair("Content-Type", "application/json"));
-			http_data					= String::to_string(body);
+				// If client didn't send session-id, flush sessions
+				if (session_ids.empty())
+					flush_sessions(client_ip); 
+				else
+					session_id              = validate_and_pick_session(client_ip, session_ids);
 
-            if (!session_id) {
-                val                     = get_challenge_info(client_ip, keyid, &http_code, REQUEST_TYPE_NPM_KMS);
-            } else {
-                val                     = get_kms_key_info(keyid, &http_code, session_id);
-                headers.insert(std::make_pair("Session-ID", session_id));
-            }
+				//print_input_headers("TRANSFER", session);
+				headers.insert(std::make_pair("Content-Type", "application/json"));
+				http_data					= String::to_string(body);
 
-			g_free(client_ip);
-			out							= json_to_string(val);
-			session->close( http_code, out, headers);
+				if (!session_id) {
+					val                     = get_challenge_info(results_challenge[0], client_ip, keyid, &http_code, REQUEST_TYPE_NPM_KMS);
+				} else {
+					val                     = get_kms_key_info(keyid, &http_code, session_id);
+					headers.insert(std::make_pair(g_strdup_printf("Session-ID: %s", results_challenge[0]), session_id));
+				}
+				out							= json_to_string(val);
+				g_free(client_ip);
+				session->close( http_code, out, headers);
+				g_strfreev (results);
+				g_strfreev (results_challenge);
+			}catch(...) {
+				k_critical_msg("KMS response parsing filed\n");
+			}
+			
 		});
 }
 
@@ -714,9 +730,11 @@ void get_keytransfer_method_handler( const shared_ptr< Session > session )
         std::string challenge = request->get_header( "Accept-Challenge");
         std::string session_ids = request->get_header( "Session-ID");
         multimap< string, string > headers;
+		gchar **results_challenge   = NULL;
 
         char *client_ip = get_client_ip(session);
         char *session_id = NULL;
+		results_challenge = g_regex_split_simple( ",", (gchar *)challenge.c_str(), G_REGEX_RAW, G_REGEX_MATCH_NOTEMPTY);
 
         // If client didn't send session-id, flush sessions
         if (session_ids.empty())
@@ -732,12 +750,13 @@ void get_keytransfer_method_handler( const shared_ptr< Session > session )
         std::string http_data = String::to_string(body);
 
         if (!session_id) {
-            val = get_challenge_info(client_ip, keyid, &http_code, REQUEST_TYPE_NPM_REF);
+            val = get_challenge_info(results_challenge[0], client_ip, keyid, &http_code, REQUEST_TYPE_NPM_REF);
         } else {
             val = get_kms_key_info(keyid, &http_code, session_id);
             headers.insert(std::make_pair("Session-ID", session_id));
         }
         g_free(client_ip);
+		g_strfreev (results_challenge);
         std::string out = json_to_string(val);
         session->close( http_code, out, headers);
     });
