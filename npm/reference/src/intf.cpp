@@ -35,7 +35,7 @@ namespace reference_npm {
 typedef struct {
     int tries;
     keyagent_keyload_details *details;
-    int keyid;
+    gchar *keyid;
 } loadkey_info;
 
 
@@ -330,7 +330,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
     }
 
 	keyid_header = g_string_new("KeyId: "); 
-	g_string_append_printf(keyid_header, "%d", info->keyid);
+	g_string_append_printf(keyid_header, "%s", info->keyid);
 	g_ptr_array_add (headers, (gpointer) keyid_header->str);
 
 	return_data = k_buffer_alloc(NULL,0);
@@ -353,7 +353,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	if (res_status == 401) {
 		try {
 			status = transfer_data["status"].asString();
-			type = transfer_data["faults"]["type"].asString();
+			type = transfer_data["faults"][0]["type"].asString();
         } catch (exception& e){
 				k_set_error (err, NPM_ERROR_JSON_PARSE,
 						"NPM JSON Parse error: %s\n", e.what());
@@ -415,7 +415,7 @@ npm_key_load(keyagent_keyload_details *details, GError **error)
     g_return_val_if_fail(details->url, FALSE );
     gchar **url_tokens = NULL;
     url_tokens = g_strsplit (details->url, ":", -1) ; 
-    info.keyid = atoi(url_tokens[1]);
+    info.keyid = g_strdup(url_tokens[1]);
     info.details = details;
     g_strfreev(url_tokens);
 	return __npm_loadkey(&info, error);

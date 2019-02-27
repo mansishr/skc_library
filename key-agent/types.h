@@ -27,6 +27,12 @@ typedef enum {
     KEYAGENT_AESKEY,
 } keyagent_keytype;
 
+
+typedef enum {
+	KEYAGENT_KEY_FORMAT_PEM = 1,
+	KEYAGENT_KEY_FORMAT_PKCS11,
+} keyagent_keyserver_key_format;
+
 typedef enum {
     KEYAGENT_AES_MODE_CTR,
     KEYAGENT_AES_MODE_GCM,
@@ -48,6 +54,7 @@ typedef struct {
 	const char *certtype;
 	const char *keyname;
 	const char *keytype;
+	gboolean ssl_verify;
 } keyagent_ssl_opts;
 
 
@@ -313,6 +320,7 @@ typedef enum {
     KEYAGENT_ERROR_KEY_CREATE_INVALID_SESSION_ID,
     KEYAGENT_ERROR_SESSION_CREATE_INVALID_LABEL,
     KEYAGENT_ERROR_SESSION_CREATE_INVALID_SWK_TYPE,
+	KEYAGENT_ERROR_INVALID_KEYFORMAT,
 } KeyAgentErrors;
 
 typedef enum {

@@ -1,4 +1,6 @@
 #include <memory>
+#include <stdlib.h>
+#include <iostream>
 #include <cstdlib>
 #include <ciso646>
 #include <functional>
@@ -10,6 +12,7 @@
 #include "key-agent/types.h"
 #include "key-agent/src/internal.h"
 #include "config.h"
+
 
 namespace server {
     GHashTable *key_hash_table;
@@ -25,11 +28,18 @@ namespace server {
     GString *configdirectory;
     keyagent_module *stm;
     gchar *certfile;
+    gchar *dhparam;
+    gchar *cert_pool;
+	gint port;
     X509 *cert;
     EVP_PKEY *cert_key;
 	gboolean generate_cert_with_key;
+	gboolean tls_auth_support;
 	GString *cert_key_path;
 	GString *stm_filename;
+	GString *abs_cert_path;
+	GString *abs_dhparam_path;
+	GString *abs_cert_pool_path;
 }
 
 
@@ -186,6 +196,8 @@ static GOptionEntry entries[] =
                 { "verbose", 'v', 0, G_OPTION_ARG_NONE, &server::verbose, "Be verbose", NULL },
                 { "config", 0, 0, G_OPTION_ARG_FILENAME, &server::configfile, "required! config file to use", NULL },
                 { "cert", 0, 0, G_OPTION_ARG_FILENAME, &server::certfile, "required! cert file to use", NULL },
+                { "dhparam", 0, 0, G_OPTION_ARG_FILENAME, &server::dhparam, "required! difie helman file to use", NULL },
+                { "cert_pool", 0, 0, G_OPTION_ARG_FILENAME, &server::cert_pool, "required! cert pool path to use", NULL },
                 { "debug", 0, 0, G_OPTION_ARG_NONE, &server::debug, "enable debug output", NULL },
                 { NULL }
         };
@@ -202,6 +214,12 @@ void free_server_namespace()
 		g_string_free(server::cert_key_path, TRUE);
 	if( server::stm_filename )
 		g_string_free(server::stm_filename, TRUE);
+	if( server::abs_cert_path )
+		g_string_free(server::abs_cert_path, TRUE);
+	if( server::abs_dhparam_path )
+		g_string_free(server::abs_dhparam_path, TRUE);
+	if( server::abs_cert_pool_path )
+		g_string_free(server::abs_cert_pool_path,  TRUE);
 }
 
 
@@ -220,6 +238,7 @@ int main(int argc, char** argv)
     auto kmskeysession = make_shared< Resource >( );
     auto kms_key_usagepolices= make_shared< Resource >( );
     auto settings = make_shared< Settings >( );
+    auto ssl_settings = make_shared< SSLSettings >( );
 
     server::key_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, key_info_free);
     server::session_hash_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, session_hash_value_free);
@@ -227,6 +246,10 @@ int main(int argc, char** argv)
     server::client_hash_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, client_hash_value_free);
 
     server::debug = FALSE;
+	server::abs_cert_path = g_string_new("file://");
+	server::abs_dhparam_path = g_string_new("file://");
+	server::abs_cert_pool_path = g_string_new("file://");
+
 
     context = g_option_context_new ("- key-agent cli");
     g_option_context_add_main_entries (context, entries, NULL);
@@ -240,10 +263,18 @@ int main(int argc, char** argv)
 		server::configfile = g_strconcat (DHSM2_CONF_PATH,"/testserver.ini", NULL);
 
     if (!server::certfile)
-    {
-        g_print("%s\n", g_option_context_get_help (context, TRUE, NULL));
-		goto out;
-	}
+		server::certfile = g_strconcat (DHSM2_INSTALL_DIR,"/store/testserver/ssl/server/server_certificate.pem", NULL);
+
+    if (!server::dhparam)
+		server::dhparam = g_strconcat (DHSM2_INSTALL_DIR,"/store/testserver/ssl/client/dhparam.pem", NULL);
+
+    if (!server::cert_pool)
+		server::cert_pool = g_strconcat (DHSM2_INSTALL_DIR,"/store/testserver/ssl/CA", NULL);
+
+
+	g_string_append(server::abs_cert_path, realpath(server::certfile, NULL));
+	g_string_append(server::abs_dhparam_path, realpath(server::dhparam, NULL));
+	g_string_append(server::abs_cert_pool_path, realpath(server::cert_pool, NULL));
 
     if (server::debug)
         setenv("G_MESSAGES_DEBUG", "all", 1);
@@ -251,7 +282,6 @@ int main(int argc, char** argv)
 
     server::configdirectory = g_string_new(g_path_get_dirname(server::configfile));
 
-	//GString *configfilename = g_string_new(server::configfile);
 	config = key_config_openfile(server::configfile, &err);
     server::stm_filename = g_string_new(key_config_get_string(config, "core", "STM", &err));
     if (err != NULL) {
@@ -261,10 +291,14 @@ int main(int argc, char** argv)
     server::generate_cert_with_key = key_config_get_boolean_optional(config, "core", "generate_certificate_with_key", FALSE); 
     k_info_msg("Nginx Support:%d", server::generate_cert_with_key);
 
+
+    server::tls_auth_support = key_config_get_boolean_optional(config, "core", "tls_auth_support", FALSE); 
+    k_info_msg("TLS Auth support:%d", server::tls_auth_support);
+
 	if( server::generate_cert_with_key == TRUE)
 	{
 		server::cert_key_path = g_string_new(key_config_get_string_optional(config, "core", "key_cert_path", DHSM2_INSTALL_DIR));
-		g_string_append(server::cert_key_path, "/gen_cert_with_key");
+		g_string_append(server::cert_key_path, "/store/testserver/ssl/client");
         k_info_msg("Creating cert folder:%s", server::cert_key_path->str);
 		g_mkdir_with_parents((const gchar *)server::cert_key_path->str, 755);
 	}
@@ -273,7 +307,6 @@ int main(int argc, char** argv)
 	{
         k_critical_msg("Invalid certificate information\n");
 		goto out;
-		//exit (1);
 	}
 
     server::stm = (keyagent_module *)server_initialize_stm(server::stm_filename->str, &err);
@@ -295,7 +328,7 @@ int main(int argc, char** argv)
     keytransfer->set_method_handler( "GET", get_keytransfer_method_handler );
     keytransfer->set_authentication_handler( keytransfer_authentication_handler );
 
-    kmskeytransfer->set_path(  "/keys/.*/transfer");
+    kmskeytransfer->set_path(  "v1/keys/.*/dhsm2-transfer");
     kmskeytransfer->set_method_handler( "GET", get_kms_keytransfer_method_handler );
     kmskeytransfer->set_authentication_handler( keytransfer_authentication_handler );
 
@@ -310,9 +343,27 @@ int main(int argc, char** argv)
     kms_key_usagepolices->set_path( "v1/key-usage-policies/.*" );
     kms_key_usagepolices->set_method_handler( "GET", get_kms_key_usagepolices_method_handler );
     kms_key_usagepolices->set_authentication_handler( keysession_authentication_handler );
-    
-    settings->set_port( 1984 );
-    settings->set_default_header( "Connection", "close" );
+	
+
+	if( server::tls_auth_support == TRUE)
+	{
+		server::port=443;
+		ssl_settings->set_http_disabled( true );
+		ssl_settings->set_client_authentication_enabled( true );
+
+		ssl_settings->set_private_key( Uri( server::abs_cert_path->str ) );
+		ssl_settings->set_certificate( Uri( server::abs_cert_path->str ) );
+		ssl_settings->set_temporary_diffie_hellman( Uri( server::abs_dhparam_path->str ) );
+		ssl_settings->set_certificate_authority_pool( Uri( server::abs_cert_pool_path->str ) );
+
+		settings->set_default_header( "Connection", "close" );
+		settings->set_ssl_settings( ssl_settings );
+	}else{
+		server::port=1984;
+		settings->set_port(server::port );
+		settings->set_default_header( "Connection", "close" );
+	}
+
     
     service.publish( keytransfer );
     service.publish( kmskeytransfer );

@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <curl/curl.h>
 #include "key-agent/key_agent.h"
-#include "key-agent/types.h"
+#include "key-agent/src/internal.h"
+
 
 size_t DLL_LOCAL
 __write_byte_array(void *contents, size_t size, size_t nmemb, void *userp)
@@ -47,6 +48,7 @@ __keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrA
     struct curl_slist *header_list = NULL;
     const char **cpp;
     long res_status = -1;
+	gint verify = 0;
 
 	curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
@@ -63,7 +65,15 @@ __keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrA
     	if (ssl_opts->keytype) SETOPT(curl, CURLOPT_SSLKEYTYPE, ssl_opts->keytype);
     	if (ssl_opts->keyname) SETOPT(curl, CURLOPT_SSLKEY, ssl_opts->keyname);
     	if (ssl_opts->ca_certfile) SETOPT(curl, CURLOPT_CAINFO, ssl_opts->ca_certfile);
-    	SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 1);
+		verify = (ssl_opts->ssl_verify == TRUE)?1:0;
+	
+		if ( g_strcmp0(ssl_opts->keytype, FORMAT_ENG ) == 0)
+        {
+            SETOPT(curl, CURLOPT_SSLENGINE, "pkcs11");
+            SETOPT(curl, CURLOPT_SSLENGINE_DEFAULT, 1L);
+        }
+
+	    SETOPT(curl, CURLOPT_SSL_VERIFYPEER, verify);
 	}
 	if (postdata) 
 		SETOPT(curl, CURLOPT_POSTFIELDS, postdata->str);
@@ -76,8 +86,8 @@ __keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrA
 
     if (userpwd) {
 		SETOPT(curl, CURLOPT_USERPWD, userpwd->str);
-    	SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 0);
-    }
+	    SETOPT(curl, CURLOPT_SSL_VERIFYPEER, verify);
+	}
 	if ( response_headers )
 	{
 		SETOPT(curl, CURLOPT_HEADERFUNCTION, __get_response_header);

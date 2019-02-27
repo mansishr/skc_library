@@ -77,6 +77,7 @@ AC_CONFIG_FILES([
 ])
 
 AC_CONFIG_SUBDIRS([
+	curl
     config-file
     key-agent
     stm/sw
