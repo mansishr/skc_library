@@ -6,6 +6,8 @@
 #include "k_errors.h"
 #include "key-agent/src/internal.h"
 #include "key-agent/types.h"
+#include "npm/kms/kms.h"
+#include "config.h"
 
 /*using namespace keyagent;*/
 
@@ -61,6 +63,7 @@ errexit:
 
 static void fsetup (MyTestFixture *fixture, gconstpointer user_data)
 {
+    g_log_set_always_fatal ((GLogLevelFlags) (G_LOG_FATAL_MASK & ~G_LOG_LEVEL_WARNING));
 	k_debug_msg("Calling %s\n", __func__);
 	g_autoptr(GError) error					= NULL;
 	fixture->user_data						= (USER_DATA *)user_data;
@@ -97,14 +100,17 @@ static void ftest_init_npm(MyTestFixture *fixture, gconstpointer user_data)
 	USER_DATA *udata				   		= (USER_DATA *)user_data;
 	keyagent_npm_real *npm					= (keyagent_npm_real *)&fixture->npm;
 	void *init_func							= NPM_MODULE_OP(npm, init);
+	const char *t							= NULL;
 
 	g_assert_nonnull(npm);
 	g_assert_nonnull(init_func);
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
-	g_assert_null(NPM_MODULE_OP(npm, init)("./config", &tmp_error));
+	t = NPM_MODULE_OP(npm, init)((const char *)DHSM2_CONF_PATH, &tmp_error);
+	g_assert_cmpstr(t, ==, KMS_PREFIX_TOKEN);
 
 	g_autoptr(GError) tmp_error1			= NULL;
-	g_assert_null(NPM_MODULE_OP(npm, init)("./", &tmp_error1));
+	t = NPM_MODULE_OP(npm, init)((const char *)"./", &tmp_error1);
+	g_assert_cmpstr(t, ==, KMS_PREFIX_TOKEN);
 	if(tmp_error1)
 	{
 		k_debug_msg("Error:%s\n", tmp_error1->message);
@@ -119,7 +125,10 @@ static void ftest_init_npm(MyTestFixture *fixture, gconstpointer user_data)
 	/*{*/
 	/*k_debug_msg("Error:%s\n", tmp_error2->message);*/
 	/*}*/
-	g_assert_null(NPM_MODULE_OP(npm, init)(NULL, NULL));
+
+	g_autoptr(GError) tmp_error2			= NULL;
+	t = NPM_MODULE_OP(npm, init)(NULL, &tmp_error2);
+	g_assert_null(t);
 	/*g_assert_null(NPM_MODULE_OP(npm, init)(NULL, &tmp_error));*/
 }
 
@@ -131,12 +140,15 @@ static void ftest_register_npm(MyTestFixture *fixture, gconstpointer user_data)
 	g_autoptr(GError) tmp_error				= NULL;
 	USER_DATA *udata				   		= (USER_DATA *)user_data;
 	keyagent_npm_real *npm					= (keyagent_npm_real *)&fixture->npm;
+	gboolean ret							= FALSE;
 
 	g_assert_nonnull(npm);
 	g_assert_nonnull(NPM_MODULE_OP(npm, register));
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
-	g_assert_cmpint(NPM_MODULE_OP(npm, register)("KMS:a67a6747-bd53-4280-90e0-5d310ba5fed9", &tmp_error), ==, TRUE);
-	g_assert_null(NPM_MODULE_OP(npm, register)(NULL, NULL));
+	ret										= NPM_MODULE_OP(npm, register)("KMS3:a67a6747-bd53-4280-90e0-5d310ba5fed9", &tmp_error);
+	g_assert_false(ret);
+	ret                                     = NPM_MODULE_OP(npm, register)(NULL, NULL);
+	g_assert_false(ret);
 	/*g_assert_null(NPM_MODULE_OP(npm, register)(NULL, &tmp_error));*/
 }
 
@@ -147,13 +159,19 @@ static void ftest_npm_load_key(MyTestFixture *fixture, gconstpointer user_data)
 	g_autoptr(GError) tmp_error				= NULL;
 	USER_DATA *udata				   		= (USER_DATA *)user_data;
 	keyagent_npm_real *npm					= (keyagent_npm_real *)&fixture->npm;
+	void *t									= NULL;
+	gboolean ret							= FALSE;
 
 	g_assert_nonnull(npm);
-	g_assert_nonnull(NPM_MODULE_OP(npm, key_load));
+	t = NPM_MODULE_OP(npm, key_load);
+	g_assert_nonnull(t);
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
 	/*g_assert_cmpint(NPM_MODULE_OP(npm, key_load)("./", &tmp_error), ==, TRUE);*/
-	g_assert_null(NPM_MODULE_OP(npm, key_load)(NULL, NULL));
-	g_assert_null(NPM_MODULE_OP(npm, key_load)(NULL, &tmp_error));
+
+	ret = NPM_MODULE_OP(npm, key_load)(NULL, NULL);
+	g_assert_false(ret);
+	ret = NPM_MODULE_OP(npm, key_load)(NULL, &tmp_error);
+	g_assert_false(ret);
 }
 void fill_userdata( USER_DATA *data, const char *module_path, char *conf_file_path)
 {

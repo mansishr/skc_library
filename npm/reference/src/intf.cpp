@@ -71,7 +71,8 @@ npm_register(keyagent_url url, GError **err)
     gboolean ret = FALSE;
     
     url_tokens = g_strsplit (url, ":", -1) ; 
-    if ( !url_tokens[0] || !url_tokens[1] || (g_strcmp0(url_tokens[0], "REFERENCE") != 0)) {
+    if ( !url_tokens[0] || !url_tokens[1] || (g_strcmp0(url_tokens[0], "REFERENCE") != 0) || 
+			 (g_strcmp0 (url_tokens[1], "")  == 0)) {
         if( err ) {
             k_set_error(err, NPM_ERROR_REGISTER, "NPM_URL_UNSUPPORTED:Expected token:%s token missing in url:%s\n", 
                 "REFERENCE", url);

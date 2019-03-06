@@ -2,6 +2,7 @@
 #include <libgen.h>
 #include <stdlib.h>
 #include "config-file/key_configfile.h"
+#include "config.h"
 
 const char *programname;
 GString *testdir = NULL;
@@ -45,13 +46,23 @@ gboolean fatal_handler(const gchar *log_domain,
  
 void bad_files(void)
 {
+	/*g_log_set_always_fatal ((GLogLevelFlags) (G_LOG_FATAL_MASK & ~G_LOG_LEVEL_CRITICAL));*/
+	/*g_test_log_set_fatal_handler (fatal_handler, NULL);*/
+	/*g_test_set_nonfatal_assertions ();*/
+
+	g_autoptr(GError) err1 = NULL;
+	g_autoptr(GError) err2 = NULL;
+	g_autoptr(GError) err3 = NULL;
+	g_autoptr(GError) err4 = NULL;
 	GString *filename = generate_testfile_name("test1.ini");
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
-	g_assert_null(key_config_openfile(NULL, NULL));
-	g_assert_null(key_config_openfile(NULL, NULL));
-	g_assert_null(key_config_openfile("doesnotexists", NULL));
+
+	g_assert_null(key_config_openfile(NULL, &err1));
+	g_assert_null(key_config_openfile(NULL, &err2));
+	g_assert_null(key_config_openfile("doesnotexists", &err3));
+
 	g_test_log_set_fatal_handler (NULL, NULL);
-	g_assert_nonnull(key_config_openfile(filename->str, NULL));
+	g_assert_nonnull(key_config_openfile(filename->str, &err4));
 }
 
 static void
@@ -116,9 +127,10 @@ int main(int argc, char** argv)
 		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp); //dirname((char *)programname));
         
 		//g_log_structured(G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, "MESSAGE", "%s", tmp); //dirname((char *)programname));
-		set_testdir(NULL,tmp, NULL, NULL);
+		set_testdir(NULL,tmp,  NULL, NULL);
 	}
 
+    GLogLevelFlags fatal_mask = (GLogLevelFlags) g_log_set_always_fatal ((GLogLevelFlags) (G_LOG_FATAL_MASK & ~G_LOG_LEVEL_WARNING));
     g_test_set_nonfatal_assertions ();
 
     g_test_add_func("/key_configfile/test_badfiles", bad_files);

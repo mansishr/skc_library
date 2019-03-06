@@ -105,8 +105,13 @@ __keyagent_cache_init(GError **err)
     GString *tmp = g_string_new(NULL);
     g_string_append_printf(tmp, PKGDATA "/var/cache/keyagent_cache");
 
-    keyagent::localcache::cache_sessions = key_config_get_boolean_optional(keyagent::config, "cache", "cache_sessions", TRUE);
-    keyagent::localcache::cache_keys = key_config_get_boolean_optional(keyagent::config, "cache", "cache_keys", FALSE);
+    keyagent::localcache::cache_sessions = key_config_get_boolean(keyagent::config, "cache", "cache_sessions", err);
+	if( *err )
+		return FALSE;
+    keyagent::localcache::cache_keys = key_config_get_boolean(keyagent::config, "cache", "cache_keys", err);
+	if( *err )
+		return FALSE;
+
     g_rw_lock_init (&keyagent::localcache::cache_rwlock);
 
     if (!keyagent::localcache::cache_sessions && !keyagent::localcache::cache_keys)

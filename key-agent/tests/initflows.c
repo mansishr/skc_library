@@ -4,6 +4,7 @@
 #include <libgen.h>
 #include <stdlib.h>
 #include "key-agent/key_agent.h"
+#include "config.h"
 
 
 /**
@@ -101,14 +102,8 @@ int main(int argc, char** argv)
     GLogLevelFlags fatal_mask = (GLogLevelFlags) g_log_set_always_fatal ((GLogLevelFlags) (G_LOG_FATAL_MASK & ~G_LOG_LEVEL_WARNING));
 
 	if (!testdir) {
-        char *tmp = dirname(strdup(programname));
-        char *tmp1 = basename(strdup(tmp));
-		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp); //dirname((char *)programname));
-		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp1); //dirname((char *)programname));
-        if (!strcmp(basename(tmp), ".libs"))
-            tmp = dirname(tmp);
-		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", tmp); //dirname((char *)programname));
-		set_testdir(NULL,tmp, NULL, NULL);
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "PATH-3:%s", DHSM2_CONF_PATH); //dirname((char *)programname));
+		set_testdir(NULL,DHSM2_CONF_PATH, NULL, NULL);
 	}
     g_test_add_func("/key_agent/test_init", test_init);
 

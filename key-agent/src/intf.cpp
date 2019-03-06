@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <libgen.h>
+#include <unistd.h>
 #include "internal.h"
 #include "config-file/key_configfile.h"
 #include "k_errors.h"
@@ -92,38 +93,48 @@ __do_keyagent_init(const char *filename, GError **err)
 		return FALSE;
 	}
     keyagent::npm_directory = g_string_new(key_config_get_string(keyagent::config, "core", "npm-directory", err));
-	if (*err != NULL) {
+	if (*err != NULL) 
 		return FALSE;
-	}
     keyagent::stm_directory = g_string_new(key_config_get_string(keyagent::config, "core", "stm-directory", err));
-	if (*err != NULL) {
+	if (*err != NULL) 
 		return FALSE;
-	}
     keyagent::cert = g_string_new(key_config_get_string(keyagent::config, "keyserver_credentials", "certificate", err));
-	if (*err != NULL) {
+	if (*err != NULL) 
 		return FALSE;
-	}
     keyagent::certkey = g_string_new(key_config_get_string(keyagent::config, "keyserver_credentials", "certificate_key", err));
-	if (*err != NULL) {
+	if (*err != NULL) 
 		return FALSE;
-	}
 
 	gchar *keyformat = key_config_get_string(keyagent::config, "keyserver_credentials", "keyformat", err);
-	if (*err != NULL) {
+	if (*err != NULL) 
 		return FALSE;
-	}
-
+	
 	if ( g_strcmp0( keyformat, KEYAGENT_KEY_FORMAT_PKCS11_STR ) == 0) {  keyagent::keyformat = KEYAGENT_KEY_FORMAT_PKCS11;}
 	else if ( g_strcmp0( keyformat, KEYAGENT_KEY_FORMAT_PEM_STR) == 0 ) { keyagent::keyformat = KEYAGENT_KEY_FORMAT_PEM; }
 	else{
         g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_KEYFORMAT,
-                     "Error in keyformat:%s - received : %s--", g_module_error (), keyformat);
+                     "Invalid Key Format:%s, expected key format:{%s/%s}",  
+					 keyformat, 
+					 KEYAGENT_KEY_FORMAT_PKCS11_STR,
+					 KEYAGENT_KEY_FORMAT_PEM_STR);
+		return FALSE;
+	}
+
+	if( access( keyagent::cert->str, F_OK ) == -1 )
+	{
+        g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
+                     "Invalid Cert Path:%s", keyagent::cert->str);
+		return FALSE;
+	}
+	if( keyagent::keyformat == KEYAGENT_KEY_FORMAT_PEM && access( keyagent::certkey->str, F_OK ) == -1 )
+	{
+        g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
+                     "Invalid Cert Key Path:%s", keyagent::certkey->str);
 		return FALSE;
 	}
 
 	keyagent::ssl_verify = key_config_get_boolean(keyagent::config, "keyserver_credentials", "ssl_verify", err);
 	if (*err != NULL) {
-		k_critical_msg("Error in ssl_verfiy attributes\n");
 		return FALSE;
 	}
 
@@ -140,7 +151,8 @@ __do_keyagent_init(const char *filename, GError **err)
 	g_string_append(pattern, "/npm_*.so");
 	GList *modules = __handle_wildcards(pattern);
 	if (!modules) {
-		k_critical_msg("Did not find any npms that matched pattern %s", pattern->str);
+        g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
+                     "Invalid NPM module path:%s", pattern->str);
 		return FALSE;
 	}
 	g_list_foreach(modules, __initialize_npm, err); 
@@ -150,7 +162,8 @@ __do_keyagent_init(const char *filename, GError **err)
 	g_string_append(pattern, "/stm_*.so");
 	modules = __handle_wildcards(pattern);
 	if (!modules) {
-		k_critical_msg("Did not find any stms that matched pattern %s", pattern->str);
+        g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
+                     "Invalid STM module path:%s", pattern->str);
 		return FALSE;
 	}
 

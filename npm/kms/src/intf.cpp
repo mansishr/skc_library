@@ -536,7 +536,8 @@ npm_register(keyagent_url url, GError **err)
 	gboolean ret						= FALSE;
 	
 	url_tokens							= g_strsplit (url, ":", -1) ; 
-	if ( url_tokens[0] ==  NULL || (g_strcmp0(url_tokens[0], KMS_PREFIX_TOKEN) != 0) || !url_tokens[1])
+	if ( url_tokens[0] ==  NULL || (g_strcmp0(url_tokens[0], KMS_PREFIX_TOKEN) != 0) || !url_tokens[1] 
+			|| (g_strcmp0 (url_tokens[1], "")  == 0))
     {
 		if( err )
 		{
