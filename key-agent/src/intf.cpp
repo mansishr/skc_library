@@ -28,6 +28,7 @@ namespace keyagent {
 	gboolean ssl_verify;
     GString *cert;
     GString *certkey;
+    GString *cacert;
     GHashTable *npm_hash;
     GHashTable *stm_hash;
     GHashTable *key_hash;
@@ -105,6 +106,10 @@ __do_keyagent_init(const char *filename, GError **err)
 	if (*err != NULL) 
 		return FALSE;
 
+    keyagent::cacert = g_string_new(key_config_get_string(keyagent::config, "keyserver_credentials", "ca_certificate", err));
+	if (*err != NULL) 
+		return FALSE;
+
 	gchar *keyformat = key_config_get_string(keyagent::config, "keyserver_credentials", "keyformat", err);
 	if (*err != NULL) 
 		return FALSE;
@@ -120,10 +125,10 @@ __do_keyagent_init(const char *filename, GError **err)
 		return FALSE;
 	}
 
-	if( access( keyagent::cert->str, F_OK ) == -1 )
+	if( (access( keyagent::cert->str, F_OK ) == -1) || (access( keyagent::cacert->str, F_OK ) == -1) )
 	{
         g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
-                     "Invalid Cert Path:%s", keyagent::cert->str);
+                     "Invalid Cert Path:%s or  CA Cert Path:%s", keyagent::cert->str, keyagent::cacert->str);
 		return FALSE;
 	}
 	if( keyagent::keyformat == KEYAGENT_KEY_FORMAT_PEM && access( keyagent::certkey->str, F_OK ) == -1 )
@@ -224,6 +229,7 @@ _loadkey(gpointer keyid, gpointer data, gpointer user_data)
     details.url = loadkey->url;
     details.stm_names = __keyagent_stm_get_names();
     details.ssl_opts.certfile = strdup(keyagent::cert->str);
+    details.ssl_opts.ca_certfile = strdup(keyagent::cacert->str);
     details.ssl_opts.keyname = strdup(keyagent::certkey->str);
     details.ssl_opts.certtype = FORMAT_PEM;
 	details.ssl_opts.ssl_verify = keyagent::ssl_verify;

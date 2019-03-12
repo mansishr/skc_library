@@ -89,6 +89,7 @@ namespace keyagent {
 	extern gboolean ssl_verify;
     extern GString *cert;
     extern GString *certkey;
+    extern GString *cacert;
     extern GHashTable *npm_hash;
     extern GHashTable *stm_hash;
     extern GHashTable *session_hash;
