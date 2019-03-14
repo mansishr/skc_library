@@ -37,6 +37,7 @@ AC_PROG_CC
 AC_PROG_CXX
 
 ACX_OPENSSL(1,0,0)
+LIBCURL_CHECK_CONFIG
 
 DHSM_SETUP(.)
 
@@ -79,7 +80,6 @@ AC_CONFIG_FILES([
 ])
 
 AC_CONFIG_SUBDIRS([
-	curl
     config-file
     key-agent
     stm/sw
