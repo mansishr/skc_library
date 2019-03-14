@@ -36,7 +36,11 @@ __keyagent_get_swk_size( GQuark swk_type )
 extern "C" k_buffer_ptr DLL_LOCAL
 __aes_gcm_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     CRYPTO_malloc_init();
+#else
+    OPENSSL_malloc_init();
+#endif
     ERR_load_crypto_strings();
     OpenSSL_add_all_algorithms();
 
@@ -68,7 +72,11 @@ __aes_gcm_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen,
 extern "C" k_buffer_ptr DLL_LOCAL
 __aes_cbc_decrypt(swk_type_op *op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     CRYPTO_malloc_init();
+#else
+    OPENSSL_malloc_init();
+#endif
     ERR_load_crypto_strings();
     OpenSSL_add_all_algorithms();
 

@@ -36,6 +36,8 @@ AM_INIT_AUTOMAKE(foreign)
 AC_PROG_CC
 AC_PROG_CXX
 
+ACX_OPENSSL(1,0,0)
+
 DHSM_SETUP(../..)
 
 # Define some variables for the code

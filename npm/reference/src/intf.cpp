@@ -13,13 +13,6 @@
 
 #include <jsoncpp/json/json.h>
 
-#include <openssl/evp.h>
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
-#include <openssl/err.h>
-#include <openssl/bio.h>
-#include <openssl/bn.h>
-#include <openssl/buffer.h>  
 #include <glib.h>
 #include <glib/gi18n.h>
 

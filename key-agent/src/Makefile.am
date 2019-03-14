@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) $(GDA_CFLAGS) -std=c++11 -DPKGDATA="\"$(prefix)\""
+AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) $(GDA_CFLAGS) $(OPENSSL_INCLUDES) -std=c++11 -DPKGDATA="\"$(prefix)\""
 
 lib_LTLIBRARIES = \
     libkey_agent.la
@@ -16,5 +16,5 @@ libkey_agent_la_SOURCES = \
 	key.cpp \
 	cache-key.cpp
 
-libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ -lcrypto $(COMMON_LDFLAGS) $(GMODULE_LIBS) $(GDA_LIBS) \
+libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ $(OPENSSL_LIBS) $(COMMON_LDFLAGS) $(GMODULE_LIBS) $(GDA_LIBS) \
 	$(TOPDIR)/config-file/src/libkey_configfile.la ${TOPDIR}/curl/lib/libcurl.la

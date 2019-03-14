@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -g -I../../../key-agent/ $(COMMON_FLAGS) $(GMODULE_CFLAGS) 
+AM_CPPFLAGS = -g -I../../../key-agent/ $(COMMON_FLAGS) $(GMODULE_CFLAGS) $(OPENSSL_INCLUDES)
 
 bin_PROGRAMS = \
    npm_tapp
@@ -6,5 +6,5 @@ bin_PROGRAMS = \
 npm_tapp_SOURCES = \
     test_app.c
 
-npm_tapp_LDFLAGS = -ljsoncpp -lcrypto
+npm_tapp_LDFLAGS = -ljsoncpp $(OPENSSL_LIBS)
 npm_tapp_LDADD = ../../../key-agent/src/libkey_agent.la
