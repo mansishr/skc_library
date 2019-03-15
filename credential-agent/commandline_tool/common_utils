@@ -109,8 +109,7 @@ exit_script()
 
 get_last_cmd_exec_status()
 {
-	local last_exec_stat=$?
-	return $last_exec_stat
+	echo $last_exec_stat
 }
 
 check_last_cmd_exec_status()
@@ -146,7 +145,14 @@ update_agent_config()
 {
 	local cs_ip=$1
 	local token=$2
-	local agent_conf=$3
+	local ca_cert_path=$3
+	local agent_conf=$4
+
+	if [ ! -f $ca_cert_path ]; then
+		exit_script $LOG_ERROR "Invalid CA Certpath:$ca_cert_path" $CODE_EXEC_ERROR
+	fi
+
 	sed -i "s/\(server\=\"\)\(.*\)\(\"\)/\1$cs_ip\3/g" $agent_conf
 	sed -i "s/\(token\=\"\)\(.*\)\(\"\)/\1$token\3/g" $agent_conf
+	sed -i "s#\(ca_cert\=\"\)\(.*\)\(\"\)#\1$ca_cert_path\3#g" $agent_conf
 }
