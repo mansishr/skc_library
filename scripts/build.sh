@@ -23,7 +23,11 @@ fi
 
 download_deps
 
-
+if [ ! -z "$EXTERNAL_COMPONENT_DIR" ]; then
+    log_msg $LOG_DEBUG "Downloading and Installing External components"
+    download_external_components $EXTERNAL_COMPONENT_DIR
+    install_external_components $EXTERNAL_COMPONENT_DIR
+fi
 
 echo $PATH
 mkdir -p $PWD/safestringlib/obj
@@ -37,7 +41,13 @@ $(exec_linux_cmd "autoreconf -i" $EXEC_RULE_ABORT "autoconf" $CODE_EXEC_SUCCESS)
 log_msg $LOG_DEBUG "KeyAgent: AutoConfigure completed"		
 
 log_msg $LOG_DEBUG "KeyAgent: compilation started"
-$(exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --disable-gost" $EXEC_RULE_ABORT "configure" $CODE_EXEC_SUCCESS)
+if [ -z "${EXTERNAL_OPENSSL_INSTALL_DIR}" ] || [ -z "${EXTERNAL_LIBCURL_INSTALL_DIR}" ]; then
+    log_msg $LOG_DEBUG "Openssl and libcurl paths are not given"
+    (exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --disable-gost" $EXEC_RULE_ABORT "configure" $CODE_EXEC_SUCCESS)
+else
+    log_msg $LOG_DEBUG "Openssl and libcurl paths are given"
+    (exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --disable-gost --with-openssl=${EXTERNAL_OPENSSL_INSTALL_DIR} --with-libcurl=${EXTERNAL_LIBCURL_INSTALL_DIR}" $EXEC_RULE_ABORT "configure" $CODE_EXEC_SUCCESS)
+fi
 log_msg $LOG_DEBUG "KeyAgent: compilation completed"
 
 log_msg $LOG_DEBUG "KeyAgent build started"
