@@ -6,7 +6,3 @@
 	path = safestringlib
 	url = https://github.com/intel/safestringlib.git
 	branch = v1.0.0
-[submodule "curl"]
-	path = curl
-	url = ssh://git-amr-1.devtools.intel.com:29418/distributed_hsm-curl
-	branch = v3+next-major

@@ -1,5 +1,4 @@
-SUBDIRS = \  
-    curl \
+SUBDIRS = \
 	config-file \
 	credential-agent \
 	key-agent \
