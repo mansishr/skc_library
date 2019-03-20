@@ -50,10 +50,11 @@ log_msg $LOG_DEBUG "KeyAgent: AutoConfigure completed"
 log_msg $LOG_DEBUG "KeyAgent: compilation started"
 if [ -z "${EXTERNAL_OPENSSL_INSTALL_DIR}" ] || [ -z "${EXTERNAL_LIBCURL_INSTALL_DIR}" ]; then
     log_msg $LOG_DEBUG "Openssl and libcurl paths are not given"
-    (exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --disable-gost" $EXEC_RULE_ABORT "configure" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --disable-gost" $EXEC_RULE_ABORT "configure" $CODE_EXEC_SUCCESS)
 else
     log_msg $LOG_DEBUG "Openssl and libcurl paths are given"
-    (exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --disable-gost --with-openssl=${EXTERNAL_OPENSSL_INSTALL_DIR} --with-libcurl=${EXTERNAL_LIBCURL_INSTALL_DIR}" $EXEC_RULE_ABORT "configure" $CODE_EXEC_SUCCESS)
+    export LD_LIBRARY_PATH=${EXTERNAL_OPENSSL_INSTALL_DIR}/lib:${EXTERNAL_LIBCURL_INSTALL_DIR}/lib:${LD_LIBRARY_PATH}
+    $(exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --disable-gost --with-openssl=${EXTERNAL_OPENSSL_INSTALL_DIR} --with-libcurl=${EXTERNAL_LIBCURL_INSTALL_DIR}" $EXEC_RULE_ABORT "configure" $CODE_EXEC_SUCCESS)
 fi
 log_msg $LOG_DEBUG "KeyAgent: compilation completed"
 
