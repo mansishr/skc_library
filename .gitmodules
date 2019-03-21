@@ -6,3 +6,7 @@
 	path = safestringlib
 	url = https://github.com/intel/safestringlib.git
 	branch = v1.0.0
+[submodule "api-module/sgx-pkcs11"]
+	path = api-module/sgx-pkcs11
+	url = ssh://git-amr-1.devtools.intel.com:29418/distributed_hsm-sgxtoolkit
+	branch = 1.3
