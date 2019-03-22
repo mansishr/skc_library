@@ -221,8 +221,21 @@ download_deps()
 {
 	pushd "$PWD"
 	cd "$1"
-	$(exec_linux_cmd "git submodule init" $EXEC_RULE_ABORT "Git Submodule init command" $CODE_EXEC_SUCCESS)
-	$(exec_linux_cmd "git submodule update" $EXEC_RULE_ABORT "Git Submodule update command" $CODE_EXEC_SUCCESS)
+
+	git_var=`echo "$(git version)" | sed -e "s/git version \([0-9]\.[0-9]\).*/\1/"`;
+	log_msg $LOG_DEBUG "Sub module init started"
+	$(exec_linux_cmd "git submodule init" $EXEC_RULE_ABORT "Submodule init" $CODE_EXEC_SUCCESS)
+	log_msg $LOG_DEBUG "Sub module init completed"
+
+	if [[ "$git_var" = "1.8" ]]; then
+		log_msg $LOG_DEBUG "Sub module update started"
+		$(exec_linux_cmd "git submodule update --init --recursive --remote" $EXEC_RULE_ABORT 'Submodule update' $CODE_EXEC_ERROR)
+		log_msg $LOG_DEBUG "Sub module update completed"
+	elif [[ "$git_var" = "1.7" ]]; then 
+		log_msg $LOG_DEBUG "Sub module update started"
+		$(exec_linux_cmd "git submodule update --init --recursive" $EXEC_RULE_ABORT 'Submodule update' $CODE_EXEC_ERROR)
+		log_msg $LOG_DEBUG "Sub module update completed"
+	fi
 	popd 
 }
 
