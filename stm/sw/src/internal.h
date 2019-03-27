@@ -5,6 +5,7 @@
 #include <glib.h>
 #include <key-agent/stm/stm.h>
 #include <openssl/err.h>
+#include "k_debug.h"
 #include "k_errors.h"
 
 

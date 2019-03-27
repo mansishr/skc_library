@@ -2,7 +2,6 @@
 #define __KEYAGENT_NPM_
 
 #include <glib.h>
-#include <key-agent/types.h>
 
 #define DECLARE_NPM_INTERFACE(NAME, RETURNTYPE, ARGS) DECLARE_KEYAGENT_INTERFACE(npm, NAME, RETURNTYPE, ARGS)
 
@@ -30,6 +29,8 @@ typedef struct {
 } while (0)
 
 #define NPM_MODULE_OP(MODULE,NAME)  KEYAGENT_MODULE_OP(npm,MODULE,NAME)
+
+#define KEYAGENT_MODULE_OP(SUBTYPE,MODULE,NAME)  (MODULE)->ops.SUBTYPE##_func_##NAME
 
 
 #endif

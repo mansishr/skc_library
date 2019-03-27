@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include "npm/kms/kms.h"
+#include "k_debug.h"
 #include <jsoncpp/json/json.h>
 #include <exception>
 

@@ -1,7 +1,5 @@
 #ifndef __K_TYPES_H__
 #define __K_TYPES_H__
-/*#include "k_errors.h"*/
-#include "config.h"
 #include <glib.h>
 
 

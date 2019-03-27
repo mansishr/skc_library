@@ -6,7 +6,6 @@
 #include <string.h>
 #include "k_types.h"
 #include "k_errors.h"
-#include "k_debug.h"
 
 typedef struct {
     GString *label;
@@ -421,5 +420,15 @@ typedef struct {
     keyagent_stm_callbacks cbs;
     keyagent_apimodule_ops apimodule_ops;
 } keyagent_stm_loadkey_details;
+
+
+#define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
+	if (!g_module_symbol ((MODULE), (FUNCNAME), (gpointer *)&(RET))) \
+    { \
+		g_set_error (&tmp_error, KEYAGENT_ERROR, (ERRCLASS), \
+                   "%s", g_module_error ()); \
+		goto errexit; \
+    } \
+} while (0)
 
 #endif

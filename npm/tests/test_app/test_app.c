@@ -4,6 +4,7 @@
 #include <glib.h>
 #include <string.h>
 #include <unistd.h>
+#include "config.h"
 #include "k_errors.h"
 #include "key-agent/src/internal.h"
 #include "key-agent/types.h"

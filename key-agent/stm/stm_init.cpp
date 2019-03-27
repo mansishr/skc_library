@@ -6,6 +6,7 @@
 #include "../src/internal.h"
 #include "config-file/key_configfile.h"
 #include "k_errors.h"
+#include "k_debug.h"
 #include "key-agent/stm/stm.h"
 #include "key-agent/key_agent.h"
 

@@ -7,6 +7,7 @@
 #include <string>
 #include "config-file/key_configfile.h"
 #include "k_errors.h"
+#include "k_debug.h"
 #include "key-agent/key_agent.h"
 #include "key-agent/npm/npm.h"
 #include "key-agent/stm/stm.h"
