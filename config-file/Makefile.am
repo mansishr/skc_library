@@ -1,4 +1,4 @@
-SUBDIRS = src tests
+SUBDIRS = src
 
 #nobase_include_HEADERS = configfile/key_configfile.h
 

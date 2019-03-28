@@ -375,12 +375,12 @@ get_challenge_info(char *challenge_type, char *client_ip, std::string keyid, int
 		{
 			len							= strlen(challenge_str);
 			val["challenge"]			= g_base64_encode((const guchar *)challenge_str, len);
-			challenge_replyto["href"]   = g_strdup_printf("%s://localhost:%i/v1/kms/keys/session",(server::tls_auth_support)?"https":"http", server::port);
+			challenge_replyto["href"]   = g_strdup_printf("%s://testserver:%i/v1/kms/keys/session",(server::tls_auth_support)?"https":"http", server::port);
 		}
 		else
 		{
 			val["challenge"]			= challenge_str;
-			challenge_replyto["href"]   = g_strdup_printf("%s://localhost:%i/keys/session",(server::tls_auth_support)?"https":"http", server::port);
+			challenge_replyto["href"]   = g_strdup_printf("%s://testserver:%i/keys/session",(server::tls_auth_support)?"https":"http", server::port);
 		}
 
         val["challenge_type"]			= challenge_type;
@@ -560,7 +560,7 @@ get_kms_key_info(std::string keyid, int *http_code, char *session_id)
 		val["data"]["key_length"]		= "2048";
 		val["data"]["policy"]["link"]
 			["key-usage"]["href"]       = g_strdup_printf(
-											"%s://localhost:%i/v1/key-usage-policies/073796eb-9849-4dc2-b374-18628c5635ad",
+											"%s://testserver:%i/v1/key-usage-policies/073796eb-9849-4dc2-b374-18628c5635ad",
 											(server::tls_auth_support)?"https":"http",server::port );
 
 		val["data"]["policy"]["link"]
@@ -568,7 +568,7 @@ get_kms_key_info(std::string keyid, int *http_code, char *session_id)
 
 		val["data"]["policy"]["link"]
 		["key-transfer"]["href"]        = g_strdup_printf(
-											"%s://localhost:%i/v1/key-transfer-policies/a67a6747-bd53-4280-90e0-5d310ba5fed9",
+											"%s://testserver:%i/v1/key-transfer-policies/a67a6747-bd53-4280-90e0-5d310ba5fed9",
 											(server::tls_auth_support)?"https":"http",server::port);
 
 		val["data"]["policy"]["link"]
