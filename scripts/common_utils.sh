@@ -243,18 +243,22 @@ download_external_components()
 {
     EXT_DIR=$1
     echo "External DIR=$EXT_DIR"
-    (exec_linux_cmd "rm -rf $EXT_DIR" $EXEC_RULE_ABORT "Creating directory $1" $CODE_EXEC_SUCCESS)
-    (exec_linux_cmd "mkdir -p $EXT_DIR" $EXEC_RULE_ABORT "Creating directory $1" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "rm -rf $EXT_DIR" $EXEC_RULE_ABORT "Creating directory $1" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "mkdir -p $EXT_DIR" $EXEC_RULE_ABORT "Creating directory $1" $CODE_EXEC_SUCCESS)
     download_external_openssl $EXT_DIR
     download_external_libcurl $EXT_DIR
+    if [[ "$SGX_SUPPORT" = "$TRUE" ]]; then
+        download_external_SGXSDK $EXT_DIR
+        download_external_SGXSSL $EXT_DIR
+    fi
 }
 
 download_external_openssl()
 {
     pushd "$PWD"
     cd "$1"
-    (exec_linux_cmd "wget https://www.openssl.org/source/old/1.1.0/$EXTERNAL_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Downloading openssl version 1.1.0e" $CODE_EXEC_SUCCESS)
-    (exec_linux_cmd "tar xvzf $EXTERNAL_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Downloading openssl version $EXTERNAL_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "wget https://www.openssl.org/source/$EXTERNAL_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Downloading openssl version $EXTERNAL_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "tar xvzf $EXTERNAL_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Untar openssl version $EXTERNAL_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
     popd
 }
 
@@ -262,7 +266,25 @@ download_external_libcurl()
 {
     pushd "$PWD"
     cd "$1"
-    (exec_linux_cmd "git clone -b $EXTERNAL_LIBCURL_VERSION https://github.com/curl/curl.git" $EXEC_RULE_ABORT "Cloning libcurl version $EXTERNAL_LIBCURL_VERSION to $1" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "git clone -b $EXTERNAL_LIBCURL_VERSION https://github.com/curl/curl.git" $EXEC_RULE_ABORT "Cloning libcurl version $EXTERNAL_LIBCURL_VERSION to $1" $CODE_EXEC_SUCCESS)
+    popd
+}
+
+download_external_SGXSDK()
+{
+    pushd "$PWD"
+    cd "$1"
+    $(exec_linux_cmd "wget https://download.01.org/intel-sgx/linux-2.4/rhel7.4-server/$SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Downloading $SGX_SDK_BIN_VERSION to $1" $CODE_EXEC_SUCCESS)
+    chmod 755 $SGX_SDK_BIN_VERSION
+    popd
+}
+
+download_external_SGXSSL()
+{
+    pushd "$PWD"
+    cd "$1"
+    $(exec_linux_cmd "git clone -b $SGX_SSL_VERSION https://github.com/intel/intel-sgx-ssl.git sgx-ssl" $EXEC_RULE_ABORT "Cloning intel-sgx-ssl to $1" $CODE_EXEC_SUCCESS)
+    cp $EXTERNAL_OPENSSL_VERSION.tar.gz sgx-ssl/openssl_source/
     popd
 }
 
@@ -270,15 +292,19 @@ install_external_components()
 {
     install_external_openssl $1
     install_external_libcurl $1
+    if [[ "$SGX_SUPPORT" = "$TRUE" ]]; then
+        install_external_SGXSDK  $1
+        install_external_SGXSSL  $1
+    fi
 }
 
 install_external_openssl()
 {
     pushd "$PWD"
     cd "$1/$EXTERNAL_OPENSSL_VERSION/"
-    (exec_linux_cmd "./config -d --prefix=$EXTERNAL_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring OpenSSL into $EXTERNAL_OPENSSL_INSTALL_DIR" $CODE_EXEC_SUCCESS)
-    (exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
-    (exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing OpenSSL" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "./config -d --prefix=$EXTERNAL_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring OpenSSL into $EXTERNAL_OPENSSL_INSTALL_DIR" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing OpenSSL" $CODE_EXEC_SUCCESS)
     popd
 }
 
@@ -286,12 +312,31 @@ install_external_libcurl()
 {
     pushd "$PWD"
     cd "$1/curl"
-    (exec_linux_cmd "./buildconf" $EXEC_RULE_ABORT "Building configuration files" $CODE_EXEC_SUCCESS)
-    (exec_linux_cmd "./configure --prefix=$EXTERNAL_LIBCURL_INSTALL_DIR --with-ssl=$EXTERNAL_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring libcurl into $(EXTERNAL_LIBCURL_INSTALL_DIR)" $CODE_EXEC_SUCCESS)
-    (exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
-    (exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing libcurl" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "./buildconf" $EXEC_RULE_ABORT "Building configuration files" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "./configure --prefix=$EXTERNAL_LIBCURL_INSTALL_DIR --with-ssl=$EXTERNAL_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring libcurl into $(EXTERNAL_LIBCURL_INSTALL_DIR)" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing libcurl" $CODE_EXEC_SUCCESS)
     popd
 }
+
+install_external_SGXSDK()
+{
+    pushd "$PWD"
+    cd "$1"
+    $(exec_linux_cmd "printf 'no\n$SGX_SDK_INSTALL_PATH\n' | ./$SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Installing SGX SDK" $CODE_EXEC_SUCCESS)
+    popd
+}
+
+install_external_SGXSSL()
+{
+    pushd "$PWD"
+    cd "$1/sgx-ssl/Linux"
+    source /opt/intel/sgxsdk/environment
+    $(exec_linux_cmd "make all" "Building SGX SSL" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make install" "Installing SGX SSL" $CODE_EXEC_SUCCESS)
+    popd
+}
+
 
 check_pre_condition()
 {
