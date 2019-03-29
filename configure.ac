@@ -41,6 +41,8 @@ LIBCURL_CHECK_CONFIG
 
 DHSM_SETUP(.)
 
+SGX_INIT
+
 # Define some variables for the code
 AC_DEFINE_UNQUOTED(
 	[VERSION_MAJOR],
@@ -87,6 +89,7 @@ AC_CONFIG_SUBDIRS([
     npm/kms
     npm/tests/test_app
     api-module/sw-pkcs11/SoftHSMv2
+    api-module/sgx-pkcs11
 ])
 
 AC_OUTPUT

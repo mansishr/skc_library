@@ -6,6 +6,7 @@ SUBDIRS = \
 	npm/reference \
 	stm/sw \
 	api-module/sw-pkcs11/SoftHSMv2 \
+	api-module/sgx-pkcs11/ \
 	npm/tests/test_app
 
 conf_dir:=./configs
