@@ -60,7 +60,7 @@ log_msg()
 	local log_msg=$2
 	#if [ $FLAG_VERBOSE -eq $FLAG_ENABLE ] || [ $log_level -eq $LOG_ERROR ]; then
 	if [ $FLAG_VERBOSE -eq $FLAG_ENABLE ]; then
-		to_stderr echo -e "${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}"
+		$(to_stderr echo -e "${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}") 
 		if [ ! -z "$LOG_FILE" ] && [ -f $LOG_FILE ]; then
 			echo -e "${LOGGING_PREFIX} [$(date +'%Y-%m-%d %H:%M:%S')]\$ ${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}" >> "$LOG_FILE"
 			#echo -e "$LOG_FILE"
@@ -131,9 +131,9 @@ exec_linux_cmd()
 	if [ $last_exec_stat -ne 0 ] && [ $exec_rule -eq $EXEC_RULE_ABORT ]; then
 		exit_script $LOG_ERROR "$log_msg" $exit_code
 	elif [ $last_exec_stat -ne 0 ] && [ $exec_rule -eq $EXEC_RULE_WARN ]; then
-		log_msg $LOG_WARN "$log_msg"
+		$(log_msg $LOG_WARN "$log_msg")
 	else
-		log_msg $LOG_DEBUG "$LOG_MSG : CMD:$exec_cmd"
+		$(log_msg $LOG_DEBUG "$LOG_MSG : CMD:$exec_cmd")
 	fi
 }
 
@@ -247,9 +247,9 @@ download_external_components()
     $(exec_linux_cmd "mkdir -p $EXT_DIR" $EXEC_RULE_ABORT "Creating directory $1" $CODE_EXEC_SUCCESS)
     download_external_openssl $EXT_DIR
     download_external_libcurl $EXT_DIR
-    if [[ "$SGX_SUPPORT" = "$TRUE" ]]; then
-        download_external_SGXSDK $EXT_DIR
-        download_external_SGXSSL $EXT_DIR
+    if [[ "$DHSM2_SGX_SUPPORT" = "$TRUE" ]]; then
+        download_external_DHSM2_SGXSDK $EXT_DIR
+        download_external_DHSM2_SGXSSL $EXT_DIR
     fi
 }
 
@@ -257,8 +257,8 @@ download_external_openssl()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "wget https://www.openssl.org/source/$EXTERNAL_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Downloading openssl version $EXTERNAL_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "tar xvzf $EXTERNAL_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Untar openssl version $EXTERNAL_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "wget https://www.openssl.org/source/$DHSM2_COMPONENT_EXT_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Downloading openssl version $DHSM2_COMPONENT_EXT_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "tar xvzf $DHSM2_COMPONENT_EXT_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Untar openssl version $DHSM2_COMPONENT_EXT_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
     popd
 }
 
@@ -266,25 +266,25 @@ download_external_libcurl()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "git clone -b $EXTERNAL_LIBCURL_VERSION https://github.com/curl/curl.git" $EXEC_RULE_ABORT "Cloning libcurl version $EXTERNAL_LIBCURL_VERSION to $1" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "git clone -b $DHSM2_COMPONENT_EXT_LIBCURL_VERSION https://github.com/curl/curl.git" $EXEC_RULE_ABORT "Cloning libcurl version $DHSM2_COMPONENT_EXT_LIBCURL_VERSION to $1" $CODE_EXEC_SUCCESS)
     popd
 }
 
-download_external_SGXSDK()
+download_external_DHSM2_SGXSDK()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "wget https://download.01.org/intel-sgx/linux-2.4/rhel7.4-server/$SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Downloading $SGX_SDK_BIN_VERSION to $1" $CODE_EXEC_SUCCESS)
-    chmod 755 $SGX_SDK_BIN_VERSION
+    $(exec_linux_cmd "wget https://download.01.org/intel-sgx/linux-2.4/rhel7.4-server/$DHSM2_SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Downloading $DHSM2_SGX_SDK_BIN_VERSION to $1" $CODE_EXEC_SUCCESS)
+    chmod 755 $DHSM2_SGX_SDK_BIN_VERSION
     popd
 }
 
-download_external_SGXSSL()
+download_external_DHSM2_SGXSSL()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "git clone -b $SGX_SSL_VERSION https://github.com/intel/intel-sgx-ssl.git sgx-ssl" $EXEC_RULE_ABORT "Cloning intel-sgx-ssl to $1" $CODE_EXEC_SUCCESS)
-    cp $EXTERNAL_OPENSSL_VERSION.tar.gz sgx-ssl/openssl_source/
+    $(exec_linux_cmd "git clone -b $DHSM2_SGX_SSL_VERSION https://github.com/intel/intel-sgx-ssl.git sgx-ssl" $EXEC_RULE_ABORT 'Cloning intel-sgx-ssl' $CODE_EXEC_SUCCESS)
+    cp $DHSM2_COMPONENT_EXT_OPENSSL_VERSION.tar.gz sgx-ssl/openssl_source/
     popd
 }
 
@@ -292,17 +292,17 @@ install_external_components()
 {
     install_external_openssl $1
     install_external_libcurl $1
-    if [[ "$SGX_SUPPORT" = "$TRUE" ]]; then
-        install_external_SGXSDK  $1
-        install_external_SGXSSL  $1
+    if [[ "$DHSM2_SGX_SUPPORT" = "$TRUE" ]]; then
+        install_external_DHSM2_SGXSDK  $1
+        install_external_DHSM2_SGXSSL  $1
     fi
 }
 
 install_external_openssl()
 {
     pushd "$PWD"
-    cd "$1/$EXTERNAL_OPENSSL_VERSION/"
-    $(exec_linux_cmd "./config -d --prefix=$EXTERNAL_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring OpenSSL into $EXTERNAL_OPENSSL_INSTALL_DIR" $CODE_EXEC_SUCCESS)
+    cd "$1/$DHSM2_COMPONENT_EXT_OPENSSL_VERSION/"
+    $(exec_linux_cmd "./config -d --prefix=$DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring OpenSSL into $DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $CODE_EXEC_SUCCESS)
     $(exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
     $(exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing OpenSSL" $CODE_EXEC_SUCCESS)
     popd
@@ -313,27 +313,27 @@ install_external_libcurl()
     pushd "$PWD"
     cd "$1/curl"
     $(exec_linux_cmd "./buildconf" $EXEC_RULE_ABORT "Building configuration files" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "./configure --prefix=$EXTERNAL_LIBCURL_INSTALL_DIR --with-ssl=$EXTERNAL_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring libcurl into $(EXTERNAL_LIBCURL_INSTALL_DIR)" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "./configure --prefix=$DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR --with-ssl=$DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring libcurl into $(DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR)" $CODE_EXEC_SUCCESS)
     $(exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
     $(exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing libcurl" $CODE_EXEC_SUCCESS)
     popd
 }
 
-install_external_SGXSDK()
+install_external_DHSM2_SGXSDK()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "printf 'no\n$SGX_SDK_INSTALL_PATH\n' | ./$SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Installing SGX SDK" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "printf 'no\n$DHSM2_SGX_SDK_INSTALL_PATH\n' | ./$DHSM2_SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Installing DHSM2_SGX SDK" $CODE_EXEC_SUCCESS)
     popd
 }
 
-install_external_SGXSSL()
+install_external_DHSM2_SGXSSL()
 {
     pushd "$PWD"
     cd "$1/sgx-ssl/Linux"
     source /opt/intel/sgxsdk/environment
-    $(exec_linux_cmd "make all" "Building SGX SSL" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "make install" "Installing SGX SSL" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make all" "Building DHSM2_SGX SSL" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make install" "Installing DHSM2_SGX SSL" $CODE_EXEC_SUCCESS)
     popd
 }
 
@@ -404,4 +404,11 @@ set_permission_and_grp()
 	chgrp -hR ${DHSM2_COMPONENT_GRP} ${DHSM2_COMPONENT_INSTALL_DIR} 
 	chmod ${DHSM2_COMPONENT_GRP_PERMISSION} ${DHSM2_COMPONENT_INSTALL_DIR}
 	chmod +t ${DHSM2_COMPONENT_INSTALL_DIR}
+}
+
+get_file_count()
+{
+	local cnt=$(find / -name "$1" | wc -l)
+	log_msg $LOG_DEBUG "File: $1 total $file count: $cnt" 
+	echo $cnt
 }

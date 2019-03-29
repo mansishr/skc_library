@@ -62,6 +62,7 @@ fi
 rm -rf $DHSM2_COMPONENT_INSTALL_DIR
 #sudo mkdir $DHSM2_COMPONENT_INSTALL_DIR
 sudo tar -xvf workload_bins.tar.gz -C /
+exit_script $LOG_DEBUG \"Workload Binaries Successfully Installaed\" $CODE_EXEC_SUCCESS
 exit 0" > ${DHSM2_COMPONENT_DEPLOY_SCRIPT}
 
 chmod 777 ${DHSM2_COMPONENT_DEPLOY_SCRIPT}
