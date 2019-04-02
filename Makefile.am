@@ -6,6 +6,7 @@ SUBDIRS = \
 	npm/kms \
 	npm/reference \
 	stm/sw \
+	stm/sgx \
 	npm/tests/test_app
 
 conf_dir:=./configs

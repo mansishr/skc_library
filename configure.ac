@@ -85,6 +85,7 @@ AC_CONFIG_SUBDIRS([
     config-file
     key-agent
     stm/sw
+    stm/sgx
     npm/reference
     npm/kms
     npm/tests/test_app

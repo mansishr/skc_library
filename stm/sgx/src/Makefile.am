@@ -1,7 +1,7 @@
 
 AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) -std=c++11 -fvisibility=hidden
 AM_CPPFLAGS +=  \
-	-I/opt/intel/sgxsdk/include
+	-I$(SGXSDK_INCDIR)
 
 libdir = $(prefix)/lib/stm-modules
 
