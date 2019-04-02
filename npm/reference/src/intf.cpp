@@ -17,6 +17,11 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 
+#ifdef CMS
+extern "C" gboolean 
+verify_and_extract_cms_message(k_buffer_ptr msg, k_buffer_ptr *data, GError **error);
+#endif
+
 using namespace std;
 
 
@@ -29,7 +34,7 @@ namespace reference_npm {
 typedef struct {
     int tries;
     keyagent_keyload_details *details;
-    gchar *keyid;
+    int keyid;
 } loadkey_info;
 
 
@@ -65,8 +70,7 @@ npm_register(keyagent_url url, GError **err)
     gboolean ret = FALSE;
     
     url_tokens = g_strsplit (url, ":", -1) ; 
-    if ( !url_tokens[0] || !url_tokens[1] || (g_strcmp0(url_tokens[0], "REFERENCE") != 0) || 
-			 (g_strcmp0 (url_tokens[1], "")  == 0)) {
+    if ( !url_tokens[0] || !url_tokens[1] || (g_strcmp0(url_tokens[0], "REFERENCE") != 0)) {
         if( err ) {
             k_set_error(err, NPM_ERROR_REGISTER, "NPM_URL_UNSUPPORTED:Expected token:%s token missing in url:%s\n", 
                 "REFERENCE", url);
@@ -199,7 +203,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	g_ptr_array_add (headers, (gpointer) "Accept: application/octet-stream");
 	g_ptr_array_add (headers, (gpointer) "Content-Type: application/json");
 
-	if (!KEYAGENT_NPM_OP(&info->details->cbs,stm_get_challenge)(challenge_type->str, &challenge, error))
+	if (!KEYAGENT_NPM_OP(&info->details->cbs,stm_get_challenge)(info->details->request_id, challenge_type->str, &challenge, error))
 	{
 	    goto cleanup;
 	}
@@ -243,7 +247,9 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 		goto cleanup;
 	}
 
-	ret = KEYAGENT_NPM_OP(&info->details->cbs,session_create)(challenge_type->str, session_id->str, protected_swk, swk_type, -1, error);
+	ret = KEYAGENT_NPM_OP(&info->details->cbs,session_create)(info->details->request_id, challenge_type->str,
+        session_id->str, protected_swk, swk_type, error);
+	k_debug_msg("%s:%d %p %d", __func__, __LINE__, *error, ret);
 	goto cleanup;
 
 cleanup:
@@ -325,7 +331,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
     }
 
 	keyid_header = g_string_new("KeyId: "); 
-	g_string_append_printf(keyid_header, "%s", info->keyid);
+	g_string_append_printf(keyid_header, "%d", info->keyid);
 	g_ptr_array_add (headers, (gpointer) keyid_header->str);
 
 	return_data = k_buffer_alloc(NULL,0);
@@ -348,7 +354,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	if (res_status == 401) {
 		try {
 			status = transfer_data["status"].asString();
-			type = transfer_data["faults"][0]["type"].asString();
+			type = transfer_data["faults"]["type"].asString();
         } catch (exception& e){
 				k_set_error (err, NPM_ERROR_JSON_PARSE,
 						"NPM JSON Parse error: %s\n", e.what());
@@ -366,8 +372,27 @@ __npm_loadkey(loadkey_info *info, GError **err)
         g_ptr_array_foreach (res_headers, get_session_id_from_header,  &session_id_tokens);
 
 		try {
-			keytype = ( get_json_value(transfer_data["data"], "algorithm") == "RSA" ? KEYAGENT_RSAKEY : KEYAGENT_ECKEY);
+			std::string keytype_str = get_json_value(transfer_data["data"], "algorithm");
+			if (!keytype_str.compare("RSA"))
+				keytype = KEYAGENT_RSAKEY;
+			else if (!keytype_str.compare("ECC"))
+				keytype = KEYAGENT_ECKEY;
+			else 
+				keytype = KEYAGENT_AESKEY;
+
+#ifdef CMS
+    		k_buffer_ptr tmp = decode64_json_attr(transfer_data["data"], "payload");
+			k_buffer_ptr KEYDATA;
+			if (!verify_and_extract_cms_message(tmp, &KEYDATA, err)) {
+    			k_buffer_unref(tmp);
+				goto cleanup;
+			}
+    		k_buffer_unref(tmp);
+    		KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
+    		k_buffer_unref(KEYDATA);
+#else
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
+#endif
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);
         } catch (exception& e){
@@ -389,7 +414,10 @@ __npm_loadkey(loadkey_info *info, GError **err)
 			goto cleanup;
         }
 		//g_clear_error(err);
-		ret = (KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->url, keytype, attrs, session_id, err) ? TRUE : FALSE);
+		k_debug_msg("before key create %p", *err);
+		ret = (KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->request_id,
+            info->details->url, keytype, attrs, session_id, err) ? TRUE : FALSE);
+		k_debug_msg("after key create %p ret %d", *err, ret);
     }
 cleanup:
 	if(session_id_tokens )
@@ -410,7 +438,7 @@ npm_key_load(keyagent_keyload_details *details, GError **error)
     g_return_val_if_fail(details->url, FALSE );
     gchar **url_tokens = NULL;
     url_tokens = g_strsplit (details->url, ":", -1) ; 
-    info.keyid = g_strdup(url_tokens[1]);
+    info.keyid = atoi(url_tokens[1]);
     info.details = details;
     g_strfreev(url_tokens);
 	return __npm_loadkey(&info, error);

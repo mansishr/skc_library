@@ -1,7 +1,6 @@
-#define G_LOG_DOMAIN "stm-sw"
+#define G_LOG_DOMAIN "stm-sgx"
 #include "key-agent/key_agent.h"
 #include "key-agent/stm/stm.h"
-#include "config-file/key_configfile.h"
 #include "k_errors.h"
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -10,8 +9,6 @@
 #include <memory>
 #include "internal.h"
 #include <stdio.h>
-#include <unistd.h>
-#include <assert.h>
 
 #include <openssl/rand.h>
 #include <openssl/evp.h>
@@ -21,6 +18,10 @@
 #include <openssl/bio.h>
 #include <openssl/bn.h>
 #include <openssl/buffer.h>
+
+#include <sgx_quote.h>
+
+#define SHA256_SIZE 32
 
 using namespace std;
 using BIO_MEM_ptr = std::unique_ptr<BIO, decltype(&::BIO_free)>;
@@ -86,7 +87,8 @@ uuid_generate_v4 (stm_uuid *uuid)
   uuid_set_version (uuid, 4);
 }
 
-extern "C" gboolean
+__attribute__ ((visibility("default")))
+gboolean
 stm_challenge_generate_request(const gchar **request, GError **error)
 {
     g_return_val_if_fail(request != NULL, FALSE);
@@ -95,6 +97,7 @@ stm_challenge_generate_request(const gchar **request, GError **error)
     *request = uuid_to_string (&uuid);
     return TRUE;
 }
+
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
@@ -139,26 +142,47 @@ local_verify_quote(k_buffer_ptr quote)
 	RSA *rsa = NULL;
 	BIGNUM *bn_e = NULL;
 	BIGNUM *bn_n = NULL;
+	k_buffer_ptr publickey_hash_in_quote = NULL;
+	k_buffer_ptr hash_data = NULL;
+	gsize hash_data_size = SHA256_SIZE;
+	GChecksum *hash = NULL;
 
 	struct keyagent_sgx_quote_info *quote_info = (struct keyagent_sgx_quote_info *)k_buffer_data(quote);
+    u_int32_t public_key_size = rsa_modulus_len(quote_info) + rsa_exponent_len(quote_info);
 
 	do {
+        sgx_quote_t* sgxQuote  = (sgx_quote_t*)(k_buffer_data(quote) + sizeof(struct keyagent_sgx_quote_info) + public_key_size);
+        publickey_hash_in_quote = k_buffer_alloc(sgxQuote->report_body.report_data.d, SHA256_SIZE);
+
+        // Compute hash of publicKeyData..
+		if ((hash_data = k_buffer_alloc(NULL, SHA256_SIZE)) == NULL)
+			break;
+
+		if ((hash = g_checksum_new(G_CHECKSUM_SHA256)) == NULL)
+			break;
+
+		g_checksum_update(hash, k_buffer_data(quote) + sizeof(struct keyagent_sgx_quote_info), public_key_size);
+		g_checksum_get_digest(hash, k_buffer_data(hash_data), &hash_data_size);
+        if (!k_buffer_equal(publickey_hash_in_quote, hash_data)) {
+            k_debug_msg("FAILED : Public key hash and hash in quote mismatch!");
+            break;
+        }
+
 		if ((rsa = RSA_new()) == NULL)
 			break;
 
-		RSA_set_method(rsa, 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+		RSA_set_method(rsa, 
 			RSA_PKCS1_SSLeay());
 #else
 			RSA_PKCS1_OpenSSL());
 #endif
 
-		bn_n = BN_new();
 		bn_e = BN_new();
+		bn_n = BN_new();
 
-		if (!bn_n || !bn_e) {
+		if (!bn_e || !bn_n)
 			break;
-		}
 
 		if (!BN_bin2bn(k_buffer_data(quote) + sizeof(struct keyagent_sgx_quote_info), rsa_exponent_len(quote_info), bn_e)) {
 			k_debug_msg("can;t create bn-e");
@@ -174,15 +198,18 @@ local_verify_quote(k_buffer_ptr quote)
 			break;
 		}
 		ret = TRUE;
-
 	} while (FALSE);
 
 	if (!ret) {
 		if (rsa) RSA_free(rsa);
-		BN_free(bn_n);
-		BN_free(bn_e);
 		rsa = NULL;
+		BN_free(bn_e);
+		BN_free(bn_n);
 	}
+
+	if (hash) g_checksum_free(hash);
+	k_buffer_unref(publickey_hash_in_quote);
+	k_buffer_unref(hash_data);
 	return rsa;
 }
 
@@ -201,8 +228,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
     BIO_MEM_ptr mbio(BIO_new(BIO_s_mem()), ::BIO_free);
     BUF_MEM *mem = NULL;
 
-    SW_ISSUER = k_buffer_alloc(NULL, STM_ISSUER_SIZE);
-	memset(k_buffer_data(SW_ISSUER), ' ', STM_ISSUER_SIZE);
+    SW_ISSUER = k_buffer_alloc(NULL, strlen("Intel")+1);
     strcpy((char *)k_buffer_data(SW_ISSUER), "Intel");
 
     *challenge_attrs = NULL;

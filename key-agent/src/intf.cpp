@@ -25,7 +25,7 @@ namespace keyagent {
     GString *npm_directory;
     GString *stm_directory;
     keyagent_keyserver_key_format keyformat;
-	gboolean ssl_verify;
+    gboolean ssl_verify;
     GString *cert;
     GString *certkey;
     GString *cacert;
@@ -34,9 +34,9 @@ namespace keyagent {
     GHashTable *key_hash;
 	GHashTable *session_hash;
 	GHashTable *swk_type_hash;
+	GHashTable *apimodule_loadkey_hash;
     GRWLock rwlock;
     keyagent_npm_callbacks npm_ops;
-    keyagent_stm_callbacks stm_ops;
     keyagent_apimodule_ops apimodule_ops;
 }
 
@@ -93,6 +93,7 @@ __do_keyagent_init(const char *filename, GError **err)
         k_critical_msg ("Error loading key file: %s %p", (*err)->message, keyagent::config);
 		return FALSE;
 	}
+
     keyagent::npm_directory = g_string_new(key_config_get_string(keyagent::config, "core", "npm-directory", err));
 	if (*err != NULL) 
 		return FALSE;
@@ -125,12 +126,14 @@ __do_keyagent_init(const char *filename, GError **err)
 		return FALSE;
 	}
 
+#ifdef TODO
 	if( (access( keyagent::cert->str, F_OK ) == -1) || (access( keyagent::cacert->str, F_OK ) == -1) )
 	{
         g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
                      "Invalid Cert Path:%s or  CA Cert Path:%s", keyagent::cert->str, keyagent::cacert->str);
 		return FALSE;
 	}
+#endif
 	if( keyagent::keyformat == KEYAGENT_KEY_FORMAT_PEM && access( keyagent::certkey->str, F_OK ) == -1 )
 	{
         g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
@@ -143,21 +146,19 @@ __do_keyagent_init(const char *filename, GError **err)
 		return FALSE;
 	}
 
-
     LOOKUP_KEYAGENT_INTERNAL_NPM_OPS(&keyagent::npm_ops);
-    LOOKUP_KEYAGENT_INTERNAL_STM_OPS(&keyagent::stm_ops);
 	keyagent::npm_hash = g_hash_table_new (g_str_hash, g_str_equal);
 	keyagent::stm_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
 	keyagent::key_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, __keyagent_key_hash_key_free, __keyagent_key_hash_value_free);
 	keyagent::session_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, __keyagent_session_hash_key_free, __keyagent_session_hash_value_free);
-
+	keyagent::apimodule_loadkey_hash = g_hash_table_new_full (g_str_hash, g_str_equal, keyagent_request_id_destory, NULL);
 
 	GString *pattern = g_string_new(keyagent::npm_directory->str);
 	g_string_append(pattern, "/npm_*.so");
 	GList *modules = __handle_wildcards(pattern);
 	if (!modules) {
         g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
-                     "Invalid NPM module path:%s", pattern->str);
+                    "Invalid NPM module path:%s", pattern->str);
 		return FALSE;
 	}
 	g_list_foreach(modules, __initialize_npm, err); 
@@ -168,7 +169,7 @@ __do_keyagent_init(const char *filename, GError **err)
 	modules = __handle_wildcards(pattern);
 	if (!modules) {
         g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
-                     "Invalid STM module path:%s", pattern->str);
+                    "Invalid STM module path:%s", pattern->str);
 		return FALSE;
 	}
 
@@ -180,6 +181,7 @@ __do_keyagent_init(const char *filename, GError **err)
 
     if (!__keyagent_cache_init(err))
         return FALSE;
+
 
     return TRUE;
 }
@@ -207,6 +209,7 @@ keyagent_init(const char *filename, GError **err)
 
 typedef struct {
     keyagent_url url;
+	void *module_data;
     GError **err;
 } loadkey_t;
 
@@ -218,48 +221,85 @@ _loadkey(gpointer keyid, gpointer data, gpointer user_data)
 	loadkey_t *loadkey  = (loadkey_t *)user_data;
     g_autoptr(GError) tmp_error = NULL;
     keyagent_keyload_details details;
+    const char *request_id = NULL;
+    keyagent_request request;
 
 	if (!npm->initialized)
 		return ret;
 
+
 	if (!NPM_MODULE_OP(npm,register)(loadkey->url, &tmp_error))
 		goto out;
 
+    request_id = keyagent_generate_request_id();
+    request.module_data = loadkey->module_data;
+    request.stm_name = NULL;
+    request.npm_name = npm->npm.label;
+
+	g_hash_table_insert(keyagent::apimodule_loadkey_hash, (gpointer)request_id, (gpointer)&request);
+
     memset(&details, 0, sizeof(details));
+    details.request_id = strdup(request_id);
     details.url = loadkey->url;
     details.stm_names = __keyagent_stm_get_names();
-    details.ssl_opts.certfile = strdup(keyagent::cert->str);
     details.ssl_opts.ca_certfile = strdup(keyagent::cacert->str);
     details.ssl_opts.keyname = strdup(keyagent::certkey->str);
     details.ssl_opts.certtype = FORMAT_PEM;
-	details.ssl_opts.ssl_verify = keyagent::ssl_verify;
-	details.ssl_opts.keytype = (keyagent::keyformat == KEYAGENT_KEY_FORMAT_PEM )?FORMAT_PEM:FORMAT_ENG;
+    details.ssl_opts.ssl_verify = keyagent::ssl_verify;
+    details.ssl_opts.keytype = (keyagent::keyformat == KEYAGENT_KEY_FORMAT_PEM )?FORMAT_PEM:FORMAT_ENG;
     LOOKUP_KEYAGENT_INTERNAL_NPM_OPS(&details.cbs);
 
+	// Now, we always return TRUE even if npm fails to load the key.
+	// TRUE tells key-agent to stop looking for an NPM that matches they key
 	ret = TRUE;
+
 	NPM_MODULE_OP(npm,key_load)(&details, loadkey->err);
+    if (!tmp_error) {
+		keyagent_key_real *key = NULL;
+		if ((key = (keyagent_key_real *)__keyagent_key_lookup(loadkey->url)) != NULL) {
+			ret = __keyagent_stm_load_key(request_id, (keyagent_key *)key, &tmp_error);
+		}
+	}
+
+	g_hash_table_remove(keyagent::apimodule_loadkey_hash, request_id);
+
+    if (tmp_error != NULL)
+        g_propagate_error(loadkey->err, tmp_error);
 
     if (details.stm_names) g_string_free(details.stm_names, TRUE);
+    free((void *)details.request_id);
     free((void *)details.ssl_opts.certfile);
     free((void *)details.ssl_opts.keyname);
 out:
 	return ret;
 }
           
-extern "C" keyagent_key * DLL_PUBLIC
-keyagent_loadkey(keyagent_url url, GError **err)
+extern "C"
+gboolean DLL_PUBLIC
+keyagent_apimodule_register(keyagent_apimodule_ops *ops, GError **err)
+{
+	g_return_val_if_fail( (err || (err?*err:NULL)) && ops, FALSE );
+    memcpy(&keyagent::apimodule_ops,ops, sizeof(keyagent_apimodule_ops));
+    return TRUE;
+}
+
+extern "C" gboolean DLL_PUBLIC
+keyagent_loadkey_with_moduledata(keyagent_url url, void *module_data, GError **err)
 {
 	keyagent_key *key = NULL;
     loadkey_t loadkey;
 
     loadkey.url = url;
     loadkey.err = err;
+	loadkey.module_data = module_data;
+	gboolean ret = FALSE;
 
     g_rw_lock_writer_lock(&keyagent::rwlock);
 
 	if ((key = __keyagent_key_lookup(url)) != NULL)
 	{
 		k_debug_msg("found key %p for url %s cached!", key, url);
+		ret = TRUE;
 		goto out;
 	}
 
@@ -275,21 +315,9 @@ keyagent_loadkey(keyagent_url url, GError **err)
 		k_critical_msg("Not able to load key %s!", url);
         goto out;
 	}
+	ret = TRUE;
 
-	if (!__keyagent_stm_load_key(key, err)) {
-        __keyagent_key_free(key);
-        key = NULL;
-    }
     out:
     g_rw_lock_writer_unlock(&keyagent::rwlock);
-    return key;
-}
-
-extern "C"
-gboolean DLL_PUBLIC
-keyagent_apimodule_register(keyagent_apimodule_ops *ops, GError **err)
-{
-	g_return_val_if_fail( (err || (err?*err:NULL)) && ops, FALSE );
-    memcpy(&keyagent::apimodule_ops,ops, sizeof(keyagent_apimodule_ops));
-    return TRUE;
+    return ret;
 }

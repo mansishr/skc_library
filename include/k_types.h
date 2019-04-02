@@ -41,6 +41,12 @@ k_buffer_append(k_buffer_ptr buf, void *data, int size)
 	g_byte_array_append (buf->bytes, (guint8*) data, size);
 }
 
+static inline void
+k_buffer_set_size(k_buffer_ptr buf, int size)
+{
+    g_byte_array_set_size (buf->bytes, size);
+}
+
 static inline k_buffer_ptr
 k_buffer_alloc(void *data, int size)
 {

@@ -9,24 +9,16 @@
 #include <utility>
 #include <iostream>
 #include <functional>
-#include <openssl/ossl_typ.h>
-#include <openssl/evp.h>
 
 //static const char *supported_swk_types[] = {"AES192-CTR", "AES256-CTR", "AES128-GCM", "AES192-GCM", "AES256-GCM", "AES128-CBC", 
 	//"AES192-CBC", "AES256-CBC","AES128-XTS", "AES256-XTS", NULL};
 
-static const char *supported_swk_types[] = {"AES128-GCM", "AES192-GCM", "AES256-GCM", "AES128-CBC", 
-	"AES192-CBC", "AES256-CBC", NULL};
-
-swk_type_op swk_type_fns[]={
-	{128,  EVP_aes_128_gcm, NULL, __aes_gcm_decrypt},
-	{192,  EVP_aes_192_gcm, NULL, __aes_gcm_decrypt},
-	{256,  EVP_aes_256_gcm, NULL, __aes_gcm_decrypt},
-	{128,  EVP_aes_128_cbc, NULL, __aes_cbc_decrypt},
-	{192,  EVP_aes_192_cbc, NULL, __aes_cbc_decrypt},
-	{256,  EVP_aes_256_cbc, NULL, __aes_cbc_decrypt},
-};
-
+static const char *supported_swk_types[] = {
+	"AES128-GCM", "AES192-GCM", "AES256-GCM", 
+	"AES128-CBC", "AES192-CBC", "AES256-CBC", 
+	"AES128-WRAP", "AES192-WRAP", "AES256-WRAP", 
+	NULL};
+	
 void DLL_LOCAL
 __get_session_ids(gpointer key, gpointer data, gpointer user_data)
 {
@@ -80,7 +72,7 @@ __keyagent_session_get_cache_id(keyagent_session *_session)
 }
 
 extern "C" gboolean DLL_LOCAL
-__keyagent_session_create(const char *label, const char *session_id, k_buffer_ptr swk, const char *swk_type, gint cache_id, GError **error)
+keyagent_session_create(const char *request_id, const char *label, const char *session_id, k_buffer_ptr swk, const char *swk_type, gint cache_id, GError **error)
 {
     DECLARE_KEYAGENT_REAL_PTR(session, keyagent_session, __keyagent_session_lookup(session_id));
     GQuark session_id_quark = g_quark_from_string(session_id);
@@ -130,8 +122,14 @@ out:
     if (cache_id == -1)
         __keyagent_cache_session((keyagent_session *)session, error);
 
-    __keyagent_stm_set_session((keyagent_session *)session, error);
+    status = __keyagent_stm_set_session(request_id, (keyagent_session *)session, error);
     return status;
+}
+
+extern "C" gboolean DLL_LOCAL
+__keyagent_session_create(const char *request_id, const char *label, const char *session_id, k_buffer_ptr swk, const char *swk_type, GError **error)
+{
+    return keyagent_session_create(request_id, label, session_id, swk, swk_type, -1, error);
 }
 
 extern "C" void DLL_LOCAL
@@ -170,8 +168,7 @@ extern "C" GQuark DLL_LOCAL
 __keyagent_session_lookup_swktype(const char *type) 
 {
     GQuark q = __keyagent_session_make_swktype(type);
-    swk_type_op *op = (swk_type_op *)g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(q));
-    if (!op)
+    if (!g_hash_table_lookup(keyagent::swk_type_hash, GUINT_TO_POINTER(q)))
         q = 0;
     return q;
 }
@@ -179,12 +176,11 @@ __keyagent_session_lookup_swktype(const char *type)
 extern "C" gboolean DLL_LOCAL
 __keyagent_session_init(GError **error)
 {
-    const char **ptr;
-    swk_type_op *opptr;
+	int i;
     keyagent::swk_type_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
-    for (ptr = supported_swk_types, opptr = swk_type_fns; *ptr; ++ptr, ++opptr) {
-        GQuark q = __keyagent_session_make_swktype(*ptr);
-        g_hash_table_insert(keyagent::swk_type_hash, GUINT_TO_POINTER(q), (gpointer)opptr);
+    for (i = 0; supported_swk_types[i]; ++i) {
+        GQuark q = __keyagent_session_make_swktype(supported_swk_types[i]);
+        g_hash_table_insert(keyagent::swk_type_hash, GUINT_TO_POINTER(q), (gpointer)supported_swk_types[i]);
     } 
     return TRUE;
 }

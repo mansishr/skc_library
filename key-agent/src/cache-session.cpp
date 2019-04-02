@@ -102,7 +102,7 @@ __keyagent_cache_loadsessions(GError **error)
             break;
         }
 
-        __keyagent_session_create(data->label, data->session_id, data->swk, data->swk_type, data->id, error);
+        // TODO __keyagent_session_create(data->label, data->session_id, data->swk, data->swk_type, data->id, error);
         __session_data_free(data);
     }
     g_object_unref (model);

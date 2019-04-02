@@ -7,8 +7,6 @@
 #include "key-agent/npm/npm.h"
 #include "key-agent/stm/stm.h"
 #include <gmodule.h>
-#include <openssl/ossl_typ.h>
-#include <openssl/evp.h>
 
 typedef struct {
     keyagent_module npm;
@@ -52,7 +50,6 @@ typedef struct {
 
 #define DECLARE_KEYAGENT_REAL_PTR(VAR,TYPE,SRC) TYPE##_real *VAR = (TYPE##_real *)SRC
 
-
 #define ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,SUBTYPE, NAME) \
     (OPS)->SUBTYPE##_func_##NAME = __##SUBTYPE##_##NAME
 
@@ -68,15 +65,6 @@ typedef struct {
     ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,key_policy_add); \
 } while(0)
 
-#define ASSIGN_KEYAGENT_INTERNAL_STM_OP(OPS,SUBTYPE, NAME) \
-    (OPS)->SUBTYPE##_func_##NAME = __##SUBTYPE##_##NAME
-
-#define LOOKUP_KEYAGENT_INTERNAL_STM_OPS(OPS) do { \
-    ASSIGN_KEYAGENT_INTERNAL_STM_OP(OPS,keyagent,get_swk_size); \
-    ASSIGN_KEYAGENT_INTERNAL_STM_OP(OPS,keyagent,aes_decrypt); \
-    ASSIGN_KEYAGENT_INTERNAL_STM_OP(OPS,keyagent,verify_and_extract_cms_message); \
-} while(0)
-
 #ifdef  __cplusplus
 
 namespace keyagent {
@@ -86,7 +74,7 @@ namespace keyagent {
 	extern GString *npm_directory;
 	extern GString *stm_directory;
     extern keyagent_keyserver_key_format keyformat;
-	extern gboolean ssl_verify;
+    extern gboolean ssl_verify;
     extern GString *cert;
     extern GString *certkey;
     extern GString *cacert;
@@ -95,9 +83,9 @@ namespace keyagent {
     extern GHashTable *session_hash;
     extern GHashTable *key_hash;
     extern GHashTable *swk_type_hash;
+    extern GHashTable *apimodule_loadkey_hash;
     extern GRWLock rwlock;
     extern keyagent_npm_callbacks npm_ops;
-    extern keyagent_stm_callbacks stm_ops;
     extern keyagent_apimodule_ops apimodule_ops;
 }
 
@@ -113,21 +101,28 @@ namespace keyagent {
 #define GPOINTER_TO_GDA_CONNECTION(p) ((GdaConnection *)(p))
 #endif
 
+typedef struct _request {
+    void *module_data;   
+    GString *npm_name;
+    GString *stm_name;
+} keyagent_request;
 
-typedef struct swk_op{
-	int keybits;
-	const EVP_CIPHER* (* cipher_func )(void);
-	int (* encrypt_func)(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr iv, k_buffer_ptr ciphertext);
-	k_buffer_ptr (* decrypt_func)(struct swk_op *swk_op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv);
-} swk_type_op;
+#define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
+	if (!g_module_symbol ((MODULE), (FUNCNAME), (gpointer *)&(RET))) \
+    { \
+		g_set_error (&tmp_error, KEYAGENT_ERROR, (ERRCLASS), \
+                   "%s", g_module_error ()); \
+		goto errexit; \
+    } \
+} while (0)
 
-
-
+#define CERTIFICATE_FILE_FORMAT "PEM"
 #define FORMAT_PEM "PEM"
 #define FORMAT_ENG "ENG"
 
 #define KEYAGENT_KEY_FORMAT_PEM_STR "PEMFILE"
 #define KEYAGENT_KEY_FORMAT_PKCS11_STR "PKCS11"
+#define CERTIFICATE_FILE_FORMAT "PEM"
 
 #ifdef  __cplusplus
 extern "C" {
@@ -150,13 +145,12 @@ const char *__keyagent_key_get_stmname(keyagent_key *key, GError **error);
 keyagent_key * __keyagent_key_lookup(const char *url);
 gboolean __keyagent_key_free(keyagent_key *);
 
-gboolean __keyagent_stm_load_key(keyagent_key *key, GError **error);
+gboolean __keyagent_stm_load_key(const char *request_id, keyagent_key *key, GError **error);
 
-
-GQuark __keyagent_key_create(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs,
+GQuark __keyagent_key_create(const char *request_id, keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs,
     const char *session_id, GError **error);
 
-GQuark __keyagent_key_create_with_cacheid(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, 
+GQuark __keyagent_key_create_with_cacheid(const char *request_id, keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, 
     const char *session_id, gint cache_id, GError **error);
 
 gboolean __keyagent_cache_loadkeys(GError **error);
@@ -171,25 +165,27 @@ gint __keyagent_session_get_cache_id(keyagent_session *d);
 void __keyagent_key_set_cache_id(keyagent_key *, gint id);
 gint __keyagent_key_get_cache_id(keyagent_key *);
 gint __keyagent_key_get_session_cache_id(keyagent_key *);
-//keyagent_session *keyagent_session_id_lookup(gint id);
 gint __keyagent_cache_generate_fake_id();
 void __keyagent_key_remove_by_session(keyagent_session *);
 
 GQuark __keyagent_session_make_swktype(const char *type);
 gboolean __keyagent_session_init(GError **error);
-k_buffer_ptr __aes_gcm_decrypt(swk_type_op *sw_op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv);
-k_buffer_ptr __aes_cbc_decrypt(swk_type_op *sw_op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv);
 
 GString *__keyagent_stm_get_names();
 gboolean __keyagent_stm_get_by_name(const char *name, keyagent_module **);
 GString * __keyagent_session_get_ids();
 keyagent_session * __keyagent_session_lookup(const char *session_id);
 
-gboolean __keyagent_session_create(const char *name, const char *session_id, k_buffer_ptr swk, const char *swk_type, gint cache_id, GError **);
-gboolean __keyagent_stm_set_session(keyagent_session *, GError **);
+gboolean keyagent_session_create(const char *request_id, const char *name, const char *session_id, k_buffer_ptr swk, const char *swk_type, gint cache_id, GError **);
+gboolean __keyagent_session_create(const char *request_id, const char *name, const char *session_id, k_buffer_ptr swk, const char *swk_type, GError **);
+
+gboolean __keyagent_stm_set_session(const char *request_id, keyagent_session *, GError **);
 GQuark __keyagent_session_lookup_swktype(const char *type);
-gboolean  __keyagent_stm_get_challenge(const char *name, k_buffer_ptr *challenge, GError **);
+gboolean  __keyagent_stm_get_challenge(const char *name, const char *requesting_npm_name, k_buffer_ptr *challenge, GError **);
 gboolean __keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, GError **);
+
+const char *keyagent_generate_request_id(void);
+void        keyagent_request_id_destory(gpointer data);
 
 #ifdef  __cplusplus
 }

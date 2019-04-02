@@ -6,6 +6,7 @@
 #include "internal.h"
 #include <errno.h>
 #include "k_errors.h"
+#include "k_debug.h"
 #include <libgda/libgda.h>
 #include <libgda/gda-blob-op.h>
 #include <sql-parser/gda-sql-parser.h>

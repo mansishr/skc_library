@@ -8,15 +8,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include "keyserver.h"
 #include <jsoncpp/json/json.h>
 #include <glib.h>
 #include <glib/gi18n.h>
 #include "k_errors.h"
 #include "key-agent/types.h"
 #include "key-agent/key_agent.h"
-#include "key-agent/src/internal.h"
-
+#include "key-agent/stm/stm.h"
+#include "keyserver.h"
 
 using namespace server;
 using namespace std;
@@ -31,9 +30,6 @@ extern "C" {
 #include <openssl/conf.h>
 #include <openssl/rsa.h>
 #include <openssl/bn.h>
-
-
-
 };
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -125,6 +121,7 @@ X509_REQ* gen_X509Req(gchar *keyid, EVP_PKEY *pkey)
     const char      *szOrganization = "intel";
     const char      *szCommon = "dhsm2";
  
+	//const char      *szPath = "/tmp/dhsm2_key.csr";
 
 	GString *szPath=NULL;
 
@@ -205,6 +202,7 @@ int gen_X509(gchar *keyid, X509_REQ *req, EVP_PKEY *pkey)
     X509V3_CTX ext_ctx;
 	X509 *x509ss = NULL;
     STACK_OF(X509_EXTENSION) *exts = NULL;
+	//const char      *certpath = "/tmp/dhsm2_key.cert";
 	GString *certpath=NULL;
 
 	certpath = g_string_new(server::cert_key_path->str);
@@ -274,13 +272,13 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     k_buffer_ptr STM_TEST_DATA = NULL;
     k_buffer_ptr STM_TEST_SIG = NULL;
 	GString *key_file = NULL;
-	GString *key_file_der=NULL;
+	GString *key_file_der = NULL;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-	OpenSSL_add_all_algorithms();
-	ERR_load_crypto_strings();
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
 #endif
-	ERR_load_BIO_strings();
+    ERR_load_BIO_strings();
 
     bne = BN_new();
     if (BN_set_word(bne,e) != 1) 
@@ -340,19 +338,19 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 
     KEYDATA = k_buffer_alloc(NULL, len);
     tmp = k_buffer_data(KEYDATA);
-	if(i2d_PKCS8_PRIV_KEY_INFO(p8inf, &tmp))
-	{
-		if( server::generate_cert_with_key == TRUE )
-		{  
-			key_file_der = g_string_new(server::cert_key_path->str);
-			g_string_append(key_file_der, "/");
-			g_string_append(key_file_der, keyid);
-			g_string_append(key_file_der, "_key.der");
-			pfile_der = fopen(key_file_der->str, "w+");
-			i2d_PKCS8_PRIV_KEY_INFO_fp(pfile_der ,p8inf);
-		}
-	}
 
+    if(i2d_PKCS8_PRIV_KEY_INFO(p8inf, &tmp))
+    {
+        if( server::generate_cert_with_key == TRUE )
+        {
+            key_file_der = g_string_new(server::cert_key_path->str);
+            g_string_append(key_file_der, "/");
+            g_string_append(key_file_der, keyid);
+            g_string_append(key_file_der, "_key.der");
+            pfile_der = fopen(key_file_der->str, "w+");
+            i2d_PKCS8_PRIV_KEY_INFO_fp(pfile_der ,p8inf);
+        }
+    }
 
     STM_TEST_DATA = k_buffer_alloc(NULL, 20);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
@@ -372,7 +370,7 @@ out:
     if (rsa) RSA_free(rsa);
     if (bne) BN_free(bne);
 	if (key_file) g_string_free( key_file, TRUE);
-	if (key_file_der) g_string_free( key_file_der, TRUE);
+    if (key_file_der) g_string_free( key_file_der, TRUE);
 	if (pfile) fclose(pfile);
 	if (pfile_der) fclose(pfile_der);
     X509_REQ_free(req);
@@ -396,10 +394,10 @@ convert_ecc_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     ECDSA_SIG* ec_sig = NULL;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-	OpenSSL_add_all_algorithms();
-	ERR_load_crypto_strings();
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
 #endif
-	ERR_load_BIO_strings();
+    ERR_load_BIO_strings();
 
     eccgrp = OBJ_txt2nid("secp521r1");
     ec_key = EC_KEY_new_by_curve_name(eccgrp);
@@ -445,26 +443,139 @@ out:
     return KEYDATA;
 }
 
+int __aes_gcm_encrypt(k_buffer_ptr key, k_buffer_ptr plaintext, k_buffer_ptr iv, k_buffer_ptr ciphertext)
+{
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int ciphertext_len;
+
+    k_debug_msg("AES:GCM-keybit:%d\n", 128);
+    k_debug_msg("iv-size %d plaintext,size %d ciphertext %d", k_buffer_length(iv), k_buffer_length(plaintext), k_buffer_length(ciphertext));
+
+    if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
+
+    assert(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL) == 1);
+    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, k_buffer_length(iv), NULL) == 1);
+    assert(EVP_EncryptInit_ex(ctx, NULL, NULL, (unsigned char *)k_buffer_data(key), (unsigned  char *)k_buffer_data(iv)) == 1);
+    assert(EVP_EncryptUpdate(ctx, k_buffer_data(ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext)) == 1);
+    ciphertext_len = len;
+    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(ciphertext) + len, &len) == 1);
+    ciphertext_len += len;
+    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, TAG_SIZE, (unsigned char *) k_buffer_data(ciphertext) + ciphertext_len) == 1);
+    EVP_CIPHER_CTX_free(ctx);
+    k_debug_msg("end-size %d", ciphertext_len);
+    return ciphertext_len;
+}
+
+void hexDump (char *desc, void *addr, int len) {
+    int i;
+    unsigned char buff[17];
+    unsigned char *pc = (unsigned char*)addr;
+
+    // Output description if given.
+    if (desc != NULL)
+        printf ("%s:\n", desc);
+
+    if (len == 0) {
+        printf("  ZERO LENGTH\n");
+        return;
+    }
+    if (len < 0) {
+        printf("  NEGATIVE LENGTH: %i\n",len);
+        return;
+    }
+
+    // Process every byte in the data.
+    for (i = 0; i < len; i++) {
+        // Multiple of 16 means new line (with line offset).
+
+        if ((i % 16) == 0) {
+            // Just don't print ASCII for the zeroth line.
+            if (i != 0)
+                printf ("  %s\n", buff);
+
+            // Output the offset.
+            printf ("  %04x ", i);
+        }
+
+        // Now the hex code for the specific character.
+        printf (" %02x", pc[i]);
+
+        // And store a printable ASCII character for later.
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+            buff[i % 16] = '.';
+        else
+            buff[i % 16] = pc[i];
+        buff[(i % 16) + 1] = '\0';
+    }
+
+    // Pad out last line if not exactly 16 characters.
+    while ((i % 16) != 0) {
+        printf ("   ");
+        i++;
+    }
+
+    // And print the final ASCII bit.
+    printf ("  %s\n", buff);
+}
+
+extern "C" k_buffer_ptr
+convert_sym_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
+{
+    gboolean ret = FALSE;
+    k_buffer_ptr KEYDATA = NULL;
+    k_buffer_ptr STM_TEST_DATA = NULL;
+    k_buffer_ptr STM_TEST_SIG = NULL;
+
+    OpenSSL_add_all_algorithms();
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
+
+    KEYDATA = k_buffer_alloc(NULL, 128/8);
+	RAND_bytes((unsigned char *)k_buffer_data(KEYDATA), k_buffer_length(KEYDATA));
+#ifdef WRAPDEBUG
+	hexDump("key", k_buffer_data(KEYDATA), k_buffer_length(KEYDATA));
+#endif
+    STM_TEST_DATA = k_buffer_alloc(NULL, 20);
+	RAND_bytes((unsigned char *)k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA));
+    k_debug_generate_checksum("SERVER:STM_TEST_DATA", k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA));
+
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
+
+    STM_TEST_SIG = k_buffer_alloc(NULL, k_buffer_length(STM_TEST_DATA) + TAG_SIZE);
+	unsigned char gcmIV[] = {
+        0xCA, 0xFE, 0xBA, 0xBE, 0xFA, 0xCE,
+        0xDB, 0xAD, 0xDE, 0xCA, 0xF8, 0x88,
+        0xDB, 0xAD, 0xDE, 0xCA,
+    };
+
+	k_buffer_ptr iv = k_buffer_alloc(gcmIV, 16);
+	__aes_gcm_encrypt(KEYDATA, STM_TEST_DATA, iv, STM_TEST_SIG);
+    KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
+    k_debug_generate_checksum("SERVER:STM_TEST_IV", k_buffer_data(iv), k_buffer_length(iv));
+    k_debug_generate_checksum("SERVER:STM_TEST_DATA", k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA));
+    k_debug_generate_checksum("SERVER:STM_TEST_SIG", k_buffer_data(STM_TEST_SIG), k_buffer_length(STM_TEST_SIG));
+out:
+    k_buffer_unref(iv);
+    k_buffer_unref(STM_TEST_SIG);
+    k_buffer_unref(STM_TEST_DATA);
+    return KEYDATA;
+}
+
 keyagent_keytype convert_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs, k_buffer_ptr *keydata)
 {
-	//TODO for checking Nginix
-	if( server::generate_cert_with_key == TRUE )
-	{
-		*keydata = convert_rsa_key_to_attr_hash(keyid, attrs);
-		return KEYAGENT_RSAKEY;
+	switch (server::keytype) {
+	case KEYAGENT_RSAKEY:
+			*keydata = convert_rsa_key_to_attr_hash(keyid, attrs);
+			break;
+	case KEYAGENT_ECKEY:
+			*keydata = convert_ecc_key_to_attr_hash(keyid, attrs);
+			break;
+	case KEYAGENT_AESKEY:
+			*keydata = convert_sym_key_to_attr_hash(keyid, attrs);
+			break;
 	}
-
-    static GRand *rand = NULL;
-
-    if (!rand)
-        rand = g_rand_new();
-
-    if (g_rand_boolean(rand)) {
-        *keydata = convert_rsa_key_to_attr_hash(keyid, attrs);
-        return KEYAGENT_RSAKEY;
-    }
-    *keydata = convert_ecc_key_to_attr_hash(keyid, attrs);
-    return KEYAGENT_ECKEY;
+    return server::keytype;
 }
 
 typedef struct {
@@ -507,13 +618,6 @@ generate_iv()
     k_debug_generate_checksum("SERVER:CKSUM:IV", k_buffer_data(iv), k_buffer_length(iv));
     out:
     return iv;
-}
-
-void
-print_input_headers(const char *label, const shared_ptr< Session > session)
-{
-    for ( const auto header : session->get_request()->get_headers( ) )
-        k_debug_msg("%s Header '%s' > '%s'\n", (label ? label : ""), header.first.data( ), header.second.data( ) );
 }
 
 const gchar *

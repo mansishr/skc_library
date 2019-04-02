@@ -102,34 +102,46 @@ __keyagent_stm_get_by_name(const char *name, keyagent_module **module)
 }
 
 extern "C" gboolean DLL_LOCAL
-__keyagent_stm_set_session(keyagent_session *session, GError **error)
+__keyagent_stm_set_session(const char *request_id, keyagent_session *session, GError **error)
 {
     g_return_val_if_fail(session != NULL, FALSE);
     keyagent_stm_real *lstm = NULL;
     keyagent_stm_session_details details;
+    keyagent_request *request = NULL;
+	gboolean status = FALSE;
+
     __keyagent_stm_get_by_name(__keyagent_session_get_stmname(session, error), (keyagent_module **)&lstm);
 
     g_return_val_if_fail(lstm != NULL, FALSE);
 
-    lstm->session = (keyagent_session_real *)session;
-    details.session = session->swk;
-    details.swk_type = __keyagent_session_lookup_swktype(lstm->session->swk_type->str);
-    details.swk_size_in_bits = __keyagent_get_swk_size(details.swk_type);
-    LOOKUP_KEYAGENT_INTERNAL_STM_OPS(&details.cbs);
+    request = (keyagent_request *)g_hash_table_lookup(keyagent::apimodule_loadkey_hash, request_id);
+    g_return_val_if_fail(request != NULL, FALSE);
 
-    STM_MODULE_OP(lstm,set_session)(&details, error);
+    lstm->session = (keyagent_session_real *)session;
+    details.apimodule_details.module_data = request->module_data;
+    request->stm_name = lstm->stm.label;
+    details.request_id = request_id; 
+	details.apimodule_details.label = __keyagent_session_get_stmname(session, error);
+    details.apimodule_details.session = session->swk;
+    details.apimodule_details.swk_type = __keyagent_session_lookup_swktype(lstm->session->swk_type->str);
+	details.set_wrapping_key_cb = keyagent::apimodule_ops.set_wrapping_key;
+    status = STM_MODULE_OP(lstm,set_session)(&details, error);
+	k_debug_msg("%s:%d %p status %d", __func__, __LINE__, *error, status);
 
     if (lstm->session)
         k_debug_generate_checksum("CLIENT:SESSION", k_buffer_data(lstm->session->swk), k_buffer_length(lstm->session->swk));
 
-    return TRUE;
+    return status;
 }
 
 extern "C" gboolean DLL_LOCAL
-__keyagent_stm_get_challenge(const char *name, k_buffer_ptr *challenge, GError **error)
+__keyagent_stm_get_challenge(const char *request_id, const char *name, k_buffer_ptr *challenge, GError **error)
 {
-	//g_return_val_if_fail(name && challenge, FALSE);
-	if( name == NULL || challenge == NULL )
+	keyagent_stm_create_challenge_details details;
+	gboolean ret = FALSE;
+    keyagent_request *request = NULL;
+
+	if( !name || !challenge || !request_id )
 	{
         k_set_error (error, STM_ERROR_INVALID_CHALLENGE_DATA,
             "%s: %s", __func__, "Invalid challenge data");
@@ -137,14 +149,25 @@ __keyagent_stm_get_challenge(const char *name, k_buffer_ptr *challenge, GError *
 	}
     keyagent_stm_real *lstm = NULL;
     __keyagent_stm_get_by_name(name, (keyagent_module **)&lstm);
-	//g_return_val_if_fail(lstm != NULL, FALSE);
-	if( lstm == NULL )
+    request  = (keyagent_request *)g_hash_table_lookup(keyagent::apimodule_loadkey_hash, request_id);
+	if( !lstm || !request )
 	{
         k_set_error (error, STM_ERROR_INVALID_CHALLENGE_DATA,
             "%s: %s", __func__, "STM not found");
 		return FALSE;
 	}
-    return STM_MODULE_OP(lstm,create_challenge)(challenge, error);
+
+    request->stm_name = lstm->stm.label;
+    details.request_id = request_id;
+	details.apimodule_get_challenge_cb = keyagent::apimodule_ops.get_challenge;
+	details.apimodule_details.challenge = NULL;
+	details.apimodule_details.label = name;
+    details.apimodule_details.module_data = request->module_data;
+
+    ret = STM_MODULE_OP(lstm,create_challenge)(&details, error);
+
+	*challenge = details.apimodule_details.challenge;
+	return ret;
 }
 
 extern "C" gboolean DLL_LOCAL
@@ -158,11 +181,18 @@ __keyagent_stm_challenge_verify(const char *name, k_buffer_ptr quote, k_attribut
 }
 
 extern "C" gboolean DLL_LOCAL
-__keyagent_stm_load_key(keyagent_key *_key, GError **error)
+__keyagent_stm_load_key(const char *request_id, keyagent_key *_key, GError **error)
 {
     gboolean ret = FALSE;
     keyagent_stm_loadkey_details details;
     keyagent_key_real *key = (keyagent_key_real *)_key;
+    keyagent_request *request = NULL;
+   	k_buffer_ptr iv = NULL;
+    k_buffer_ptr wrapped_key = NULL;
+    keyagent_keytransfer_t *keytransfer = NULL;
+    k_buffer_ptr keydata = NULL;
+
+
     g_return_val_if_fail(key, FALSE);
     if (!key->session) {
         k_set_error (error, KEYAGENT_ERROR_KEYINIT,
@@ -171,16 +201,36 @@ __keyagent_stm_load_key(keyagent_key *_key, GError **error)
     }
     keyagent_stm_real *lstm = NULL;
     __keyagent_stm_get_by_name(__keyagent_key_get_stmname(_key, error), (keyagent_module **)&lstm);
-    g_return_val_if_fail(lstm != NULL || lstm->session != NULL, FALSE);
+    request  = (keyagent_request *)g_hash_table_lookup(keyagent::apimodule_loadkey_hash, request_id);
 
-    
-    LOOKUP_KEYAGENT_INTERNAL_STM_OPS(&details.cbs);
+	if( !lstm || !request || !lstm->session ) {
+        k_set_error (error, STM_ERROR_INVALID_LOADKEY_DATA,
+            "%s: %s", __func__, "STM not found");
+		return FALSE;
+	}
+
+	KEYAGENT_KEY_GET_BYTEARRAY_ATTR(key->attributes, KEYDATA, keydata);
+    keytransfer = (keyagent_keytransfer_t *)k_buffer_data(keydata);
+    if (keytransfer->iv_length > 64) {
+        k_set_error (error, STM_ERROR_INVALID_LOADKEY_DATA, "invalid iv length");
+        return FALSE;
+    }
+    iv = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t),  keytransfer->iv_length);
+    wrapped_key = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t) +
+        keytransfer->iv_length, keytransfer->wrap_size);
+
+    details.apimodule_details.key = wrapped_key;
+    details.apimodule_details.iv = iv;
+    details.apimodule_details.tag_size = keytransfer->tag_size;
+
+    details.request_id = request_id;
     details.swk_quark = __keyagent_session_lookup_swktype(lstm->session->swk_type->str);
-    details.type = key->type;
-    details.url = strdup(key->url->str);
-    details.attrs = key->attributes;
-    memcpy(&details.apimodule_ops, &keyagent::apimodule_ops, sizeof(keyagent::apimodule_ops));
+	details.apimodule_details.label = lstm->stm.label->str;
+    details.apimodule_details.module_data = request->module_data;
+    details.apimodule_details.type = key->type;
+    details.apimodule_details.url = strdup(key->url->str);
+    details.apimodule_load_key_cb = keyagent::apimodule_ops.load_key;
 	ret = STM_MODULE_OP(lstm,load_key)(&details, error);
-    free(details.url);
+    free(details.apimodule_details.url);
     return ret;
 }

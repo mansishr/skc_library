@@ -191,10 +191,10 @@ __create_key_policy(key_data *data, GError **error)
 extern "C" gboolean DLL_LOCAL
 __create_rsa_key(key_data *data, GError **error)
 {
-    gboolean ret;
+    gboolean ret = TRUE;
     k_attributes_ptr attrs = k_attributes_alloc();
     SET_KEY_ATTR(data->cache_id, attrs, KEYDATA, error);
-    ret = (__keyagent_key_create_with_cacheid(data->url, KEYAGENT_RSAKEY, attrs, data->session_id, data->cache_id, error) ? TRUE : FALSE);
+    // TODO ret = (__keyagent_key_create_with_cacheid(data->url, KEYAGENT_RSAKEY, attrs, data->session_id, data->cache_id, error) ? TRUE : FALSE);
     k_attributes_unref(attrs);
     return ret;
 }
@@ -202,10 +202,10 @@ __create_rsa_key(key_data *data, GError **error)
 extern "C" gboolean DLL_LOCAL
 __create_ecc_key(key_data *data, GError **error)
 {
-    gboolean ret;
+    gboolean ret = TRUE;
     k_attributes_ptr attrs = k_attributes_alloc();
     SET_KEY_ATTR(data->cache_id, attrs, KEYDATA, error);
-    ret = (__keyagent_key_create_with_cacheid(data->url, KEYAGENT_ECKEY, attrs, data->session_id, data->cache_id, error) ? TRUE : FALSE);
+    // TODO ret = (__keyagent_key_create_with_cacheid(data->url, KEYAGENT_ECKEY, attrs, data->session_id, data->cache_id, error) ? TRUE : FALSE);
     k_attributes_unref(attrs);
     return ret;
 }

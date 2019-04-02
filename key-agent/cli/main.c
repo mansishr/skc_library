@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <glib.h>
+#include "key-agent/types.h"
 #include "key-agent/key_agent.h"
+
 #include <syslog.h>
 #include "k_errors.h"
 #include "config.h"
@@ -28,11 +30,31 @@ static GOptionEntry entries[] =
   { NULL }
 };
 
+static gboolean
+apimodule_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, GError **err)
+{
+	return TRUE;
+}
+
+static gboolean
+apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GError **err)
+{
+	return TRUE;
+}
+
+static gboolean
+apimodule_get_challenge(keyagent_apimodule_get_challenge_details *details, void *request, GError **err)
+{
+	return TRUE;
+}
+
 int
 main (int argc, char *argv[])
 {
 	GError *error = NULL;
 	GOptionContext *context;
+   	keyagent_apimodule_ops apimodule_ops;
+   	memset(&apimodule_ops, 0, sizeof(apimodule_ops));
 
 	context = g_option_context_new ("- key-agent cli");
 	g_option_context_add_main_entries (context, entries, NULL);
@@ -66,6 +88,15 @@ main (int argc, char *argv[])
 
 
 	if (keyurl)
+    	apimodule_ops.load_key = apimodule_load_key;
+    	apimodule_ops.get_challenge = apimodule_get_challenge;
+    	apimodule_ops.set_wrapping_key = apimodule_set_wrapping_key;
+    	if (!keyagent_apimodule_register(&apimodule_ops, &error)) {
+        	k_critical_msg(error->message);
+        	return FALSE;
+    	}
+    	k_debug_msg("keyagent_apimodule_register is successful !!!");
+
 		if (!keyagent_loadkey(keyurl, &error))
             k_info_error(error);
 

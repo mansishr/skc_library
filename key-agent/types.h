@@ -6,6 +6,7 @@
 #include <string.h>
 #include "k_types.h"
 #include "k_errors.h"
+#include "k_debug.h"
 
 typedef struct {
     GString *label;
@@ -26,10 +27,9 @@ typedef enum {
     KEYAGENT_AESKEY,
 } keyagent_keytype;
 
-
 typedef enum {
-	KEYAGENT_KEY_FORMAT_PEM = 1,
-	KEYAGENT_KEY_FORMAT_PKCS11,
+    KEYAGENT_KEY_FORMAT_PEM = 1,
+    KEYAGENT_KEY_FORMAT_PKCS11,
 } keyagent_keyserver_key_format;
 
 typedef enum {
@@ -38,6 +38,7 @@ typedef enum {
     KEYAGENT_AES_MODE_CBC,
     KEYAGENT_AES_MODE_XTS,
     KEYAGENT_AES_MODE_EBC,
+    KEYAGENT_AES_MODE_WRAP,
 } keyagent_aes_mode;
 
 typedef struct {
@@ -53,7 +54,7 @@ typedef struct {
 	const char *certtype;
 	const char *keyname;
 	const char *keytype;
-	gboolean ssl_verify;
+    gboolean ssl_verify;
 } keyagent_ssl_opts;
 
 
@@ -63,9 +64,9 @@ typedef struct {
 } keyagent_key;
 
 typedef struct {
-    int iv_length;
-    int tag_size;
-    int wrap_size;
+    unsigned int  iv_length;
+    unsigned int  tag_size;
+    unsigned int  wrap_size;
 } keyagent_keytransfer_t;
 
 #define KEYAGENT_KEY_ADD_POLICY_ATTR(ATTRS, policy) do { \
@@ -167,6 +168,9 @@ keyagent_quark_to_string(const char *type, const char *name)
 		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES128_GCM) \
 		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES192_GCM) \
 		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES256_GCM) \
+		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES128_WRAP) \
+		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES192_WRAP) \
+		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES256_WRAP) \
 		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES128_CBC) \
 		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES192_CBC) \
 		KEYAGENT_DEFINE_QUARK(SWKTYPE,AES256_CBC) \
@@ -223,6 +227,9 @@ keyagent_quark_to_string(const char *type, const char *name)
 #define KEYAGENT_SWKTYPE_AES128_GCM								KEYAGENT_DECLARE_SWKTYPE(AES128_GCM)
 #define KEYAGENT_SWKTYPE_AES192_GCM								KEYAGENT_DECLARE_SWKTYPE(AES192_GCM)
 #define KEYAGENT_SWKTYPE_AES256_GCM								KEYAGENT_DECLARE_SWKTYPE(AES256_GCM)
+#define KEYAGENT_SWKTYPE_AES128_WRAP								KEYAGENT_DECLARE_SWKTYPE(AES128_WRAP)
+#define KEYAGENT_SWKTYPE_AES192_WRAP								KEYAGENT_DECLARE_SWKTYPE(AES192_WRAP)
+#define KEYAGENT_SWKTYPE_AES256_WRAP								KEYAGENT_DECLARE_SWKTYPE(AES256_WRAP)
 #define KEYAGENT_SWKTYPE_AES128_CBC								KEYAGENT_DECLARE_SWKTYPE(AES128_CBC)
 #define KEYAGENT_SWKTYPE_AES192_CBC								KEYAGENT_DECLARE_SWKTYPE(AES192_CBC)
 #define KEYAGENT_SWKTYPE_AES256_CBC								KEYAGENT_DECLARE_SWKTYPE(AES256_CBC)
@@ -260,6 +267,9 @@ GQuark KEYAGENT_SWKTYPE_AES256_CTR;
 GQuark KEYAGENT_SWKTYPE_AES128_GCM;
 GQuark KEYAGENT_SWKTYPE_AES192_GCM;
 GQuark KEYAGENT_SWKTYPE_AES256_GCM;
+GQuark KEYAGENT_SWKTYPE_AES128_WRAP;
+GQuark KEYAGENT_SWKTYPE_AES192_WRAP;
+GQuark KEYAGENT_SWKTYPE_AES256_WRAP;
 GQuark KEYAGENT_SWKTYPE_AES128_CBC;
 GQuark KEYAGENT_SWKTYPE_AES192_CBC;
 GQuark KEYAGENT_SWKTYPE_AES256_CBC;
@@ -319,14 +329,15 @@ typedef enum {
     KEYAGENT_ERROR_KEY_CREATE_INVALID_SESSION_ID,
     KEYAGENT_ERROR_SESSION_CREATE_INVALID_LABEL,
     KEYAGENT_ERROR_SESSION_CREATE_INVALID_SWK_TYPE,
-	KEYAGENT_ERROR_INVALID_KEYFORMAT,
-	KEYAGENT_ERROR_INVALID_CONF_VALUE,
+    KEYAGENT_ERROR_INVALID_KEYFORMAT,
+    KEYAGENT_ERROR_INVALID_CONF_VALUE,
 } KeyAgentErrors;
 
 typedef enum {
     STM_ERROR_QUOTE = 1,
 	STM_ERROR_API_MODULE_LOADKEY,
 	STM_ERROR_INVALID_CHALLENGE_DATA,
+	STM_ERROR_INVALID_LOADKEY_DATA,
 } StmErrors;
 
 typedef enum {
@@ -345,16 +356,16 @@ typedef enum {
     typedef RETURNTYPE (* SUBTYPE##_##NAME##_func) ARGS; \
     DHSM_EXTERN RETURNTYPE __##SUBTYPE##_##NAME ARGS
 
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_set_session, gboolean,(keyagent_session *, GError **));
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_get_challenge, gboolean, (const char *name, k_buffer_ptr *challenge, GError **));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_set_session, gboolean,(const char *request_id, keyagent_session *, GError **));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_get_challenge, gboolean, (const char *request_id, const char *name, k_buffer_ptr *challenge, GError **));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_get_ids,GString *,());
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_create, gboolean, (const char *name, const char *session_id, k_buffer_ptr swk, const char *swk_type, gint cache_id, GError **));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_create, gboolean, (const char *request_id, const char *name, const char *session_id, k_buffer_ptr swk, const char *swk_type, GError **));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_lookup_swktype, GQuark, (const char *type));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_challenge_verify, gboolean, (const char *name, k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, GError **));
 
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,https_send,int, (GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, GString *userpwd, gboolean verbose));
 
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_create, GQuark,(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error));
+DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_create, GQuark,(const char *request_id, keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_policy_add, gboolean, (keyagent_url url, k_attributes_ptr policy_attrs, gint cache_id, GError **error));
 
 typedef struct {
@@ -372,63 +383,83 @@ typedef struct {
 #define KEYAGENT_NPM_OP(OPS,NAME)  (OPS)->keyagent_func_##NAME
 
 typedef struct {
+    const char *request_id;
     keyagent_url url;
     GString *stm_names;
     keyagent_ssl_opts ssl_opts;
     keyagent_npm_callbacks cbs;
 } keyagent_keyload_details;
 
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,get_swk_size, int, (GQuark swk_type));
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,aes_decrypt, k_buffer_ptr,(GQuark swk_type, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv));
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,verify_and_extract_cms_message, gboolean, (k_buffer_ptr msg, k_buffer_ptr *data, GError **error));
-
 typedef struct {
-    DECLARE_KEYAGENT_OP(keyagent,get_swk_size);
-    DECLARE_KEYAGENT_OP(keyagent,aes_decrypt);
-    DECLARE_KEYAGENT_OP(keyagent,verify_and_extract_cms_message);
-} keyagent_stm_callbacks;
-
-#define KEYAGENT_STM_OP(OPS,NAME)  (OPS)->keyagent_func_##NAME
-
-typedef struct {
-    GQuark swk_type;
-    int swk_size_in_bits;
-    k_buffer_ptr session;
-    keyagent_stm_callbacks cbs;
-} keyagent_stm_session_details;
-
-#define DECLARE_KEYAGENT_EXTERNAL_OP(SUBTYPE, NAME, RETURNTYPE, ARGS) \
-    typedef RETURNTYPE (* SUBTYPE##_##NAME##_func) ARGS;
-
-typedef struct {
+	const char *label;
     keyagent_url url;
     keyagent_keytype type;
     k_buffer_ptr key;
+    k_buffer_ptr iv;
+	int tag_size;
+	void *module_data;
 } keyagent_apimodule_loadkey_details;
 
-DECLARE_KEYAGENT_EXTERNAL_OP(apimodule,loadkey, gboolean,(keyagent_apimodule_loadkey_details *, GError **));
+typedef gboolean (*apimodule_load_key_func)(keyagent_apimodule_loadkey_details *, void *, GError **);
 
 typedef struct {
-    DECLARE_KEYAGENT_OP(apimodule,loadkey);
-} keyagent_apimodule_ops;
+	const char *label;
+	void *module_data;
+    GQuark swk_type;
+    int swk_size_in_bits;
+    k_buffer_ptr session;
+} keyagent_apimodule_session_details;
+
+typedef gboolean (*apimodule_set_wrapping_key_func)(keyagent_apimodule_session_details *, void *,GError **);
 
 typedef struct {
+	const char *label;
+    k_buffer_ptr challenge;
+	void *module_data;
+} keyagent_apimodule_get_challenge_details;
+
+typedef gboolean (*apimodule_get_challenge_func)(keyagent_apimodule_get_challenge_details *, void *, GError **);
+
+typedef struct {
+    const char *request_id;
     GQuark swk_quark;
-    keyagent_url url;
-    keyagent_keytype type;
-    k_attributes_ptr attrs;
-    keyagent_stm_callbacks cbs;
-    keyagent_apimodule_ops apimodule_ops;
+	apimodule_load_key_func apimodule_load_key_cb;
+	keyagent_apimodule_loadkey_details apimodule_details;
 } keyagent_stm_loadkey_details;
 
+typedef struct {
+    const char *request_id;
+	apimodule_set_wrapping_key_func set_wrapping_key_cb;
+	keyagent_apimodule_session_details apimodule_details;
+} keyagent_stm_session_details;
 
-#define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
-	if (!g_module_symbol ((MODULE), (FUNCNAME), (gpointer *)&(RET))) \
-    { \
-		g_set_error (&tmp_error, KEYAGENT_ERROR, (ERRCLASS), \
-                   "%s", g_module_error ()); \
-		goto errexit; \
-    } \
-} while (0)
+typedef struct {
+    const char *request_id;
+	apimodule_get_challenge_func apimodule_get_challenge_cb;
+	keyagent_apimodule_get_challenge_details apimodule_details;
+} keyagent_stm_create_challenge_details;
+
+typedef struct {
+	apimodule_load_key_func load_key;
+	apimodule_get_challenge_func get_challenge;
+	apimodule_set_wrapping_key_func set_wrapping_key;
+} keyagent_apimodule_ops;
+
+struct keyagent_sgx_quote_info {
+    union {
+        struct {
+	        u_int32_t exponent_len;
+	        u_int32_t modulus_len;
+        } rsa;
+        struct {
+            u_int32_t dummy;
+        } ec;
+    } keydetails;
+	keyagent_keytype keytype;
+};
+
+struct keyagent_sgx_challenge_request {
+    gboolean linkable;
+};
 
 #endif

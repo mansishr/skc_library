@@ -19,7 +19,6 @@
 #include "k_errors.h"
 #include "key-agent/types.h"
 #include "key-agent/key_agent.h"
-#include "key-agent/src/internal.h"
 
 
 using namespace std;

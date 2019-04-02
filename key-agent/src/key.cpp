@@ -39,7 +39,7 @@ __keyagent_key_lookup(const char *url)
 }
 
 extern "C" GQuark DLL_LOCAL
-__keyagent_key_create_with_cacheid(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, gint cache_id, GError **error)
+__keyagent_key_create_with_cacheid(const char *request_id, keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, gint cache_id, GError **error)
 {
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, __keyagent_key_lookup(url));
     GQuark key_quark = g_quark_from_string(url);
@@ -73,7 +73,7 @@ out:
     if (cache_id == -1)
         __keyagent_cache_key((keyagent_key *)key, error);
 
-    __keyagent_stm_set_session((keyagent_session *)session, error);
+    // TODO __keyagent_stm_set_session((keyagent_session *)session, error);
     return key_quark;
 }
 
@@ -96,9 +96,9 @@ out:
 }
 
 extern "C" GQuark DLL_LOCAL
-__keyagent_key_create(keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error)
+__keyagent_key_create(const char *request_id, keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error)
 {
-    return __keyagent_key_create_with_cacheid(url, type, attrs, session_id, -1, error);
+    return __keyagent_key_create_with_cacheid(request_id, url, type, attrs, session_id, -1, error);
 }
 
 extern "C" gboolean DLL_LOCAL

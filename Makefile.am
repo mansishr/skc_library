@@ -1,3 +1,4 @@
+
 SUBDIRS = \
 	config-file \
 	credential-agent \
@@ -5,8 +6,6 @@ SUBDIRS = \
 	npm/kms \
 	npm/reference \
 	stm/sw \
-	api-module/sw-pkcs11/SoftHSMv2 \
-	api-module/sgx-pkcs11/ \
 	npm/tests/test_app
 
 conf_dir:=./configs

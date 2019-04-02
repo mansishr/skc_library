@@ -14,6 +14,12 @@ using namespace std;
 
 KEYAGENT_DEFINE_ATTRIBUTES()
 
+#ifdef CMS
+extern "C" gboolean DLL_LOCAL
+verify_and_extract_cms_message(k_buffer_ptr msg, k_buffer_ptr *data, GError **error);
+#endif
+
+
 namespace kms_npm
 {
 	GString *configfile;
@@ -197,8 +203,11 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	if (strcmp(session_method->str, "post") != 0)
 		goto cleanup;
 
-	if (!KEYAGENT_STM_OP(&info->details->cbs,stm_get_challenge)(challenge_type->str, &challenge, error))
-		goto cleanup;
+
+    if (!KEYAGENT_NPM_OP(&info->details->cbs,stm_get_challenge)(info->details->request_id, challenge_type->str, &challenge, error))
+    {
+        goto cleanup;
+    }
 
 	k_debug_generate_checksum("NPM:CHALLENGEl:REAL", k_buffer_data(challenge), k_buffer_length(challenge));
 
@@ -243,11 +252,11 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	}
 
 	ret_status							= KEYAGENT_NPM_OP(&info->details->cbs,session_create)(
+                                                                    info->details->request_id,
 																	challenge_type->str,
 																	(const char*)g_base64_decode(session_id->str, &len), 
 																	protected_swk,
 																	(const char *)swktype->str, 
-																	-1, 
 																	error);
 	if( ret_status  == FALSE && *error == NULL)
 	{
@@ -386,7 +395,19 @@ __npm_loadkey(loadkey_info *info, GError **err)
                         else if ( g_strcmp0((const char*) keytype_str, (const char*)"AES") == 0)
                             keytype = KEYAGENT_AESKEY;
 
-			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
+#ifdef CMS
+            k_buffer_ptr tmp = decode64_json_attr(transfer_data["data"], "payload");
+            k_buffer_ptr KEYDATA;
+            if (!verify_and_extract_cms_message(tmp, &KEYDATA, err)) {
+                k_buffer_unref(tmp);
+                goto cleanup;
+            }
+            k_buffer_unref(tmp);
+            KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
+            k_buffer_unref(KEYDATA);
+#else
+            SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
+#endif
 #ifdef TEST_WAK_DATA
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);
@@ -436,7 +457,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "not_after", NOT_AFTER);
 				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "not_before", NOT_BEFORE);
 				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "created_at", CREATED_AT);
-		        if( KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->url, keytype, attrs, session_id, err) )
+		        if( KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->request_id, info->details->url, keytype, attrs, session_id, err) )
 				    ret					= KEYAGENT_NPM_OP(&info->details->cbs, key_policy_add)(info->details->url, policy_attrs, -1, err);
 			}catch(exception& e){
 				k_set_error (err, NPM_ERROR_JSON_PARSE,
@@ -447,7 +468,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 		}
 		else
 		{
-            ret                         = (KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->url, keytype, attrs, session_id, err)? TRUE : FALSE);
+            ret                         = (KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->request_id, info->details->url, keytype, attrs, session_id, err)? TRUE : FALSE);
 		}
 	}
 	else{
@@ -537,8 +558,8 @@ npm_register(keyagent_url url, GError **err)
 	gboolean ret						= FALSE;
 	
 	url_tokens							= g_strsplit (url, ":", -1) ; 
-	if ( url_tokens[0] ==  NULL || (g_strcmp0(url_tokens[0], KMS_PREFIX_TOKEN) != 0) || !url_tokens[1] 
-			|| (g_strcmp0 (url_tokens[1], "")  == 0))
+    if ( url_tokens[0] ==  NULL || (g_strcmp0(url_tokens[0], KMS_PREFIX_TOKEN) != 0) || !url_tokens[1]
+        || (g_strcmp0 (url_tokens[1], "")  == 0))
     {
 		if( err )
 		{
