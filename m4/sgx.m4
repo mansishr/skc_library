@@ -87,5 +87,13 @@ AC_DEFUN([SGX_INIT],[
                 [AC_ERROR(Can't find Intel SGX SSL lib directory)])
         AC_MSG_NOTICE([Found your Intel SGX SSL in $SGXSSLDIR])
 	AC_SUBST(SGXSSLDIR)
+
+	AC_ARG_WITH([sgx-toolkit],
+		[AS_HELP_STRING([--with-sgx-toolkit=path],
+			[Set the directory where sgx toolkit is installed])
+		], [SGXTOOLKIT=$withval], [])
+
+	AC_SUBST(SGXTOOLKIT)
+    AM_CONDITIONAL([SGXTOOLKIT], [test "x$SGXTOOLKIT" != "x"])
 ])
 

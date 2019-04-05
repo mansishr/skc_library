@@ -11,8 +11,8 @@ define([_VERSION_MINOR], [0])
 define([_VERSION_FIX], [0])
 define([PACKAGE_SUFFIX], [])
 
-define([_VERSION_CURRENT], [2])
-define([_VERSION_AGE], [1])
+define([_VERSION_CURRENT], [0])
+define([_VERSION_AGE], [0])
 define([_VERSION_REVISION], [0])
 define([AM_CXXFLAGS], [-std=c++0x])
 
@@ -24,24 +24,21 @@ define([AM_CXXFLAGS], [-std=c++0x])
 
 # Init
 AC_PREREQ(2.61)
-AC_INIT([DHSM2],[_VERSION_MAJOR._VERSION_MINOR._VERSION_FIX[]PACKAGE_SUFFIX])
+AC_INIT([PKSCS11-API],[_VERSION_MAJOR._VERSION_MINOR._VERSION_FIX[]PACKAGE_SUFFIX])
 #LT_INIT([shared disable-static])
 AC_CONFIG_AUX_DIR([configout])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([Makefile.am])
-AC_CONFIG_MACRO_DIR([m4])
+
+AC_CONFIG_MACRO_DIR([../../m4])
 AM_INIT_AUTOMAKE(foreign)
 
 # Checks for compilers
 AC_PROG_CC
 AC_PROG_CXX
 
-ACX_OPENSSL(1,0,0)
-LIBCURL_CHECK_CONFIG
-
-DHSM_SETUP(.)
-
-SGX_INIT
+DHSM_SETUP(../..)
+SGX_INIT()
 
 # Define some variables for the code
 AC_DEFINE_UNQUOTED(
@@ -61,7 +58,6 @@ AC_DEFINE_UNQUOTED(
 	[Use C++11 compiler]
 )
 
-
 AC_DEFINE_UNQUOTED(
 	[HAVE_CXX14],
 	[1],
@@ -75,21 +71,7 @@ AC_PROG_LIBTOOL
 # Generate the makefiles
 AC_CONFIG_FILES([
 	Makefile
-	credential-agent/Makefile
-	credential-agent/commandline_tool/Makefile
-	credential-agent/tests/Makefile
-	testserver/Makefile
-])
-
-AC_CONFIG_SUBDIRS([
-    config-file
-    key-agent
-    stm/sw
-    stm/sgx
-    npm/reference
-    npm/kms
-    api-module/pkcs11
-    npm/tests/test_app
+	src/Makefile
 ])
 
 AC_OUTPUT

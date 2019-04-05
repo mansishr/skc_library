@@ -7,6 +7,7 @@ SUBDIRS = \
 	npm/reference \
 	stm/sw \
 	stm/sgx \
+	api-module/pkcs11 \
 	npm/tests/test_app
 
 conf_dir:=./configs

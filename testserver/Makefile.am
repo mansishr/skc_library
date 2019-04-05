@@ -22,6 +22,7 @@ dest_script_files=$(wildcard $(datadir)/*.sh $(datadir)/*.cnf)
 data_DATA=$(script_files)
 
 install-data-hook:$(dest_script_files)
+	mkdir -p $(datadir)
 	@echo "calling install-data-hook:${dest_script_files}"
 	$(SED) -i "s|__PREFIX__|@prefix@|" $(dest_script_files)
 	chmod a+x $(dest_script_files)
