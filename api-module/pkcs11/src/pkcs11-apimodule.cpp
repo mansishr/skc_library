@@ -97,7 +97,7 @@ apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
     apimodule_ops.get_challenge = apimodule_get_challenge;
     apimodule_ops.set_wrapping_key = apimodule_set_wrapping_key;
 
-    if ((config_filename = g_getenv("DHSM2_PKCS11_APIMODULE_CONG")) == NULL)
+    if ((config_filename = g_getenv("DHSM2_PKCS11_APIMODULE_CONF")) == NULL)
         config_filename = DHSM2_CONF_PATH "/pkcs11-apimodule.ini"; 
 
     GError *error = NULL;

@@ -76,7 +76,7 @@ sgx_unwrap_symmeric_key(keyagent_apimodule_loadkey_details *details, apimodule_t
     //    { CKA_SIGN, 	&bTrue,sizeof(bTrue) },
         { CKA_UNWRAP, 	&bTrue, sizeof(bTrue) },
     //    { CKA_SENSITIVE, &bFalse, sizeof(bFalse) },
-        { CKA_EXTRACTABLE, &bTrue, sizeof(bTrue) }
+        //{ CKA_EXTRACTABLE, &bTrue, sizeof(bTrue) }
     };
 
     SET_TOKEN_ATTRIBUTE(nPrkAttribs, 0);
@@ -344,7 +344,7 @@ sgx_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, G
         	{ CKA_PRIVATE, &bTrue, sizeof(bTrue) },
         	{ CKA_DECRYPT, &bTrue, sizeof(bTrue) },
         	{ CKA_UNWRAP, &bTrue, sizeof(bTrue) },
-        	{ CKA_EXTRACTABLE, &bTrue, sizeof(bTrue) }
+        	//{ CKA_EXTRACTABLE, &bTrue, sizeof(bTrue) }
     	};
 
         SET_TOKEN_ATTRIBUTE(nPrkAttribs, 0);

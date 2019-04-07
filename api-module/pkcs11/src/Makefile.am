@@ -4,6 +4,7 @@ AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) \
 
 if SGXTOOLKIT
 AM_CPPFLAGS += \
+	-DSGXTOOLKIT \
 	-I$(SGXTOOLKIT)/include
 endif
 
