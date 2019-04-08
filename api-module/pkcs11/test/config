@@ -1,0 +1,73 @@
+DATADIR=`realpath data`
+SERVER_DATADIR=$DATADIR/server
+mkdir -p $DATADIR
+mkdir -p $SERVER_DATADIR
+OPENSSL=openssl
+SERVER_OPENSSL_CONF=$SERVER_DATADIR/ca.cnf
+
+ENGINE=/usr/lib64/engines-1.1/pkcs11.so
+
+#CURL=curl
+CURL=$HOME/work-install/bin/curl
+CLIENT_CACERT=$DATADIR/client_root.crt
+CLIENT_CAPATH=$DATADIR
+CLIENT_CERT=$DATADIR/client.cert
+CLIENT_CSR=$DATADIR/client.csr
+
+SERVER_ROOTCERT=$SERVER_DATADIR/root_cert.pem
+SERVER_CERT=$SERVER_DATADIR/cert-rsa.pem
+
+SGX=1
+SPY=1
+INSTALLDIR=/tmp/newtest2
+SPY_MODULE=/usr/lib64/pkcs11/pkcs11-spy.so
+REAL_PKCS11_MODULE=$INSTALLDIR/lib/libpkcs11-api.so
+
+SOFTHSM_UTIL=$HOME/test-install/bin/softhsm2-util
+SOFTHSM_LIB=$HOME/test-install/lib/softhsm/libsofthsm2.so
+#SOFTHSM_UTIL=/usr/bin/softhsm2-util
+#SOFTHSM_LIB=/usr/lib64/libsofthsm2.so
+
+TOOLKIT_INSTALLDIR=/tmp/sgxtest
+SOFTWARE_MODULE=$SOFTHSM_LIB
+TOOLKIT_MODULE=$TOOLKIT_INSTALLDIR/lib/libp11sgx.so
+
+cp pkcs11-apimodule.ini.in $DATADIR/pkcs11-apimodule.ini
+if [ "x$SGX" != "x" ]
+then
+    MODE=SGX
+
+    if [ "x$SPY" == "x1" ]
+    then
+	    export PKCS11SPY=$TOOLKIT_INSTALLDIR/lib/libp11sgx.so
+        TOOLKIT_MODULE=$SPY_MODULE
+    else
+        export PKCS11SPY=
+    fi
+else
+    MODE=SW
+    if [ "x$SPY" == "x1" ]
+    then
+	    export PKCS11SPY=$SOFTHSM_LIB
+        SOFTWARE_MODULE=$SPY_MODULE
+    else
+        export PKCS11SPY=
+    fi
+fi
+
+cp pkcs11-apimodule.ini.in $DATADIR/pkcs11-apimodule.ini
+sed -e "s|__DHSM_MODE__|${MODE}|g" \
+    -e "s|__DHSM_INSTALL__|${INSTALLDIR}|g" \
+    -e "s|__SOFTWARE_MODULE__|${SOFTWARE_MODULE}|g" \
+    -e "s|__TOOLKIT_MODULE__|${TOOLKIT_MODULE}|g" \
+    <"./pkcs11-apimodule.ini.in" >"$DATADIR/pkcs11-apimodule.ini"
+
+export DHSM2_PKCS11_APIMODULE_CONF=$DATADIR/pkcs11-apimodule.ini
+
+PIN=1234
+KEYLABEL=mykey
+KEYID=1111
+
+TOKENNAME=REFERENCE
+PRIVATE_KEY2="pkcs11:token=$TOKENNAME2;id=%01%01%01%02;object=mykey2;type=private;pin-value=$PIN"
+echo $PRIVATE_KEY2
