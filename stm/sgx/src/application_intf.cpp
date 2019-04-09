@@ -16,6 +16,8 @@ namespace sgx_application_sgx_stm {
     GString *configfile;
     gboolean debug;
     gboolean linkable_quote;
+	const char *spid;
+	const char *sigrl;
 }
 
 extern "C" void
@@ -34,6 +36,10 @@ application_stm_init(const char *config_directory, GError **err)
 
     sgx_application_sgx_stm::debug = key_config_get_boolean_optional(config, "core", "debug", false);
     sgx_application_sgx_stm::linkable_quote = key_config_get_boolean_optional(config, "qoute", "linkable", false);
+    sgx_application_sgx_stm::spid = key_config_get_string(config, "qoute", "spid", err);
+	if (*err)
+		return;
+    sgx_application_sgx_stm::sigrl = key_config_get_string_optional(config, "quote", "sigrl", NULL);
 
     init_delay = key_config_get_integer_optional(config, "testing", "initdelay", 0);
 		
@@ -60,8 +66,12 @@ stm_create_challenge(keyagent_stm_create_challenge_details *details, GError **er
 	}
 
     sgx_challenge_request.linkable = sgx_application_sgx_stm::linkable_quote;
+    sgx_challenge_request.spid = strdup(sgx_application_sgx_stm::spid);
+    sgx_challenge_request.sigrl = (sgx_application_sgx_stm::sigrl ? strdup(sgx_application_sgx_stm::sigrl) : NULL);
 
 	ret = (*details->apimodule_get_challenge_cb)(&details->apimodule_details, &sgx_challenge_request, err);
+    free((void *)sgx_challenge_request.spid);
+    if (sgx_challenge_request.sigrl) free((void *)sgx_challenge_request.sigrl);
 	
 	if (!details->apimodule_details.challenge && !*err) {
 		k_set_error (err, STM_ERROR_API_MODULE_LOADKEY, 

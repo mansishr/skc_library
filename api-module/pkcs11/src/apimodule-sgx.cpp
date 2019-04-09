@@ -204,6 +204,10 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
     CK_ULONG            signatureType       = UNLINKABLE_SIGNATURE;
 	apimodule_uri_data *data 				= NULL;
     apimodule_token *atoken 				= NULL;
+	CK_BYTE_PTR spid						= NULL;
+	CK_ULONG spid_len						= 0;
+	CK_BYTE_PTR sigrl						= NULL;
+	CK_ULONG sigrl_len						= 0;
 
     if (!details || !request || !err || !details->module_data) {
         k_set_error(err, -1, "Input parameters are invalid!");
@@ -226,22 +230,21 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 
     atoken = lookup_apimodule_token(data->token_label->str);
 
-    if (challenge_request)
+    if (challenge_request) {
         signatureType = (challenge_request->linkable ? LINKABLE_SIGNATURE : UNLINKABLE_SIGNATURE);
+		spid = (CK_BYTE_PTR)challenge_request->spid;
+		spid_len = (spid ? strlen(challenge_request->spid) : 0);
+		sigrl = (CK_BYTE_PTR)challenge_request->sigrl;
+		sigrl_len = (sigrl ? strlen(challenge_request->sigrl) : 0);
+	}
 
     do {
 
-    	CK_BYTE spid[] = {
-        	0x11, 0x22, 0x33, 0x44, 0x55, 0x66,
-        	0x77, 0x88, 0x99, 0x99, 0x88, 0x77,
-        	0x66, 0x55, 0x44, 0x33
-    	};
-
     	CK_QUOTE_RSA_PUBLIC_KEY_PARAMS quoteRSAParams = {
-        	&spid[0],
-        	sizeof(spid),
-        	NULL,
-        	0,
+			spid,
+			spid_len,
+        	sigrl,
+        	sigrl_len,
         	signatureType
     	};
 

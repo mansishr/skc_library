@@ -460,6 +460,8 @@ struct keyagent_sgx_quote_info {
 
 struct keyagent_sgx_challenge_request {
     gboolean linkable;
+    const char *spid;
+    const char *sigrl;
 };
 
 #endif
