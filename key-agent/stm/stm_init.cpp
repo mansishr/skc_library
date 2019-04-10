@@ -215,7 +215,8 @@ __keyagent_stm_load_key(const char *request_id, keyagent_key *_key, GError **err
         k_set_error (error, STM_ERROR_INVALID_LOADKEY_DATA, "invalid iv length");
         return FALSE;
     }
-    iv = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t),  keytransfer->iv_length);
+    if (keytransfer->iv_length)
+        iv = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t),  keytransfer->iv_length);
     wrapped_key = k_buffer_alloc(k_buffer_data(keydata) + sizeof(keyagent_keytransfer_t) +
         keytransfer->iv_length, keytransfer->wrap_size);
 

@@ -1,5 +1,5 @@
 AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) -std=c++11
-#AM_CPPFLAGS += -DCMS
+AM_CPPFLAGS += -DCMS
 
 libdir = $(prefix)/lib/npm-modules
 

@@ -34,7 +34,7 @@ typedef struct {
 typedef struct swk_op{
 	int keybits;
 	const EVP_CIPHER* (* cipher_func )(void);
-	int (* encrypt_func)(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr iv, k_buffer_ptr ciphertext);
+	k_buffer_ptr (* encrypt_func)(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr *iv, k_buffer_ptr *ciphertext);
 	k_buffer_ptr (* decrypt_func)(struct swk_op *swk_op, k_buffer_ptr msg, k_buffer_ptr key, int tlen, k_buffer_ptr iv);
 } swk_type_op;
 
@@ -88,9 +88,9 @@ typedef struct {
     k_buffer_ptr keydata;
 } key_info_t;
 
-int aes_gcm_encrypt(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr iv, k_buffer_ptr ciphertext);
-int aes_cbc_encrypt(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr iv, k_buffer_ptr ciphertext);
-int aes_wrap_encrypt(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr iv, k_buffer_ptr ciphertext);
+k_buffer_ptr aes_gcm_encrypt(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr *iv, k_buffer_ptr *ciphertext);
+k_buffer_ptr aes_cbc_encrypt(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr *iv, k_buffer_ptr *ciphertext);
+k_buffer_ptr aes_wrap_encrypt(k_buffer_ptr plaintext, void *swk_info, k_buffer_ptr *iv, k_buffer_ptr *ciphertext);
 
 void key_info_free(gpointer data);
 void client_hash_value_free(gpointer data);

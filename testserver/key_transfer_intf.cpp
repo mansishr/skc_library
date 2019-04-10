@@ -404,7 +404,7 @@ get_challenge_info(char *client_ip, std::string keyid, int *http_code, testserve
 }
 
 static
-int encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv, k_buffer_ptr ciphertext) {
+k_buffer_ptr encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr *iv, k_buffer_ptr *ciphertext) {
 	server_swk *swk_info = (server_swk *)swk_info_ptr;
 	if( swk_info->swk_op->encrypt_func )
 	{
@@ -413,62 +413,91 @@ int encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv, k_buffe
 	else 
 	{
 		k_critical_msg("Encrypt function not available\n");
-		return -1;
+		return NULL;
 	}
-
 }
 
-int aes_gcm_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv, k_buffer_ptr ciphertext) {
+k_buffer_ptr
+aes_gcm_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr *iv, k_buffer_ptr *ciphertext) {
 	server_swk *swk_info = (server_swk *)swk_info_ptr;
     EVP_CIPHER_CTX *ctx;
     int len;
     int ciphertext_len;
+
+    *iv = generate_iv();
+    k_debug_generate_checksum("SERVER:IV", k_buffer_data(*iv), k_buffer_length(*iv));
+    *ciphertext = k_buffer_alloc(NULL, k_buffer_length(plaintext) + TAG_SIZE);
 
 	k_debug_msg("AES:GCM-keybit:%d\n", swk_info->swk_op->keybits);
 	k_buffer_ptr key = swk_info->swk;
-    if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
+    if (!(ctx = EVP_CIPHER_CTX_new())) return NULL;
 
     assert(EVP_EncryptInit_ex(ctx, swk_info->swk_op->cipher_func(), NULL, NULL, NULL) == 1);
-    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, k_buffer_length(iv), NULL) == 1);
-    assert(EVP_EncryptInit_ex(ctx, NULL, NULL, (unsigned char *)k_buffer_data(key), (unsigned  char *)k_buffer_data(iv)) == 1);
-    assert(EVP_EncryptUpdate(ctx, k_buffer_data(ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext)) == 1);
+    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, k_buffer_length(*iv), NULL) == 1);
+    assert(EVP_EncryptInit_ex(ctx, NULL, NULL, (unsigned char *)k_buffer_data(key), (unsigned  char *)k_buffer_data(*iv)) == 1);
+    assert(EVP_EncryptUpdate(ctx, k_buffer_data(*ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext)) == 1);
     ciphertext_len = len;
-    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(ciphertext) + len, &len) == 1);
+    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(*ciphertext) + len, &len) == 1);
     ciphertext_len += len;
-    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, TAG_SIZE, (unsigned char *) k_buffer_data(ciphertext) + ciphertext_len) == 1);
+    assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, TAG_SIZE, (unsigned char *) k_buffer_data(*ciphertext) + ciphertext_len) == 1);
     EVP_CIPHER_CTX_free(ctx);
 	k_debug_msg("end-size %d", ciphertext_len);
-    return ciphertext_len + TAG_SIZE;
+
+    len = ciphertext_len + TAG_SIZE;
+	k_buffer_set_size(*ciphertext, len);
+    k_buffer_ptr input_bytes = k_buffer_alloc(NULL, sizeof(keyagent_keytransfer_t));
+    keyagent_keytransfer_t *keytransfer = (keyagent_keytransfer_t *)k_buffer_data(input_bytes);
+    keytransfer->iv_length = k_buffer_length(*iv);
+    keytransfer->tag_size = TAG_SIZE;
+    keytransfer->wrap_size = len;
+    return input_bytes;
 }
 
-int aes_cbc_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv, k_buffer_ptr ciphertext) {
+k_buffer_ptr
+aes_cbc_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr *iv, k_buffer_ptr *ciphertext) {
 
 	server_swk *swk_info = (server_swk *)swk_info_ptr;
     EVP_CIPHER_CTX *ctx;
     int len;
     int ciphertext_len;
+
+    *iv = generate_iv();
+    k_debug_generate_checksum("SERVER:IV", k_buffer_data(*iv), k_buffer_length(*iv));
+    *ciphertext = k_buffer_alloc(NULL, k_buffer_length(plaintext) + TAG_SIZE);
+
 	k_debug_msg("AES:CBC-keybit:%d\n",  swk_info->swk_op->keybits);
 
 	k_buffer_ptr key = swk_info->swk;
 	k_debug_generate_checksum("SERVER:CBC_ENCRYPT:KEY", k_buffer_data(key), k_buffer_length(key));
 
-    if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
+    if (!(ctx = EVP_CIPHER_CTX_new())) return NULL;
 
-    assert(EVP_EncryptInit_ex(ctx, swk_info->swk_op->cipher_func(), NULL, k_buffer_data(key), k_buffer_data(iv)) == 1);
-    assert(EVP_EncryptUpdate(ctx, k_buffer_data(ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext)) == 1);
+    assert(EVP_EncryptInit_ex(ctx, swk_info->swk_op->cipher_func(), NULL, k_buffer_data(key), k_buffer_data(*iv)) == 1);
+    assert(EVP_EncryptUpdate(ctx, k_buffer_data(*ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext)) == 1);
     ciphertext_len = len;
-    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(ciphertext) + len, &len) == 1);
+    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(*ciphertext) + len, &len) == 1);
     ciphertext_len += len;
     EVP_CIPHER_CTX_free(ctx);
-    return ciphertext_len;
+
+    len = ciphertext_len + TAG_SIZE;
+	k_buffer_set_size(*ciphertext, len);
+    k_buffer_ptr input_bytes = k_buffer_alloc(NULL, sizeof(keyagent_keytransfer_t));
+    keyagent_keytransfer_t *keytransfer = (keyagent_keytransfer_t *)k_buffer_data(input_bytes);
+    keytransfer->iv_length = k_buffer_length(*iv);
+    keytransfer->tag_size = TAG_SIZE;
+    keytransfer->wrap_size = len;
+    return input_bytes;
 }
 
-int aes_wrap_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv, k_buffer_ptr ciphertext) {
+k_buffer_ptr
+aes_wrap_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr *iv, k_buffer_ptr *ciphertext) {
 
 	server_swk *swk_info = (server_swk *)swk_info_ptr;
     EVP_CIPHER_CTX *ctx;
     int len = 0;
     int ciphertext_len;
+
+    *ciphertext = k_buffer_alloc(NULL, k_buffer_length(plaintext) * 2);
 	k_debug_msg("AES:WRAP-keybit:%d\n",  swk_info->swk_op->keybits);
 
 	k_buffer_ptr key = swk_info->swk;
@@ -484,30 +513,37 @@ int aes_wrap_encrypt(k_buffer_ptr plaintext, void *swk_info_ptr, k_buffer_ptr iv
         memset(&k_buffer_data(plaintext)[wrapped_len], 0, 8 - alignment);
 	}
 
-    if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
+    if (!(ctx = EVP_CIPHER_CTX_new())) return NULL;
 	EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
     int rv = EVP_EncryptInit_ex(ctx, swk_info->swk_op->cipher_func(), NULL, k_buffer_data(key), NULL);
 	if (rv != 1) {
 		k_info_msg("%s:%d: %s", __func__, __LINE__, ERR_error_string(ERR_get_error(), NULL));
-		return 0;
+		return NULL;
 	}
     rv = EVP_CIPHER_CTX_set_padding(ctx, 0);
 
-	k_buffer_set_size(ciphertext,  k_buffer_length(plaintext) + 2 * EVP_CIPHER_CTX_block_size(ctx) - 1);
-	k_debug_msg("%s:%d: %p %p %d", __func__, __LINE__, k_buffer_data(ciphertext), k_buffer_data(plaintext), k_buffer_length(plaintext)); 
-    rv = EVP_EncryptUpdate(ctx, k_buffer_data(ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext));
+	k_buffer_set_size(*ciphertext,  k_buffer_length(plaintext) + 2 * EVP_CIPHER_CTX_block_size(ctx) - 1);
+	k_debug_msg("%s:%d: %p %p %d", __func__, __LINE__, k_buffer_data(*ciphertext), k_buffer_data(plaintext), k_buffer_length(plaintext)); 
+    rv = EVP_EncryptUpdate(ctx, k_buffer_data(*ciphertext), &len, k_buffer_data(plaintext), k_buffer_length(plaintext));
 	if (rv != 1) {
 		k_info_msg("%s:%d: %s", __func__, __LINE__, ERR_error_string(ERR_get_error(), NULL));
-		return 0;
+		return NULL;
 	}
     ciphertext_len = len;
-    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(ciphertext) + len, &len) == 1);
+    assert(EVP_EncryptFinal_ex(ctx, k_buffer_data(*ciphertext) + len, &len) == 1);
     ciphertext_len += len;
     EVP_CIPHER_CTX_free(ctx);
-    return ciphertext_len;
-}
 
+    len = ciphertext_len;
+	k_buffer_set_size(*ciphertext, len);
+    k_buffer_ptr input_bytes = k_buffer_alloc(NULL, sizeof(keyagent_keytransfer_t));
+    keyagent_keytransfer_t *keytransfer = (keyagent_keytransfer_t *)k_buffer_data(input_bytes);
+    keytransfer->iv_length = 0;
+    keytransfer->tag_size = 0;
+    keytransfer->wrap_size = len;
+    return input_bytes;
+}
 
 static k_buffer_ptr
 prepare_and_sign_cms(k_buffer_ptr input_data)
@@ -544,24 +580,20 @@ static gboolean
 wrap_key(keyagent_keytype type, k_attributes_ptr attrs, server_swk *swk_info, k_buffer_ptr keydata)
 {
 	k_buffer_ptr swk=swk_info->swk;
-    k_buffer_ptr iv = generate_iv();
     k_buffer_ptr tmp = k_buffer_ref(keydata);
-    k_buffer_ptr wrapped_key = NULL;
     k_buffer_ptr input_bytes = NULL;
     k_buffer_ptr KEYDATA = NULL;
     keyagent_keytransfer_t *keytransfer = NULL;
 	gboolean ret = FALSE;
+    k_buffer_ptr wrapped_key = NULL;
+    k_buffer_ptr iv = NULL;
 
     k_debug_generate_checksum("SERVER:PKCS8", k_buffer_data(tmp), k_buffer_length(tmp));
-    k_debug_generate_checksum("SERVER:IV", k_buffer_data(iv), k_buffer_length(iv));
-
-    wrapped_key = k_buffer_alloc(NULL, k_buffer_length(tmp) + TAG_SIZE);
-    int newsize = encrypt(tmp, swk_info, iv, wrapped_key);
-
-	if (!newsize)
+    input_bytes = encrypt(tmp, swk_info, &iv, &wrapped_key);
+	if (!input_bytes)
 		goto out;
-	k_buffer_set_size(wrapped_key, newsize);
 
+    keytransfer = (keyagent_keytransfer_t *)k_buffer_data(input_bytes);
 #ifdef WRAPDEBUG
 	k_debug_msg("%s:%d: key %x %x wrapped %x %x", __func__, __LINE__,
 		k_buffer_data(tmp)[0],
@@ -571,13 +603,8 @@ wrap_key(keyagent_keytype type, k_attributes_ptr attrs, server_swk *swk_info, k_
 #endif
     k_debug_generate_checksum("SERVER:PKCS8:WRAPPED", k_buffer_data(wrapped_key), k_buffer_length(wrapped_key));
 
-    input_bytes = k_buffer_alloc(NULL, sizeof(keyagent_keytransfer_t));
-    keytransfer = (keyagent_keytransfer_t *)k_buffer_data(input_bytes);
-    keytransfer->iv_length = k_buffer_length(iv);
-    keytransfer->tag_size = TAG_SIZE;
-    keytransfer->wrap_size = k_buffer_length(wrapped_key);
-    
-    k_buffer_append(input_bytes, k_buffer_data(iv), k_buffer_length(iv));
+    if (iv)
+        k_buffer_append(input_bytes, k_buffer_data(iv), k_buffer_length(iv));
     k_buffer_append(input_bytes, k_buffer_data(wrapped_key), k_buffer_length(wrapped_key));
 
 	if (server::use_cms) {
@@ -594,7 +621,7 @@ out:
     k_buffer_unref(KEYDATA);
     k_buffer_unref(wrapped_key);
     k_buffer_unref(input_bytes);
-    k_buffer_unref(iv);
+    if (iv) k_buffer_unref(iv);
 	return ret;
 }
 
