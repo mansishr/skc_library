@@ -1,4 +1,4 @@
-SUBDIRS = src cli tests tests/test_app
+SUBDIRS = src cli tests/test_app
 
 otherincludedir = $(includedir)/key-agent
 otherinclude_HEADERS = key_agent.h types.h

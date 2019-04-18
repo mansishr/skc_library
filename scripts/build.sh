@@ -12,13 +12,17 @@ fi
 
 set_log $FLAG_ENABLE "DHSM2_WORKLOAD"
 
+install_pre_requisites "devOps"
+if [ $? -ne $CODE_EXEC_SUCCESS ]; then
+	exit_script $LOG_ERROR "Pre-requisties installation" $CODE_ERROR
+fi
 
 check_pre_condition $FLAG_ENABLE 
 if [ $? -ne $CODE_EXEC_SUCCESS ]; then
 	exit_script $LOG_ERROR "Pre conditions not satisfied" $CODE_ERROR
 fi
 
-install_pre_requisites
+install_pre_requisites "dev"
 if [ $? -ne $CODE_EXEC_SUCCESS ]; then
 	exit_script $LOG_ERROR "Pre-requisties installation" $CODE_ERROR
 fi

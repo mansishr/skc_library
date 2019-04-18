@@ -375,19 +375,19 @@ get_challenge_info(char *client_ip, std::string keyid, int *http_code, testserve
         val["operation"] = "key transfer";
 
         val1["type"] = "not-authorized";
-        val["faults"] = val1;
+        val["faults"][0] = val1;
 		challenge_str				= create_challenge(client_ip);
 
 		if ( request_type == REQUEST_TYPE_NPM_KMS )
 		{
 			len							= strlen(challenge_str);
 			val["challenge"]			= g_base64_encode((const guchar *)challenge_str, len);
-            challenge_replyto["href"]   = g_strdup_printf("%s://localhost:%i/v1/kms/keys/session",(server::tls_auth_support)?"https":"http", server::port);
+			challenge_replyto["href"]   = g_strdup_printf("%s://testserver:%i/v1/kms/keys/session",(server::tls_auth_support)?"https":"http", server::port);
 		}
 		else
 		{
 			val["challenge"]			= challenge_str;
-            challenge_replyto["href"]   = g_strdup_printf("%s://localhost:%i/keys/session",(server::tls_auth_support)?"https":"http", server::port);
+			challenge_replyto["href"]   = g_strdup_printf("%s://testserver:%i/keys/session",(server::tls_auth_support)?"https":"http", server::port);
 		}
 
         val["challenge_type"]			= keyagent_get_module_label(server::stm);
@@ -666,17 +666,16 @@ get_kms_key_info(std::string keyid, int *http_code, char *session_id)
 				break;
 		}
 		val["data"]["policy"]["link"]
-        ["key-usage"]["href"]       = g_strdup_printf(
-                "%s://localhost:%i/v1/key-usage-policies/073796eb-9849-4dc2-b374-18628c5635ad",
-                (server::tls_auth_support)?"https":"http",server::port);
-
+			["key-usage"]["href"]       = g_strdup_printf(
+											"%s://testserver:%i/v1/key-usage-policies/073796eb-9849-4dc2-b374-18628c5635ad",
+											(server::tls_auth_support)?"https":"http",server::port );
 		val["data"]["policy"]["link"]
 			["key-usage"]["method"]     = "get";
 
 		val["data"]["policy"]["link"]
-        ["key-transfer"]["href"]        = g_strdup_printf(
-                "%s://localhost:%i/v1/key-transfer-policies/a67a6747-bd53-4280-90e0-5d310ba5fed9",
-                (server::tls_auth_support)?"https":"http",server::port);
+		["key-transfer"]["href"]        = g_strdup_printf(
+											"%s://testserver:%i/v1/key-transfer-policies/a67a6747-bd53-4280-90e0-5d310ba5fed9",
+											(server::tls_auth_support)?"https":"http",server::port);
 
 		val["data"]["policy"]["link"]
 			["key-transfer"]["method"]  = "get";
@@ -806,7 +805,7 @@ void get_kms_keytransfer_method_handler( const shared_ptr< Session > session )
                     val                     = get_challenge_info(client_ip, keyid, &http_code, REQUEST_TYPE_NPM_KMS);
                 } else {
                     val                     = get_kms_key_info(keyid, &http_code, session_id);
-                    headers.insert(std::make_pair("Session-ID", session_id));
+                    headers.insert(std::make_pair(g_strdup_printf("Session-ID: %s", results_challenge[0]), session_id));
                 }
 
 			    g_free(client_ip);

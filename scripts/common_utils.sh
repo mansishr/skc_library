@@ -168,43 +168,46 @@ check_proxy()
 	fi
 }
 
+check_linux_version()
+{
+        local OS=$(cat /etc/*release | grep ^NAME | cut -d'"' -f2)
+        local VER=$(cat /etc/*release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
+				
+		local os_arr_size=`expr ${#DHSM2_COMPONENT_INSTALL_OS[*]} - 1`;
+        local ver_arr_size=`expr ${#DHSM2_COMPONENT_INSTALL_OS_VER[*]} - 1`;
 
-check_linux_version() {
-	local OS=$(cat /etc/*release | grep ^NAME | cut -d'"' -f2)
-	local VER=$(cat /etc/*release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
+        log_msg $LOG_DEBUG "OS Array Size:${os_arr_size}, Ver Array Size:${ver_arr_size}"
 
-	local os_arr_size=`expr ${#DHSM2_COMPONENT_INSTALL_OS[*]} - 1`;
-	local ver_arr_size=`expr ${#DHSM2_COMPONENT_INSTALL_OS_VER[*]} - 1`;
-	
-	log_msg $LOG_DEBUG "OS Array Size:${os_arr_size}, Ver Array Size:${ver_arr_size}"
+        if [ ${os_arr_size} -ne ${ver_arr_size} ]; then
+                log_msg $LOG_ERROR "OS distribution ${OS} version ${VER} Array data\n"
+                return $CODE_OS_ERROR
+        fi
 
-	if [ ${os_arr_size} -ne ${ver_arr_size} ]; then
-		log_msg $LOG_ERROR "OS distribution ${OS} version ${VER} Array data\n"
-		return $CODE_OS_ERROR
-	fi
-	
-	for i in $(seq 0 ${os_arr_size}); do 
-		PARAM_OS="${DHSM2_COMPONENT_INSTALL_OS[$i]}";
-		PARAM_VER="${DHSM2_COMPONENT_INSTALL_OS_VER[$i]}";
-			
-		#log_msg $LOG_DEBUG "Input OS distribution ${OS}:${PARAM_OS} version ${VER}:${PARAM_VER}"
-
-		if [[ "${OS}" = "${PARAM_OS}" ]];then
-		if [ ${VER} != "$PARAM_VER" ] 
-		then
-				log_msg $LOG_WARN "Error: OS distribution ${OS} version ${VER} NOT Correct!\n"
-				continue;
-			else 
+        for i in $(seq 0 ${os_arr_size}); do
+                PARAM_OS="${DHSM2_COMPONENT_INSTALL_OS[$i]}";
+                PARAM_VER="${DHSM2_COMPONENT_INSTALL_OS_VER[$i]}";
+				#log_msg $LOG_DEBUG "Input OS distribution ${OS}:${PARAM_OS} version ${VER}:${PARAM_VER}"
+		
+        if [[ "${OS}" = "${PARAM_OS}" ]]; then
+			#Compare OS versions: CentOS version should be 7 or later, RHEL version should be 7.5 or later
+			compare_os_version=`echo "$VER >= $PARAM_VER" | bc`
+			if [ $compare_os_version ]; then
 				log_msg $LOG_DEBUG "OS distribution ${OS} version ${VER} matched"
 				return $CODE_EXEC_SUCCESS
-		fi
-    else
-			log_msg $LOG_WARN "OS distribution -${OS}:${PARAM_OS}- Not Supported\n"
-			continue;
-    fi
-    done 
-	return $CODE_OS_ERROR
-} 
+			else
+				log_msg $LOG_WARN "Error: OS distribution ${OS} version ${VER} NOT Correct!\n"
+				continue;
+			fi
+    	else
+            log_msg $LOG_WARN "OS distribution -${OS}:${PARAM_OS}- Not Supported\n"
+            continue;
+    	fi
+
+    	done
+		
+		return $CODE_OS_ERROR
+}
+ 
 CheckWhetherProcessRunning()
 {
 	local process_name="$1"
@@ -379,7 +382,7 @@ install_pre_requisites()
 	if [ "${PRE_REQUISITES}" = "dev" ]; then
 	   $DHSM2_COMPONENT_OS_PAC_INSTALLER update -y && $DHSM2_COMPONENT_OS_PAC_INSTALLER install ${DHSM2_COMPONENT_DEV_PRE_REQUISITES} -y
 	elif  [ "${PRE_REQUISITES}" = "devOps" ]; then 
-	   $DHSM2_COMPONENT_OS_PAC_INSTALLER update -y && $DHSM2_COMPONENT_OS_PAC_INSTALLER install ${DHSM2_COMPONENT_DEVOPS_PRE_REQUISITES} -y
+	   $DHSM2_COMPONENT_OS_PAC_INSTALLER install $DHSM2_COMPONENT_DEVOPS_PRE_REQUISITES -y
 	elif [ "${PRE_REQUISITES}" = "all" ]; then
 	   $DHSM2_COMPONENT_OS_PAC_INSTALLER update -y && $DHSM2_COMPONENT_OS_PAC_INSTALLER install $DHSM2_COMPONENT_DEVOPS_PRE_REQUISITES -y && $DHSM2_COMPONENT_OS_PAC_INSTALLER install ${DHSM2_COMPONENT_DEV_PRE_REQUISITES} -y
 	fi
