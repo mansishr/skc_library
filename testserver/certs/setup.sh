@@ -31,7 +31,7 @@ CN="Test RSA Root" $OPENSSL req -config ${CA_CONF_PATH} -x509 -nodes \
 ln -s ${CA_ROOT_CERT} ${CA_CERT_DIR}/$(eval ${OPENSSL} x509 -hash -in ${CA_ROOT_CERT} -noout ).0
 
 # EE RSA certificates: create request first
-CN="localhost" $OPENSSL req -config ${CA_CONF_PATH} -nodes \
+CN="testserver" $OPENSSL req -config ${CA_CONF_PATH} -nodes \
 	-keyout ${SERVER_CERT} -out ${SERVER_CERT_DIR}/req.pem -newkey rsa:2048
 
 # Sign request: end entity extensions

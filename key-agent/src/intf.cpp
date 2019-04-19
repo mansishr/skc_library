@@ -243,6 +243,7 @@ _loadkey(gpointer keyid, gpointer data, gpointer user_data)
     details.url = loadkey->url;
     details.stm_names = __keyagent_stm_get_names();
     details.ssl_opts.ca_certfile = strdup(keyagent::cacert->str);
+    details.ssl_opts.certfile = strdup(keyagent::cert->str);
     details.ssl_opts.keyname = strdup(keyagent::certkey->str);
     details.ssl_opts.certtype = FORMAT_PEM;
     details.ssl_opts.ssl_verify = keyagent::ssl_verify;

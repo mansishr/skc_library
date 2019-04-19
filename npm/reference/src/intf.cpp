@@ -354,7 +354,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	if (res_status == 401) {
 		try {
 			status = transfer_data["status"].asString();
-			type = transfer_data["faults"]["type"].asString();
+			type = transfer_data["faults"][0]["type"].asString();
         } catch (exception& e){
 				k_set_error (err, NPM_ERROR_JSON_PARSE,
 						"NPM JSON Parse error: %s\n", e.what());
@@ -391,6 +391,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
     		KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, KEYDATA);
     		k_buffer_unref(KEYDATA);
 #else
+    		k_buffer_ptr KEYDATA = decode64_json_attr(transfer_data["data"], "payload");
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
 #endif
             SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);

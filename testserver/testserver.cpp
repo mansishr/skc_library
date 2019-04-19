@@ -311,10 +311,7 @@ int main(int argc, char** argv)
 		server::configfile = g_strconcat (DHSM2_CONF_PATH,"/testserver.ini", NULL);
 
     if (!server::certfile)
-    {
-        g_print("%s\n", g_option_context_get_help (context, TRUE, NULL));
-		goto out;
-	}
+        server::certfile = g_strconcat (DHSM2_INSTALL_DIR,"/store/testserver/ssl/server/server_certificate.pem", NULL);
 
     if (!server::dhparam)
         server::dhparam = g_strconcat (DHSM2_INSTALL_DIR,"/store/testserver/ssl/client/dhparam.pem", NULL);
@@ -349,6 +346,13 @@ int main(int argc, char** argv)
 
     server::tls_auth_support = key_config_get_boolean_optional(config, "core", "tls_auth_support", FALSE);
     k_info_msg("TLS Auth support:%d", server::tls_auth_support);
+
+    if (server::tls_auth_support)
+        server::port = 443;
+    else
+        server::port = 1984;
+
+   	server::port = key_config_get_integer_optional(config, "core", "port", server::port); 
 
 	server_hash_init(&err);
 
@@ -443,7 +447,7 @@ int main(int argc, char** argv)
 
     if( server::tls_auth_support == TRUE)
     {
-        server::port=443;
+        ssl_settings->set_port(server::port );
         ssl_settings->set_http_disabled( true );
         ssl_settings->set_client_authentication_enabled( true );
 
@@ -455,7 +459,6 @@ int main(int argc, char** argv)
         settings->set_default_header( "Connection", "close" );
         settings->set_ssl_settings( ssl_settings );
     }else{
-        server::port=1984;
         settings->set_port(server::port );
         settings->set_default_header( "Connection", "close" );
     }

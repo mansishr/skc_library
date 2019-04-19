@@ -175,6 +175,7 @@ local_verify_quote(k_buffer_ptr quote)
 		RSA_set_method(rsa, 
 			RSA_PKCS1_SSLeay());
 #else
+		RSA_set_method(rsa, 
 			RSA_PKCS1_OpenSSL());
 #endif
 

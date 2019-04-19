@@ -44,12 +44,19 @@ __keyagent_key_create_with_cacheid(const char *request_id, keyagent_url url, key
     DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, __keyagent_key_lookup(url));
     GQuark key_quark = g_quark_from_string(url);
     keyagent_session *session = NULL;
+    k_buffer_ptr keydata = NULL;
 
     if (key) {
         goto out;
     }
 
     if (!attrs || !session_id) {
+        g_set_error (error, KEYAGENT_ERROR, KEYAGENT_ERROR_KEY_CREATE_PARAMS, "Invalid arguments for %s", __func__);
+        return 0;
+    }
+
+    KEYAGENT_KEY_GET_BYTEARRAY_ATTR(attrs, KEYDATA, keydata);
+    if (!keydata) {
         g_set_error (error, KEYAGENT_ERROR, KEYAGENT_ERROR_KEY_CREATE_PARAMS, "Invalid arguments for %s", __func__);
         return 0;
     }

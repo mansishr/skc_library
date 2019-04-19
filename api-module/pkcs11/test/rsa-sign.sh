@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export https_proxy=
+export http_proxy=
 set -x
 . ./config
 

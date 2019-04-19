@@ -5,7 +5,8 @@ mkdir -p $SERVER_DATADIR
 OPENSSL=openssl
 SERVER_OPENSSL_CONF=$SERVER_DATADIR/ca.cnf
 
-ENGINE=/usr/lib64/engines-1.1/pkcs11.so
+#ENGINE=/usr/lib64/engines-1.1/pkcs11.so
+ENGINE=/tmp/libp11-test/pkcs11.so
 
 #CURL=curl
 CURL=$HOME/work-install/bin/curl
@@ -17,9 +18,9 @@ CLIENT_CSR=$DATADIR/client.csr
 SERVER_ROOTCERT=$SERVER_DATADIR/root_cert.pem
 SERVER_CERT=$SERVER_DATADIR/cert-rsa.pem
 
-SGX=1
+#SGX=1
 SPY=1
-INSTALLDIR=/tmp/newtest2
+INSTALLDIR=/tmp/newtest3
 SPY_MODULE=/usr/lib64/pkcs11/pkcs11-spy.so
 REAL_PKCS11_MODULE=$INSTALLDIR/lib/libpkcs11-api.so
 
@@ -69,5 +70,5 @@ KEYLABEL=mykey
 KEYID=1111
 
 TOKENNAME=REFERENCE
-PRIVATE_KEY2="pkcs11:token=$TOKENNAME2;id=%01%01%01%02;object=mykey2;type=private;pin-value=$PIN"
-echo $PRIVATE_KEY2
+PRIVATE_KEY2="pkcs11:token=$TOKENNAME;id=%01%01%01%02;object=mykey2;type=private;pin-value=$PIN"
+echo $PRIVATE_KEY
