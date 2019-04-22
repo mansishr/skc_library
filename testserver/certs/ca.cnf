@@ -62,5 +62,5 @@ authorityKeyIdentifier=keyid
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always
 basicConstraints = critical,CA:true
-keyUsage = critical, cRLSign, keyCertSign
+keyUsage = critical, cRLSign, keyCertSign, nonRepudiation, digitalSignature, keyEncipherment 
 
