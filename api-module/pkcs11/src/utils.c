@@ -428,7 +428,7 @@ cache_apimodule_token(apimodule_token *atoken)
 }
 
 apimodule_token *
-init_apimodule_token(apimodule_uri_data *uri_data, GError **err)
+init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err)
 {
     CK_RV rv = CKR_GENERAL_ERROR;
     apimodule_token *atoken = alloc_apimodule_token(uri_data->token_label->str, uri_data->pin->str);
@@ -447,6 +447,10 @@ init_apimodule_token(apimodule_uri_data *uri_data, GError **err)
 
     	// If no token present, create a new token
     	if (!is_present) {
+            if (!create) {
+                rv = CKR_GENERAL_ERROR;
+                break;
+            }
         	// Create Token, Open Session, SO login and Init user pin
         	if ((rv = apimodule_createtoken(uri_data, &hSession)) != CKR_OK) {
         		k_set_error(err, -1, "failed to create token");

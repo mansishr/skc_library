@@ -96,7 +96,7 @@ apimodule_token *alloc_apimodule_token(const char *label, const char *pin);
 apimodule_token *lookup_apimodule_token(const char *label);
 gboolean cache_apimodule_token(apimodule_token *atoken);
 void free_apimodule_token(apimodule_token *atoken);
-apimodule_token *init_apimodule_token(apimodule_uri_data *uri_data, GError **err);
+apimodule_token *init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err);
 
 #ifdef  __cplusplus
 }
