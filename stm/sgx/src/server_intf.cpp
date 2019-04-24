@@ -220,7 +220,6 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
 {
     gboolean ret = FALSE;
     k_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
-    k_buffer_ptr SW_ISSUER = NULL;
     BIO* bio = NULL;
     RSA *rsa = NULL;
     int len = 0;
@@ -229,33 +228,83 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
     BIO_MEM_ptr mbio(BIO_new(BIO_s_mem()), ::BIO_free);
     BUF_MEM *mem = NULL;
 
-    SW_ISSUER = k_buffer_alloc(NULL, strlen("Intel")+1);
-    strcpy((char *)k_buffer_data(SW_ISSUER), "Intel");
+    k_buffer_ptr SGX_ENCLAVE_ISSUER = NULL;
+    k_buffer_ptr SGX_ENCLAVE_PROD_ID = NULL;
+    k_buffer_ptr SGX_ENCLAVE_EXT_PROD_ID = NULL;
+    k_buffer_ptr SGX_ENCLAVE_MEASUREMENT = NULL;
+    k_buffer_ptr SGX_CONFIG_ID_SVN = NULL;
+    k_buffer_ptr SGX_ENCLAVE_SVN_MINIMUM = NULL;
+    k_buffer_ptr SGX_CONFIG_ID = NULL;
+    unsigned char* prod_id[2];
+    unsigned char* config_svn[2];
+    unsigned char* enclave_svn_min[2];
+
+    struct keyagent_sgx_quote_info *quote_info = (struct keyagent_sgx_quote_info *)k_buffer_data(quote);
+    u_int32_t public_key_size = rsa_modulus_len(quote_info) + rsa_exponent_len(quote_info);
+    sgx_quote_t* sgxQuote  = (sgx_quote_t*)(k_buffer_data(quote) + sizeof(struct keyagent_sgx_quote_info) + public_key_size);
 
     *challenge_attrs = NULL;
 
-	rsa = local_verify_quote(quote);
-	if (!rsa)
-		goto out;
+    rsa = local_verify_quote(quote);
+    if (!rsa)
+	goto out;
 
     len = i2d_RSA_PUBKEY(rsa, NULL);
     i2d_RSA_PUBKEY_bio(mbio.get(), rsa);
     BIO_get_mem_ptr(mbio.get(), &mem);
     CHALLENGE_RSA_PUBLIC_KEY = k_buffer_alloc(mem->data, mem->length);
 
-    *challenge_attrs = challenge_set = k_attribute_set_alloc(2);
+    *challenge_attrs = challenge_set = k_attribute_set_alloc(9);
     k_buffer_ptr CHALLENGE_KEYTYPE;
+
     CHALLENGE_KEYTYPE = k_buffer_alloc(NULL, strlen("RSA")+1);
     strcpy((char *)k_buffer_data(CHALLENGE_KEYTYPE), "RSA");
     k_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_KEYTYPE", CHALLENGE_KEYTYPE);
     k_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_RSA_PUBLIC_KEY", CHALLENGE_RSA_PUBLIC_KEY);
-    k_attribute_set_add_attribute(challenge_set, (char *)"SW_ISSUER", SW_ISSUER);
+
+    SGX_ENCLAVE_ISSUER = k_buffer_alloc(NULL, sizeof(sgx_measurement_t));
+    memcpy(k_buffer_data(SGX_ENCLAVE_ISSUER), (unsigned char *)(sgxQuote->report_body.mr_signer.m), sizeof(sgx_measurement_t));
+
+    prod_id[0] = (unsigned char *) (sgxQuote->report_body.isv_prod_id >> 8);
+    prod_id[1] = (unsigned char *) (sgxQuote->report_body.isv_prod_id & 0x00FF);
+    SGX_ENCLAVE_PROD_ID = k_buffer_alloc(prod_id, sizeof(sgxQuote->report_body.isv_prod_id));
+
+    SGX_ENCLAVE_EXT_PROD_ID = k_buffer_alloc(NULL, sizeof(sgxQuote->report_body.isv_ext_prod_id));
+    memcpy(k_buffer_data(SGX_ENCLAVE_EXT_PROD_ID), (unsigned char *)(sgxQuote->report_body.isv_ext_prod_id), sizeof(sgx_isvext_prod_id_t));
+
+    SGX_ENCLAVE_MEASUREMENT = k_buffer_alloc(NULL, sizeof(sgx_measurement_t));
+    memcpy(k_buffer_data(SGX_ENCLAVE_MEASUREMENT), (unsigned char *)(sgxQuote->report_body.mr_enclave.m), sizeof(sgx_measurement_t));
+
+    config_svn[0] = (unsigned char *) (sgxQuote->report_body.config_svn >> 8);
+    config_svn[1] = (unsigned char *) (sgxQuote->report_body.config_svn & 0x00FF);
+    SGX_CONFIG_ID_SVN = k_buffer_alloc(config_svn, sizeof(sgxQuote->report_body.config_svn));
+
+    enclave_svn_min[0] = (unsigned char *) (sgxQuote->report_body.isv_svn >> 8);
+    enclave_svn_min[1] = (unsigned char *) (sgxQuote->report_body.isv_svn & 0x00FF);
+    SGX_ENCLAVE_SVN_MINIMUM = k_buffer_alloc(enclave_svn_min, sizeof(sgxQuote->report_body.isv_svn));
+
+    SGX_CONFIG_ID = k_buffer_alloc(NULL, sizeof(sgx_config_id_t));
+    memcpy(k_buffer_data(SGX_CONFIG_ID), (unsigned char *)(sgxQuote->report_body.config_id), sizeof(sgx_config_id_t));
+
+    k_attribute_set_add_attribute(challenge_set, (char *)"SGX_ENCLAVE_ISSUER", SGX_ENCLAVE_ISSUER);
+    k_attribute_set_add_attribute(challenge_set, (char *)"SGX_ENCLAVE_ISSUER_PRODUCT_ID", SGX_ENCLAVE_PROD_ID);
+    k_attribute_set_add_attribute(challenge_set, (char *)"SGX_ENCLAVE_ISSUER_EXTENDED_PRODUCT_ID", SGX_ENCLAVE_EXT_PROD_ID);
+    k_attribute_set_add_attribute(challenge_set, (char *)"SGX_ENCLAVE_MEASUREMENT", SGX_ENCLAVE_MEASUREMENT);
+    k_attribute_set_add_attribute(challenge_set, (char *)"SGX_CONFIG_ID_SVN", SGX_CONFIG_ID_SVN);
+    k_attribute_set_add_attribute(challenge_set, (char *)"SGX_ENCLAVE_SVN_MINIMUM", SGX_ENCLAVE_SVN_MINIMUM);
+    k_attribute_set_add_attribute(challenge_set, (char *)"SGX_CONFIG_ID", SGX_CONFIG_ID);
 
     ret = TRUE;
 out:
     if (CHALLENGE_RSA_PUBLIC_KEY) k_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
-    if (SW_ISSUER) k_buffer_unref(SW_ISSUER);
     if (CHALLENGE_KEYTYPE) k_buffer_unref(CHALLENGE_KEYTYPE);
     if (rsa) RSA_free(rsa);
+    if (SGX_ENCLAVE_ISSUER) k_buffer_unref(SGX_ENCLAVE_ISSUER);
+    if (SGX_ENCLAVE_PROD_ID) k_buffer_unref(SGX_ENCLAVE_PROD_ID);
+    if (SGX_ENCLAVE_EXT_PROD_ID) k_buffer_unref(SGX_ENCLAVE_EXT_PROD_ID);
+    if (SGX_ENCLAVE_MEASUREMENT) k_buffer_unref(SGX_ENCLAVE_MEASUREMENT);
+    if (SGX_CONFIG_ID_SVN) k_buffer_unref(SGX_CONFIG_ID_SVN);
+    if (SGX_ENCLAVE_SVN_MINIMUM) k_buffer_unref(SGX_ENCLAVE_SVN_MINIMUM);
+    if (SGX_CONFIG_ID) k_buffer_unref(SGX_CONFIG_ID);
     return ret;
 }

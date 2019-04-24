@@ -7,14 +7,14 @@
 #include <errno.h>
 #include "internal.h"
 
-static stm_mode sw_stm_mode;
+static stm_mode sgx_stm_mode;
 
 __attribute__ ((visibility("default")))
 const char *
 stm_init(const char *config_directory, stm_mode mode, GError **err)
 {
-    sw_stm_mode = mode;
-    if (sw_stm_mode == APPLICATION_STM_MODE)
+    sgx_stm_mode = mode;
+    if (sgx_stm_mode == APPLICATION_STM_MODE)
         application_stm_init(config_directory, err);
     else
         server_stm_init(config_directory, err);
@@ -30,7 +30,7 @@ __attribute__ ((visibility("default")))
 gboolean
 stm_activate(GError **err)
 {
-    if (sw_stm_mode == APPLICATION_STM_MODE)
+    if (sgx_stm_mode == APPLICATION_STM_MODE)
         application_stm_activate(err);
     else
         server_stm_activate(err);
