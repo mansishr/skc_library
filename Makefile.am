@@ -18,6 +18,9 @@ data_DATA=$(conf_files)
 
 install-data-hook:$(dest_conf_files)
 	@echo "calling install-data-hook:${dest_conf_files}"
-	$(SED) -i "s|__PREFIX__|@prefix@|" $(dest_conf_files)
+	$(SED) -i \
+                -e "s|__PREFIX__|@prefix@|" \
+                -e "s|__SGXTOOLKIT__|$(SGXTOOLKIT)|" \
+                $(dest_conf_files)
 
 include_HEADERS = include/k_errors.h include/k_types.h
