@@ -370,11 +370,11 @@ apimodule_preload_keys(GError **err)
                 ret = FALSE;
 			    if (!*err) g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE, "Error in loading keys:%s", uri);
             }
-		    if (uri)
-			    free(uri);
         }
     } while(FALSE);
 	if(fp)
-    	fclose(fp);
+    		fclose(fp);
+        if (uri)
+          	free(uri);
 	return ret;
 }
