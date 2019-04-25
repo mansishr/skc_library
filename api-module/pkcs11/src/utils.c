@@ -202,7 +202,11 @@ apimodule_createtoken(apimodule_uri_data *uri_data, CK_SESSION_HANDLE_PTR phSess
         goto end;
     }
 
-    if ((rv = func_list->C_Login(*phSession,CKU_SO, (unsigned char*)uri_data->pin->str, uri_data->pin->len)) != CKR_OK) {
+    rv = func_list->C_Login(*phSession,CKU_SO, (unsigned char*)uri_data->pin->str, uri_data->pin->len);
+    if (rv == CKR_USER_ALREADY_LOGGED_IN)
+        rv = CKR_OK;
+
+    if (rv != CKR_OK) {
         k_debug_msg("%s failed!: 0x%lx\n", "C_Login", rv);
         goto end;
     }
@@ -215,8 +219,12 @@ apimodule_createtoken(apimodule_uri_data *uri_data, CK_SESSION_HANDLE_PTR phSess
     }
 
     func_list->C_Logout(*phSession);
-    if ((rv = func_list->C_Login(*phSession,CKU_USER, (unsigned char*)uri_data->pin->str, uri_data->pin->len)) != CKR_OK) {
-        k_debug_msg("%s for user failed!: 0x%lx\n", "C_Login", rv);
+    rv = func_list->C_Login(*phSession,CKU_USER, (unsigned char*)uri_data->pin->str, uri_data->pin->len);
+    if (rv == CKR_USER_ALREADY_LOGGED_IN)
+        rv = CKR_OK;
+
+    if (rv != CKR_OK) {
+        k_debug_msg("%s failed!: 0x%lx\n", "user C_Login", rv);
         goto end;
     }
 end:
@@ -471,10 +479,16 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
     		k_set_error(err, -1, "failed to open session on  token");
 			break;
     	}
-    	if ((rv = func_list->C_Login(hSession,CKU_USER, (unsigned char*)uri_data->pin->str, uri_data->pin->len)) != CKR_OK) {
+    	rv = func_list->C_Login(hSession,CKU_USER, (unsigned char*)uri_data->pin->str, uri_data->pin->len);
+    	func_list->C_Logout(hSession);
+    	rv = func_list->C_Login(hSession,CKU_USER, (unsigned char*)uri_data->pin->str, uri_data->pin->len);
+        if (rv == CKR_USER_ALREADY_LOGGED_IN)
+            rv = CKR_OK;
+
+        if (rv != CKR_OK) {
     		k_set_error(err, -1, "failed to login on token");
 			break;
-    	}
+        }
 		atoken->session = hSession;
     } while (FALSE);
 
