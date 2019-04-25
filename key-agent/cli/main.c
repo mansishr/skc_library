@@ -91,7 +91,7 @@ main (int argc, char *argv[])
     	apimodule_ops.load_key = apimodule_load_key;
     	apimodule_ops.get_challenge = apimodule_get_challenge;
     	apimodule_ops.set_wrapping_key = apimodule_set_wrapping_key;
-    	if (!keyagent_apimodule_register(&apimodule_ops, &error)) {
+    	if (!keyagent_apimodule_register(NULL, &apimodule_ops, &error)) {
         	k_critical_msg(error->message);
         	return FALSE;
     	}

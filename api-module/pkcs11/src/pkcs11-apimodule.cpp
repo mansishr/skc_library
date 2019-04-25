@@ -170,7 +170,7 @@ apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
     }
     k_debug_msg("keyagent_init is successful !!!");
 
-    if (!keyagent_apimodule_register(&apimodule_ops, &error)) {
+    if (!keyagent_apimodule_register(mode, &apimodule_ops, &error)) {
         k_critical_msg(error->message);
         return FALSE;
     }

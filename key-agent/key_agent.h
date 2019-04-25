@@ -18,7 +18,7 @@ gboolean keyagent_loadkey_with_moduledata(keyagent_url, void *module_data, GErro
 
 #define keyagent_loadkey(URL,ERR)	keyagent_loadkey_with_moduledata((URL), NULL, (ERR))
 
-gboolean keyagent_apimodule_register(keyagent_apimodule_ops *, GError **err);
+gboolean keyagent_apimodule_register(const char *label, keyagent_apimodule_ops *, GError **err);
 
 #ifdef  __cplusplus
 }

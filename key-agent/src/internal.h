@@ -37,6 +37,7 @@ typedef struct {
     gint            initialized:1;
 	stm_ops         ops;
 	keyagent_session_real    *session;
+    gboolean        apimodule;
 } keyagent_stm_real;
 
 typedef struct {
@@ -87,6 +88,7 @@ namespace keyagent {
     extern GRWLock rwlock;
     extern keyagent_npm_callbacks npm_ops;
     extern keyagent_apimodule_ops apimodule_ops;
+    extern gboolean apimodule_enabled;
 }
 
 namespace keyagent {
@@ -171,7 +173,9 @@ void __keyagent_key_remove_by_session(keyagent_session *);
 GQuark __keyagent_session_make_swktype(const char *type);
 gboolean __keyagent_session_init(GError **error);
 
+gboolean __keyagent_stm_apimodule_enable(const char *name);
 GString *__keyagent_stm_get_names();
+GString *__keyagent_stm_get_apimodule_enabled_names();
 gboolean __keyagent_stm_get_by_name(const char *name, keyagent_module **);
 GString * __keyagent_session_get_ids();
 keyagent_session * __keyagent_session_lookup(const char *session_id);

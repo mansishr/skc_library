@@ -69,23 +69,43 @@ keyagent_stm_showlist()
     g_hash_table_foreach(keyagent::stm_hash, __show_stms, NULL);
 }
 
+typedef struct {
+    gboolean apimodule_check;
+    GString *names;
+} stm_names;
+
 DLL_LOCAL void
 __get_stm_names(gpointer key, gpointer data, gpointer user_data)
 {
     keyagent_stm_real *stm = (keyagent_stm_real *)data;
-    GString *names = (GString *)user_data;
+    stm_names *names = (stm_names *)user_data;
 
-    if (names->len)
-        g_string_append_c(names,',');
-    g_string_append(names, keyagent_get_module_label(stm));
+    if (names->apimodule_check && !stm->apimodule)
+        return; 
+
+    if (names->names->len)
+        g_string_append_c(names->names,',');
+    g_string_append(names->names, keyagent_get_module_label(stm));
 }
 
 DLL_LOCAL GString *
 __keyagent_stm_get_names()
 {
-    GString *names = g_string_new(NULL);
-    g_hash_table_foreach(keyagent::stm_hash, __get_stm_names, names);
-    return names;
+    stm_names names;
+    names.names = g_string_new(NULL);
+    names.apimodule_check = FALSE;
+    g_hash_table_foreach(keyagent::stm_hash, __get_stm_names, &names);
+    return names.names;
+}
+
+DLL_LOCAL GString *
+__keyagent_stm_get_apimodule_enabled_names()
+{
+    stm_names names;
+    names.names = g_string_new(NULL);
+    names.apimodule_check = TRUE;
+    g_hash_table_foreach(keyagent::stm_hash, __get_stm_names, &names);
+    return names.names;
 }
 
 extern "C" gboolean DLL_LOCAL
@@ -98,6 +118,20 @@ __keyagent_stm_get_by_name(const char *name, keyagent_module **module)
         return FALSE;
     
     *module = &stm->stm;
+    return TRUE;
+}
+
+extern "C" gboolean DLL_LOCAL
+__keyagent_stm_apimodule_enable(const char *name)
+{
+    g_return_val_if_fail(name, FALSE);
+    keyagent_stm_real *stm;
+    GQuark stm_quark = g_quark_from_string(name);
+    if ((stm = (keyagent_stm_real *)g_hash_table_lookup(keyagent::stm_hash, GINT_TO_POINTER(stm_quark))) == NULL)
+        return FALSE;
+    
+    stm->apimodule = TRUE;
+    keyagent::apimodule_enabled = TRUE;
     return TRUE;
 }
 

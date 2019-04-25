@@ -38,6 +38,7 @@ namespace keyagent {
     GRWLock rwlock;
     keyagent_npm_callbacks npm_ops;
     keyagent_apimodule_ops apimodule_ops;
+    gboolean apimodule_enabled;
 }
 
 /* Return GList of paths described in location string */
@@ -241,7 +242,10 @@ _loadkey(gpointer keyid, gpointer data, gpointer user_data)
     memset(&details, 0, sizeof(details));
     details.request_id = strdup(request_id);
     details.url = loadkey->url;
-    details.stm_names = __keyagent_stm_get_names();
+    if (keyagent::apimodule_enabled)
+        details.stm_names = __keyagent_stm_get_apimodule_enabled_names();
+    else
+        details.stm_names = __keyagent_stm_get_names();
     details.ssl_opts.ca_certfile = strdup(keyagent::cacert->str);
     details.ssl_opts.certfile = strdup(keyagent::cert->str);
     details.ssl_opts.keyname = strdup(keyagent::certkey->str);
@@ -277,11 +281,14 @@ out:
           
 extern "C"
 gboolean DLL_PUBLIC
-keyagent_apimodule_register(keyagent_apimodule_ops *ops, GError **err)
+keyagent_apimodule_register(const char *label, keyagent_apimodule_ops *ops, GError **err)
 {
+    gboolean ret = TRUE;
 	g_return_val_if_fail( (err || (err?*err:NULL)) && ops, FALSE );
     memcpy(&keyagent::apimodule_ops,ops, sizeof(keyagent_apimodule_ops));
-    return TRUE;
+    if (label)
+        ret = __keyagent_stm_apimodule_enable(label);
+    return ret;
 }
 
 extern "C" gboolean DLL_PUBLIC
