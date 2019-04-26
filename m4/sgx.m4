@@ -1,5 +1,18 @@
 # SGX_INIT()
 # ------------------
+
+AC_DEFUN([SGX_MODE_CHECK],[
+	AC_ARG_WITH([sgx-toolkit],
+		[AS_HELP_STRING([--with-sgx-toolkit=path],
+			[Set the directory where sgx toolkit is installed])
+		], 
+                [ SGX_INIT 
+                     SGXTOOLKIT=$withval
+                ], [])
+	AC_SUBST(SGXTOOLKIT)
+    AM_CONDITIONAL([SGXTOOLKIT], [test "x$SGXTOOLKIT" != "x"])
+])
+
 AC_DEFUN([SGX_INIT],[
 	AC_ARG_WITH([enclave-libdir],
 		[AS_HELP_STRING([--with-enclave-libdir=path (default: EPREFIX/lib)],

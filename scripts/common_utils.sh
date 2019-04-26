@@ -101,12 +101,9 @@ exit_script()
 	local log_msg="$2"
 	local exit_code=$3
 	log_msg $log_level "$log_msg"
-	#if [[ $exit_code != $CODE_CONCURRENCY_ERROR ]]; then
-		#sleep 30
-	#fi
 	if [ $log_level -eq $LOG_ERROR ] || [ $log_level -eq $LOG_WARN ]; then
-		$(echo $exit_code > $EXIT_STAT_FILE )
-		$(kill -2 $SELF_PID)
+		echo $exit_code > $EXIT_STAT_FILE
+		kill -9 $SELF_PID
 	elif [[ $1 -eq $LOG_OK ]]; then
 		exit $CODE_EXEC_SUCCESS
 	fi
@@ -227,7 +224,7 @@ download_deps()
 
 	git_var=`echo "$(git version)" | sed -e "s/git version \([0-9]\.[0-9]\).*/\1/"`;
 	log_msg $LOG_DEBUG "Sub module init started"
-	$(exec_linux_cmd "git submodule init" $EXEC_RULE_ABORT "Submodule init" $CODE_EXEC_SUCCESS)
+	$(exec_linux_cmd "git submodule init" $EXEC_RULE_ABORT "Submodule init" $CODE_EXEC_ERROR)
 	log_msg $LOG_DEBUG "Sub module init completed"
 
 	if [[ "$git_var" = "1.8" ]]; then
@@ -414,4 +411,15 @@ get_file_count()
 	local cnt=$(find / -name "$1" | wc -l)
 	log_msg $LOG_DEBUG "File: $1 total $file count: $cnt" 
 	echo $cnt
+}
+
+compile_safestring()
+{
+
+	echo $PATH
+	mkdir -p $PWD/safestringlib/obj
+	mkdir -p $PWD/safestringlib/objtest
+	$(exec_linux_cmd "make clean -C ./safestringlib" $EXEC_RULE_ABORT "Make" $CODE_EXEC_ERROR)
+	$(exec_linux_cmd "make -C ./safestringlib" $EXEC_RULE_ABORT "Make" $CODE_EXEC_ERROR)
+	log_msg $LOG_DEBUG "Safestring  lib: Compilation completed"
 }

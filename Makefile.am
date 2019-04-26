@@ -6,9 +6,13 @@ SUBDIRS = \
 	npm/kms \
 	npm/reference \
 	stm/sw \
-	stm/sgx \
 	api-module/pkcs11 \
 	npm/tests/test_app
+
+if SGXTOOLKIT
+SUBDIRS += \
+	stm/sgx
+endif
 
 conf_dir:=./configs
 datadir=$(prefix)/etc

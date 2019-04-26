@@ -41,7 +41,7 @@ LIBCURL_CHECK_CONFIG
 
 DHSM_SETUP(.)
 
-SGX_INIT
+SGX_MODE_CHECK
 
 # Define some variables for the code
 AC_DEFINE_UNQUOTED(
