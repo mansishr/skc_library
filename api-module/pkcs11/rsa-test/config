@@ -5,8 +5,7 @@ mkdir -p $SERVER_DATADIR
 OPENSSL=openssl
 SERVER_OPENSSL_CONF=$SERVER_DATADIR/ca.cnf
 
-#ENGINE=/usr/lib64/engines-1.1/pkcs11.so
-ENGINE=/tmp/libp11-test/pkcs11.so
+ENGINE=/usr/lib64/engines-1.1/pkcs11.so
 
 #CURL=curl
 CURL=$HOME/work-install/bin/curl
@@ -20,16 +19,14 @@ SERVER_CERT=$SERVER_DATADIR/cert-rsa.pem
 
 #SGX=1
 SPY=1
-INSTALLDIR=/tmp/newtest3
+INSTALLDIR=/opt/dhsm2
 SPY_MODULE=/usr/lib64/pkcs11/pkcs11-spy.so
 REAL_PKCS11_MODULE=$INSTALLDIR/lib/libpkcs11-api.so
 
-SOFTHSM_UTIL=$HOME/test-install/bin/softhsm2-util
-SOFTHSM_LIB=$HOME/test-install/lib/softhsm/libsofthsm2.so
-#SOFTHSM_UTIL=/usr/bin/softhsm2-util
-#SOFTHSM_LIB=/usr/lib64/libsofthsm2.so
+SOFTHSM_UTIL=/usr/bin/softhsm2-util
+SOFTHSM_LIB=/usr/lib64/pkcs11/libsofthsm2.so
 
-TOOLKIT_INSTALLDIR=/tmp/sgxtest
+TOOLKIT_INSTALLDIR=/opt/intel/sgxtoolkit
 SOFTWARE_MODULE=$SOFTHSM_LIB
 TOOLKIT_MODULE=$TOOLKIT_INSTALLDIR/lib/libp11sgx.so
 
@@ -66,9 +63,10 @@ sed -e "s|__DHSM_MODE__|${MODE}|g" \
 export DHSM2_PKCS11_APIMODULE_CONF=$DATADIR/pkcs11-apimodule.ini
 
 PIN=1234
-KEYLABEL=mykey
-KEYID=1111
+KEYLABEL=mykey-appkey 
+#RSAKEY
+KEYID=b819cd77-72ad-497f-ad0a-45bb5565aaf9
 
-TOKENNAME=REFERENCE
-PRIVATE_KEY2="pkcs11:token=$TOKENNAME;id=%01%01%01%02;object=mykey2;type=private;pin-value=$PIN"
+TOKENNAME=KMS
+PRIVATE_KEY2="pkcs11:token=$TOKENNAME;id=$KEYID;object=$KEYLABEL;type=private;pin-value=$PIN"
 echo $PRIVATE_KEY

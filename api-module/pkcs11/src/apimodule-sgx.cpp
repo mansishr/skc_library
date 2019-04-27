@@ -73,6 +73,7 @@ sgx_unwrap_symmeric_key(keyagent_apimodule_loadkey_details *details, apimodule_t
         { CKA_ID,       uri_data->key_id->str,        		uri_data->key_id->len },
         { CKA_PRIVATE, 	&bTrue, sizeof(bTrue) },
         { CKA_DECRYPT, 	&bTrue, sizeof(bTrue) },
+ 	{ CKA_ENCRYPT,  &bTrue, sizeof(bTrue) }, 
     //    { CKA_SIGN, 	&bTrue,sizeof(bTrue) },
         { CKA_UNWRAP, 	&bTrue, sizeof(bTrue) },
     //    { CKA_SENSITIVE, &bFalse, sizeof(bFalse) },

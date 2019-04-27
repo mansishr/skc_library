@@ -6,7 +6,6 @@
 #include <string.h>
 #include "k_types.h"
 #include "k_errors.h"
-#include "k_debug.h"
 
 typedef struct {
     GString *label;

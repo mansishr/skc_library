@@ -34,6 +34,6 @@ pkcs11-tool --module $MODULE --list-slots
 pkcs11-tool --module $MODULE --show-info
 pkcs11-tool --module $MODULE --list-token-slots
 #pkcs11-tool --module $MODULE --list-mechanisms
-pkcs11-tool --module $MODULE --list-objects --label REFERENCE
-pkcs11-tool --module $MODULE --list-objects --type secrkey --label REFERENCE
+pkcs11-tool --module $MODULE --list-objects --label $TOKENNAME
+pkcs11-tool --module $MODULE --list-objects --type secrkey --label $TOKENNAME
 pkcs11-tool --module $MODULE --list-objects --login --pin $PIN

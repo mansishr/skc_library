@@ -1,5 +1,5 @@
 #!/bin/bash
-script_dir=$(dirname $0)
+script_dir=$(dirname "$(readlink -f "$0")")
 source ${script_dir}/config.ini
 
 if [ -f ${script_dir}/$UTILS_SOURCE ]; then

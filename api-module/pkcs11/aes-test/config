@@ -1,0 +1,83 @@
+DATADIR=`realpath data`
+SERVER_DATADIR=$DATADIR/server
+mkdir -p $DATADIR
+mkdir -p $SERVER_DATADIR
+OPENSSL=openssl
+SERVER_OPENSSL_CONF=$SERVER_DATADIR/ca.cnf
+
+ENGINE=/usr/lib64/engines-1.1/pkcs11.so
+
+CURL=curl
+#CURL=$HOME/work-install/bin/curl
+CLIENT_CACERT=$DATADIR/client_root.crt
+CLIENT_CAPATH=$DATADIR
+CLIENT_CERT=$DATADIR/client.cert
+CLIENT_CSR=$DATADIR/client.csr
+
+SERVER_ROOTCERT=$SERVER_DATADIR/root_cert.pem
+SERVER_CERT=$SERVER_DATADIR/cert-rsa.pem
+
+SGX=1
+SPY=1
+INSTALLDIR=/opt/dhsm2
+SPY_MODULE=/usr/lib64/pkcs11/pkcs11-spy.so
+REAL_PKCS11_MODULE=$INSTALLDIR/lib/libpkcs11-api.so
+
+SOFTHSM_UTIL=softhsm2-util
+SOFTHSM_LIB=/usr/lib64/pkcs11/libsofthsm2.so
+#SOFTHSM_UTIL=/usr/bin/softhsm2-util
+#SOFTHSM_LIB=/usr/lib64/libsofthsm2.so
+
+TOOLKIT_INSTALLDIR=/opt/intel/sgxtoolkit
+SOFTWARE_MODULE=$SOFTHSM_LIB
+TOOLKIT_MODULE=$TOOLKIT_INSTALLDIR/lib/libp11sgx.so
+
+cp pkcs11-apimodule.ini.in $DATADIR/pkcs11-apimodule.ini
+if [ "x$SGX" != "x" ]
+then
+    MODE=SGX
+
+    if [ "x$SPY" == "x1" ]
+    then
+	    export PKCS11SPY=$TOOLKIT_INSTALLDIR/lib/libp11sgx.so
+        TOOLKIT_MODULE=$SPY_MODULE
+    else
+        export PKCS11SPY=
+    fi
+else
+    MODE=SW
+    if [ "x$SPY" == "x1" ]
+    then
+	    export PKCS11SPY=$SOFTHSM_LIB
+        SOFTWARE_MODULE=$SPY_MODULE
+    else
+        export PKCS11SPY=
+    fi
+fi
+
+cp pkcs11-apimodule.ini.in $DATADIR/pkcs11-apimodule.ini
+sed -e "s|__DHSM_MODE__|${MODE}|g" \
+    -e "s|__DHSM_INSTALL__|${INSTALLDIR}|g" \
+    -e "s|__SOFTWARE_MODULE__|${SOFTWARE_MODULE}|g" \
+    -e "s|__TOOLKIT_MODULE__|${TOOLKIT_MODULE}|g" \
+    <"./pkcs11-apimodule.ini.in" >"$DATADIR/pkcs11-apimodule.ini"
+
+export DHSM2_PKCS11_APIMODULE_CONF=$DATADIR/pkcs11-apimodule.ini
+
+PIN=1234
+TOKENNAME=KMS
+
+AES=1
+
+AES_LABEL=AESKEY
+KEYID_AES=9b2d82db-5c56-452b-9e29-3b50550c3d5d
+KEYID_AES=5545338d-8ee2-491a-98fa-0673538aff73
+RSA_LABEL=RSAKEY
+KEYID_RSA=b819cd77-72ad-497f-ad0a-45bb5565aaf9
+
+if [ "x$AES" != "x" ]
+then
+	PRIVATE_KEY2="pkcs11:token=$TOKENNAME;id=$KEYID_AES;object=$AES_LABEL;type=private;pin-value=$PIN"
+else
+	PRIVATE_KEY2="pkcs11:token=$TOKENNAME;id=$KEYID_RSA;object=$RSA_LABEL;type=private;pin-value=$PIN"
+fi
