@@ -27,7 +27,7 @@ CK_FUNCTION_LIST_PTR func_list;
 
 #define RV_CHECK(fn, rv) \
 do { \
-    if((rv)) { \
+    if((rv != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)) { \
         fprintf(stderr, "%s() failed: 0x%lx ! \n", fn, rv); \
 	exit(0); \
     } \
@@ -209,6 +209,7 @@ int main(int argc, char* argv[])
     gchar *inputString = NULL;
     gchar* token_name = argv[1];
     gchar* key_id = argv[2];
+    CK_UTF8CHAR label[] = "test";
     CK_BYTE iv[]= {  0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
 
@@ -227,7 +228,8 @@ int main(int argc, char* argv[])
     CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
     CK_ATTRIBUTE attribs[] = {
 	    { CKA_CLASS, &privClass, sizeof(privClass) },
-	    { CKA_ID, (CK_UTF8CHAR_PTR)key_id, strlen(key_id) }
+	    { CKA_LABEL, label, sizeof(label)-1 },
+	    //{ CKA_ID, (CK_UTF8CHAR_PTR)key_id, strlen(key_id) }
     };
 
     GString *module_path=g_string_new(getenv("INSTALLDIR"));
