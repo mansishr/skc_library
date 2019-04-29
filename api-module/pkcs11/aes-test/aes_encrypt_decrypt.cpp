@@ -292,6 +292,16 @@ int main(int argc, char* argv[])
     rv = func_list->C_FindObjects(hSession,&hObjects,1,&ulObjectCount);
     RV_CHECK("C_FindObjects", rv);
     fprintf(stdout, "No.of Secret objects found: %ld \n", ulObjectCount);
+
+
+    if( ulObjectCount != 1 )
+    {
+        fprintf(stderr, "C_FindObjects object not found\n");
+	goto err;
+    }
+
+
+
     rv = func_list->C_FindObjectsFinal(hSession);
     hKey = hObjects;
 
