@@ -15,6 +15,7 @@ define([_VERSION_CURRENT], [0])
 define([_VERSION_AGE], [0])
 define([_VERSION_REVISION], [0])
 define([AM_CXXFLAGS], [-std=c++0x])
+define([SGX_SDK_MANDATE], [false])
 
 ##################
 #                #
@@ -38,7 +39,7 @@ AC_PROG_CXX
 
 ACX_OPENSSL(1,0,0)
 DHSM_SETUP(../..)
-SGX_INIT()
+SGX_SDK_CHECK(SGX_SDK_MANDATE)
 
 # Define some variables for the code
 AC_DEFINE_UNQUOTED(
@@ -46,6 +47,7 @@ AC_DEFINE_UNQUOTED(
 	[_VERSION_MAJOR],
 	[major version number]
 )
+
 AC_DEFINE_UNQUOTED(
 	[VERSION_MINOR],
 	[_VERSION_MINOR],

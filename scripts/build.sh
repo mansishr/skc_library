@@ -31,8 +31,7 @@ if [ -d "${DHSM2_SGX_TOOLKIT_PATH}" ]; then
    exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --with-sgx-toolkit=${DHSM2_SGX_TOOLKIT_PATH}" $EXEC_RULE_ABORT "configure" $CODE_EXEC_ERROR
 else
    log_msg $LOG_DEBUG "without sgx toolkit "		
-   exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static" 
-			$EXEC_RULE_ABORT "configure" $CODE_EXEC_ERROR
+   exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static" $EXEC_RULE_ABORT "configure" $CODE_EXEC_ERROR
 fi
 log_msg $LOG_DEBUG "KeyAgent: compilation completed"
 

@@ -11,7 +11,9 @@ AC_DEFUN([SGX_MODE_CHECK],[
                 ], [])
 	AC_SUBST(SGXTOOLKIT)
     AM_CONDITIONAL([SGXTOOLKIT], [test "x$SGXTOOLKIT" != "x"])
+    AM_CONDITIONAL([SGXSDKDIR], [test "x$SGXSDKDIR" != "x"])
 ])
+
 
 AC_DEFUN([SGX_INIT],[
 	AC_ARG_WITH([enclave-libdir],
@@ -61,27 +63,8 @@ AC_DEFUN([SGX_INIT],[
 		],
 		[AC_MSG_ERROR([Unknown build mode $_sgxbuild])]
 	)
+	SGX_SDK_CHECK(true)
 	AC_SUBST(SGX_DEBUG_FLAGS, [$_sgxdebug])
-	AS_IF([test "x$SGX_SDK" = "x"], [SGXSDKDIR=detect], [SGXSDKDIR=env])
-	AC_ARG_WITH([sgxsdk],
-		[AS_HELP_STRING([--with-sgxsdk=path],
-			[Set the path to your Intel SGX SDK directory])
-		], [SGXSDKDIR=$withval],[SGXSDKDIR="detect"])
-	AS_IF([test "x$SGXSDKDIR" = "xenv"], [],
-		[test "x$SGXSDKDIR" != "xdetect"], [],
-		[test -d /opt/intel/sgxsdk], [SGXSDKDIR=/opt/intel/sgxsdk],
-		[test -d ~/sgxsdk], [SGXSDKDIR=~/sgxsdk],
-		[test -d ./sgxsdk], [SGXSDKDIR=./sgxsdk],
-		[AC_ERROR([Can't detect your Intel SGX SDK installation directory])])
-	AS_IF([test -d $SGXSDKDIR/lib], [AC_SUBST(SGXSDK_LIBDIR, $SGXSDKDIR/lib)],
-        	[test -d $SGXSDKDIR/lib64], [AC_SUBST(SGXSDK_LIBDIR, $SGXSDKDIR/lib64)],
-        	[AC_ERROR(Can't find Intel SGX SDK lib directory)])
-	AS_IF([test -d $SGXSDKDIR/bin/ia32], [AC_SUBST(SGXSDK_BINDIR, $SGXSDKDIR/bin/ia32)],
-        	[test -d $SGXSDKDIR/bin/x64], [AC_SUBST(SGXSDK_BINDIR, $SGXSDKDIR/bin/x64)],
-        	[AC_ERROR(Can't find Intel SGX SDK bin directory)])
-	AC_MSG_NOTICE([Found your Intel SGX SDK in $SGXSDKDIR])
-	AC_SUBST(SGXSDK_INCDIR, $SGXSDKDIR/include)
-	AC_SUBST(SGXSDKDIR)
 	#AC_CONFIG_FILES([sgx_app.mk])
 
 	AS_IF([test "x$SGX_SSL" = "x"], [SGXSSLDIR=detect], [SGXSSLDIR=env])
@@ -110,3 +93,54 @@ AC_DEFUN([SGX_INIT],[
     AM_CONDITIONAL([SGXTOOLKIT], [test "x$SGXTOOLKIT" != "x"])
 ])
 
+
+AC_DEFUN([SGX_SDK_CHECK],[
+	AC_MSG_NOTICE([Got mandate value as $1])
+	AS_IF([test "x$SGX_SDK" = "x"], [SGXSDKDIR=detect], [SGXSDKDIR=env])
+	AC_ARG_WITH([sgxsdk],
+		[AS_HELP_STRING([--with-sgxsdk=path],
+			[Set the path to your Intel SGX SDK directory])
+		], [SGXSDKDIR=$withval],[SGXSDKDIR="detect"])
+	AS_IF([test "x$SGXSDKDIR" = "xenv"], [],
+		[test "x$SGXSDKDIR" != "xdetect"], [],
+		[test -d /opt/intel/sgxsdk], [SGXSDKDIR=/opt/intel/sgxsdk],
+		[test -d ~/sgxsdk], [SGXSDKDIR=~/sgxsdk],
+		[test -d ./sgxsdk], [SGXSDKDIR=./sgxsdk],
+		[ 
+			SGXSDKDIR=
+			MSG="Can't detect your Intel SGX SSL installation directory"
+		])
+	AS_IF([test -d $SGXSDKDIR/lib], [AC_SUBST(SGXSDK_LIBDIR, $SGXSDKDIR/lib)],
+        	[test -d $SGXSDKDIR/lib64], [AC_SUBST(SGXSDK_LIBDIR, $SGXSDKDIR/lib64)],
+        	[
+			SGXSDKDIR=
+			MSG="Can't find Intel SGX SDK lib directory"
+                ])
+	AS_IF([test -d $SGXSDKDIR/bin/ia32], [AC_SUBST(SGXSDK_BINDIR, $SGXSDKDIR/bin/ia32)],
+        	[test -d $SGXSDKDIR/bin/x64], [AC_SUBST(SGXSDK_BINDIR, $SGXSDKDIR/bin/x64)],
+        	[
+			SGXSDKDIR=
+			MSG="Can't find Intel SGX SDK bin directory"
+                ])
+
+        AC_SUBST(SGXSDKDIR)
+	AC_DEFINE_UNQUOTED(
+		[SGXSDKDIR],
+		[$SGXSDKDIR],
+		[SDK Installed path]
+	)
+        AM_CONDITIONAL([SGXSDKDIR], [test "x$SGXSDKDIR" != "x"])
+	
+	AS_IF([test "x$SGXSDKDIR" != "x"],
+              [ 
+	        AC_MSG_NOTICE([Found your Intel SGX SDK in $SGXSDKDIR])
+		AC_SUBST(SGXSDK_INCDIR, $SGXSDKDIR/include)
+	      ],
+	      [ AS_IF([test "x$1" = "xtrue"],
+			[
+                           AC_MSG_NOTICE([Not Found your Intel SGX SDK in $SGXSDKDIR])
+                           AC_ERROR[$MSG]
+                        ],[AC_MSG_NOTICE([Not Found your Intel SGX SDK in $SGXSDKDIR but still continues])])
+	      ])
+
+])
