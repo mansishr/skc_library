@@ -423,3 +423,15 @@ compile_safestring()
 	$(exec_linux_cmd "make -C ./safestringlib" $EXEC_RULE_ABORT "Make" $CODE_EXEC_ERROR)
 	log_msg $LOG_DEBUG "Safestring  lib: Compilation completed"
 }
+
+# Extract version of the dependency packages installed
+fetch_installed_dependency_packages_version()
+{
+	in="$1"
+	out="$2"
+	
+	log_msg $LOG_DEBUG "Dependency Packages: $in"
+	log_msg $LOG_DEBUG "Dependency Packages Version: $out"
+	
+	grep "^" "$in" | xargs rpm -q | tee "$out"
+}

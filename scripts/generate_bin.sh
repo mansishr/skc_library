@@ -1,4 +1,5 @@
 #!/bin/bash
+
 script_dir=$(dirname "$(readlink -f "$0")")
 source ${script_dir}/config.ini
 
@@ -59,12 +60,21 @@ install_pre_requisites
 if [ $? -ne $CODE_EXEC_SUCCESS ]; then
 	exit_script $LOG_ERROR "Pre-requisties installation" $CODE_ERROR
 fi
+
 rm -rf $DHSM2_COMPONENT_INSTALL_DIR
 #sudo mkdir $DHSM2_COMPONENT_INSTALL_DIR
 sudo tar -xvf workload_bins.tar.gz -C /
 exit_script $LOG_DEBUG \"Workload Binaries Successfully Installaed\" $CODE_EXEC_SUCCESS
-exit 0" > ${DHSM2_COMPONENT_DEPLOY_SCRIPT}
 
+sudo mkdir -p $DHSM2_COMPONENT_DEVOPS_DIR
+
+#Copy the packages to be installed to dependency_packages.txt file
+echo \$DHSM2_COMPONENT_DEV_PRE_REQUISITES | tr \" \" \"\\n\" > \/$DHSM2_COMPONENT_DEVOPS_DIR/$DHSM2_WL_DEPENDENCY_PACKAGES
+
+#Fetch installed dependency packages version
+fetch_installed_dependency_packages_version \/$DHSM2_COMPONENT_DEVOPS_DIR/$DHSM2_WL_DEPENDENCY_PACKAGES \/$DHSM2_COMPONENT_DEVOPS_DIR/$DHSM2_WL_INSTALLED_DEPENDENCY_PACKAGES_VERSION
+
+exit 0" > ${DHSM2_COMPONENT_DEPLOY_SCRIPT}
 chmod 777 ${DHSM2_COMPONENT_DEPLOY_SCRIPT}
 cd -
 
