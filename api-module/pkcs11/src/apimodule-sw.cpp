@@ -11,7 +11,10 @@ static gboolean sw_get_challenge(keyagent_apimodule_get_challenge_details *, voi
 static gboolean sw_set_wrapping_key(keyagent_apimodule_session_details *, void *, GError **err);
 static gboolean sw_load_key(keyagent_apimodule_loadkey_details *, void *, GError **err);
 
-keyagent_apimodule_ops _sw_apimodule_ops = {
+
+keyagent_apimodule_ops _sw_apimodule_ops = { 
+    .init = NULL,
+    .load_uri = NULL, 
     .load_key = sw_load_key,
     .get_challenge = sw_get_challenge,
     .set_wrapping_key = sw_set_wrapping_key

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <glib.h>
+#include <gmodule.h>
 #include "key-agent/types.h"
 #include "key-agent/key_agent.h"
 
@@ -17,6 +18,7 @@ static gboolean listnpms = FALSE;
 static gboolean liststms = FALSE;
 static gboolean debug = FALSE;
 static gchar *configfile = NULL;
+static gchar *api_module = NULL;
 static gchar *keyurl = NULL;
 
 static GOptionEntry entries[] =
@@ -26,27 +28,35 @@ static GOptionEntry entries[] =
   { "list-npms", 0, 0, G_OPTION_ARG_NONE, &listnpms, "List the npms", NULL },
   { "list-stms", 0, 0, G_OPTION_ARG_NONE, &liststms, "List the stms", NULL },
   { "load-key", 0, 0, G_OPTION_ARG_FILENAME, &keyurl, "url of key to transfer", NULL },
+  { "api-module", 0, 0, G_OPTION_ARG_FILENAME, &api_module, "API Moduel path", NULL },
   { "debug", 0, 0, G_OPTION_ARG_NONE, &debug, "enable debug output", NULL },
   { NULL }
 };
 
-static gboolean
-apimodule_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, GError **err)
+apimodule_initialize_func apimodule_initialize;
+
+gboolean
+load_apimodule(const char *module_name)
 {
-	return TRUE;
+    GModule *mod = NULL;
+    gboolean ret = FALSE;
+
+    do {
+        mod = g_module_open(module_name, G_MODULE_BIND_LOCAL);
+        if (!mod) {
+            k_critical_msg("%s: %s", module_name, g_module_error ());
+            break;
+        }
+	if (!g_module_symbol(mod, "apimodule_initialize", (gpointer *)&apimodule_initialize)) {
+            k_critical_msg("%s: apimodule_initialize func not found", module_name);
+	    break;
+	}
+
+	ret=TRUE;
+    } while (FALSE);
+    return ret;
 }
 
-static gboolean
-apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GError **err)
-{
-	return TRUE;
-}
-
-static gboolean
-apimodule_get_challenge(keyagent_apimodule_get_challenge_details *details, void *request, GError **err)
-{
-	return TRUE;
-}
 
 int
 main (int argc, char *argv[])
@@ -54,7 +64,6 @@ main (int argc, char *argv[])
 	GError *error = NULL;
 	GOptionContext *context;
    	keyagent_apimodule_ops apimodule_ops;
-   	memset(&apimodule_ops, 0, sizeof(apimodule_ops));
 
 	context = g_option_context_new ("- key-agent cli");
 	g_option_context_add_main_entries (context, entries, NULL);
@@ -75,10 +84,10 @@ main (int argc, char *argv[])
 	{
 		configfile = g_strconcat (DHSM2_CONF_PATH,"/key-agent.ini", NULL);
 	}
-	if (!keyagent_init(configfile, &error))
+	if (!api_module && !keyurl && !keyagent_init(configfile, &error))
 	{
 		k_fatal_error(error);
-		exit(1);
+		goto end;
 	}
 	if (listnpms)
 		keyagent_npm_showlist();
@@ -87,20 +96,41 @@ main (int argc, char *argv[])
 		keyagent_stm_showlist();
 
 
-	if (keyurl)
-    	apimodule_ops.load_key = apimodule_load_key;
-    	apimodule_ops.get_challenge = apimodule_get_challenge;
-    	apimodule_ops.set_wrapping_key = apimodule_set_wrapping_key;
-    	if (!keyagent_apimodule_register(NULL, &apimodule_ops, &error)) {
-        	k_critical_msg(error->message);
-        	return FALSE;
-    	}
-    	k_debug_msg("keyagent_apimodule_register is successful !!!");
+	if (keyurl && api_module)
+	{
+	        k_debug_msg("Keyurl:%s, api_module:%s\n", keyurl, api_module);	
+               	if( load_apimodule(api_module) == FALSE ){
+			k_critical_msg("API module load is failed\n");
+			goto end;	
+		}
+	         
+                apimodule_initialize(&apimodule_ops, &error);	
+		if( error != NULL)
+		{
+			k_critical_error(error);
+			goto end;
+		}
+		if( apimodule_ops.load_uri != NULL && apimodule_ops.load_uri(keyurl) != TRUE )
+		{
+			k_critical_msg("API Module Load URI failed\n");
+			goto end;
+		}
+		k_debug_msg("Key:%s successfully loaded in api_module:%s\n", keyurl, api_module);
+		
+	}else if ( keyurl && !api_module ){
+		k_critical_msg("--api-module <api_module_path> missing\n");
+		goto end;
+	}
 
-		if (!keyagent_loadkey(keyurl, &error))
-            k_info_error(error);
 
-	g_free(configfile);
+end:
+
+	if(configfile)
+		g_free(configfile);
+	if(keyurl)
+		g_free(keyurl);
+	if(api_module)
+		g_free(api_module);
 
 	exit(0);
 }

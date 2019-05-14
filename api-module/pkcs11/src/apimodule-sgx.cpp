@@ -30,7 +30,10 @@ static gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *, vo
 static gboolean sgx_set_wrapping_key(keyagent_apimodule_session_details *, void *, GError **err);
 static gboolean sgx_load_key(keyagent_apimodule_loadkey_details *, void *, GError **err);
 
+
 keyagent_apimodule_ops _sgx_apimodule_ops = {
+    .init = NULL,
+    .load_uri = NULL,
     .load_key = sgx_load_key,
     .get_challenge = sgx_get_challenge,
     .set_wrapping_key = sgx_set_wrapping_key

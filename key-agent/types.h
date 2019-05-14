@@ -312,20 +312,20 @@ GQuark KEYAGENT_ATTR_POLICY_CREATED_AT;
 #define KEYAGENT_MODULE_OP(SUBTYPE,MODULE,NAME)  (MODULE)->ops.SUBTYPE##_func_##NAME
 
 typedef enum {
-	KEYAGENT_ERROR = 1,
-	STM_ERROR,
+    KEYAGENT_ERROR = 1,
+    STM_ERROR,
     APIMODULE_ERROR,
 } ErrorClass;
 
 typedef enum {
-	KEYAGENT_ERROR_NPMLOAD = 1,
-	KEYAGENT_ERROR_KEYINIT,
-	KEYAGENT_ERROR_KEYCONF,
-	KEYAGENT_ERROR_NPMKEYINIT,
-	KEYAGENT_ERROR_STMLOAD,
-	KEYAGENT_ERROR_KEY_CREATE_PARAMS,
+    KEYAGENT_ERROR_NPMLOAD = 1,
+    KEYAGENT_ERROR_KEYINIT,
+    KEYAGENT_ERROR_KEYCONF,
+    KEYAGENT_ERROR_NPMKEYINIT,
+    KEYAGENT_ERROR_STMLOAD,
+    KEYAGENT_ERROR_KEY_CREATE_PARAMS,
     KEYAGENT_ERROR_BADCMS_MSG,
-	KEYAGENT_ERROR_NPM_URL_UNSUPPORTED,
+    KEYAGENT_ERROR_NPM_URL_UNSUPPORTED,
     KEYAGENT_ERROR_KEY_CREATE_INVALID_SESSION_ID,
     KEYAGENT_ERROR_SESSION_CREATE_INVALID_LABEL,
     KEYAGENT_ERROR_SESSION_CREATE_INVALID_SWK_TYPE,
@@ -333,6 +333,8 @@ typedef enum {
     KEYAGENT_ERROR_INVALID_CONF_VALUE,
     APIMODULE_ERROR_INVALID_FUNC_PTR,
     APIMODULE_ERROR_INVALID_CONF_VALUE,
+    APIMODULE_ERROR_INVALID_INPUT,
+    APIMODULE_ERROR_API_RETURN_ERROR,
 } KeyAgentErrors;
 
 typedef enum {
@@ -413,6 +415,8 @@ typedef struct {
 } keyagent_apimodule_session_details;
 
 typedef gboolean (*apimodule_set_wrapping_key_func)(keyagent_apimodule_session_details *, void *,GError **);
+typedef gboolean (*apimodule_initialize_func)(struct ka_apimodule_ops *ops, GError **);
+typedef gboolean (*apimodule_load_uri_func)(const char *uri);
 
 typedef struct {
 	const char *label;
@@ -441,7 +445,9 @@ typedef struct {
 	keyagent_apimodule_get_challenge_details apimodule_details;
 } keyagent_stm_create_challenge_details;
 
-typedef struct {
+typedef struct ka_apimodule_ops{
+	apimodule_initialize_func init;
+	apimodule_load_uri_func load_uri;
 	apimodule_load_key_func load_key;
 	apimodule_get_challenge_func get_challenge;
 	apimodule_set_wrapping_key_func set_wrapping_key;
