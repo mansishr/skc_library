@@ -11,7 +11,7 @@ cmdline="rsautl \
 -sign \
 -engine pkcs11 \
 -keyform engine \
--inkey $PRIVATE_KEY2 \
+-inkey $PRIVATE_KEY \
 -in testdata \
 -out $DATADIR/testdata.sign"
 
@@ -20,4 +20,4 @@ export OPENSSL_CONF=$DATADIR/engines.cnf
 
 export INSTALLDIR=$INSTALLDIR
 
-LD_LIBRARY_PATH=${INSTALLDIR}/lib ./aes_encrypt_decrypt $TOKENNAME $KEYID_AES
+LD_LIBRARY_PATH=${INSTALLDIR}/lib ./aes_encrypt_decrypt $PRIVATE_KEY

@@ -127,14 +127,12 @@ __do_keyagent_init(const char *filename, GError **err)
 		return FALSE;
 	}
 
-#ifdef TODO
 	if( (access( keyagent::cert->str, F_OK ) == -1) || (access( keyagent::cacert->str, F_OK ) == -1) )
 	{
         g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
                      "Invalid Cert Path:%s or  CA Cert Path:%s", keyagent::cert->str, keyagent::cacert->str);
 		return FALSE;
 	}
-#endif
 	if( keyagent::keyformat == KEYAGENT_KEY_FORMAT_PEM && access( keyagent::certkey->str, F_OK ) == -1 )
 	{
         g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
