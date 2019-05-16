@@ -42,14 +42,68 @@ keyagent_apimodule_ops _sgx_apimodule_ops = {
 keyagent_apimodule_ops *sgx_apimodule_ops = &_sgx_apimodule_ops;
 
 CK_RV
+sgx_unwrap_rsa_key(keyagent_apimodule_loadkey_details *details, apimodule_token *atoken)
+{
+        CK_MECHANISM_TYPE mechanismType = CKM_AES_GCM;
+        CK_OBJECT_HANDLE hPrk = CK_INVALID_HANDLE;
+        apimodule_uri_data *uri_data = (apimodule_uri_data *)details->module_data;
+        CK_RV rv;
+        CK_MECHANISM mechanism = { mechanismType, NULL_PTR, 0 };
+
+        CK_OBJECT_CLASS privateClass = CKO_PRIVATE_KEY;
+        CK_KEY_TYPE keyType = CKK_RSA;
+
+	CK_GCM_PARAMS gcmParams =
+	{
+	    k_buffer_data(details->iv),
+	    k_buffer_length(details->iv),
+	    k_buffer_length(details->iv) * 8,
+	    NULL,
+	    0,
+	    details->tag_size*8
+	};
+
+	if (mechanismType == CKM_AES_GCM) {
+	    mechanism.pParameter = &gcmParams;
+	    mechanism.ulParameterLen = sizeof(gcmParams);
+	}
+
+        CK_ATTRIBUTE nPrkAttribs[] = {
+                { CKA_TOKEN, &bFalse, sizeof(bFalse) },
+                { CKA_CLASS, &privateClass, sizeof(privateClass) },
+                { CKA_KEY_TYPE, &keyType, sizeof(keyType) },
+        	{ CKA_LABEL,    uri_data->key_label->str, uri_data->key_label->len },
+        	{ CKA_ID,       uri_data->key_id->str, uri_data->key_id->len },
+                { CKA_PRIVATE, &bTrue, sizeof(bTrue) },
+                { CKA_DECRYPT, &bTrue, sizeof(bTrue) },
+                { CKA_SIGN, &bTrue,sizeof(bTrue) },
+                //{ CKA_VERIFY, &bTrue,sizeof(bTrue) },
+                { CKA_UNWRAP, &bTrue, sizeof(bTrue) },
+                //{ CKA_SENSITIVE, &bFalse, sizeof(bFalse) },
+                //{ CKA_EXTRACTABLE, &bTrue, sizeof(bTrue) }
+        };
+
+        SET_TOKEN_ATTRIBUTE(nPrkAttribs, 0);
+
+
+        hPrk = CK_INVALID_HANDLE;
+        rv = func_list->C_UnwrapKey(atoken->session, &mechanism, atoken->wrappingkey_handle,
+                k_buffer_data(details->key), k_buffer_length(details->key),
+                nPrkAttribs, sizeof(nPrkAttribs)/sizeof(CK_ATTRIBUTE), &hPrk);
+        return rv;
+}
+
+
+CK_RV
 sgx_unwrap_symmeric_key(keyagent_apimodule_loadkey_details *details, apimodule_token *atoken)
 {
-	CK_MECHANISM_TYPE mechanismType = CKM_AES_GCM;
-	CK_MECHANISM mechanism = { mechanismType, NULL_PTR, 0 };
-	CK_RV rv;
-	CK_OBJECT_HANDLE hPrivateKey;
-	gboolean ret = FALSE;
-    apimodule_uri_data *uri_data            = (apimodule_uri_data *)details->module_data;
+  
+    CK_MECHANISM_TYPE mechanismType = CKM_AES_GCM;
+    CK_MECHANISM mechanism = { mechanismType, NULL_PTR, 0 };
+    CK_RV rv;
+    CK_OBJECT_HANDLE hPrivateKey;
+    gboolean ret = FALSE;
+    apimodule_uri_data *uri_data   = (apimodule_uri_data *)details->module_data;
     CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
     CK_KEY_TYPE keyType = CKK_AES;
 
@@ -58,15 +112,15 @@ sgx_unwrap_symmeric_key(keyagent_apimodule_loadkey_details *details, apimodule_t
         k_buffer_data(details->iv),
         k_buffer_length(details->iv),
         k_buffer_length(details->iv) * 8,
-		NULL,
-		0,
+	NULL,
+	0,
         details->tag_size*8
     };
 
-	if (mechanismType == CKM_AES_GCM) {
-		mechanism.pParameter = &gcmParams;
-		mechanism.ulParameterLen = sizeof(gcmParams);
-	}
+    if (mechanismType == CKM_AES_GCM) {
+	mechanism.pParameter = &gcmParams;
+	mechanism.ulParameterLen = sizeof(gcmParams);
+    }
 
     CK_ATTRIBUTE nPrkAttribs[] = {
         { CKA_TOKEN, 	&bFalse, sizeof(bFalse) },
@@ -91,7 +145,7 @@ sgx_unwrap_symmeric_key(keyagent_apimodule_loadkey_details *details, apimodule_t
 		nPrkAttribs, sizeof(nPrkAttribs)/sizeof(CK_ATTRIBUTE), &hPrivateKey);
 
 
-	return rv;
+    return rv;
 }
 
 static gboolean 
@@ -124,6 +178,9 @@ sgx_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GError **
 	switch (details->type) {
 	case KEYAGENT_AESKEY:
 		rv = sgx_unwrap_symmeric_key(details, atoken);
+		break;
+	case KEYAGENT_RSAKEY:
+		rv = sgx_unwrap_rsa_key(details, atoken);
 		break;
 	default:
 		rv = CKR_ARGUMENTS_BAD;  
@@ -313,57 +370,57 @@ sgx_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, G
 {
     CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
     CK_KEY_TYPE keyType = CKK_AES;
-	CK_OBJECT_HANDLE hPrk = CK_INVALID_HANDLE;
+    CK_OBJECT_HANDLE hPrk = CK_INVALID_HANDLE;
     CK_RV rv = CKR_GENERAL_ERROR;
-	CK_MECHANISM_TYPE mechanismType = CKM_RSA_PKCS;
-	//CK_MECHANISM_TYPE mechanismType = CKM_RSA_PKCS_OAEP;
+    CK_MECHANISM_TYPE mechanismType = CKM_RSA_PKCS;
+    //CK_MECHANISM_TYPE mechanismType = CKM_RSA_PKCS_OAEP;
     CK_MECHANISM mechanism = { mechanismType, NULL, 0 };
-	gboolean ret = FALSE;
-	apimodule_uri_data *data = NULL;
+    gboolean ret = FALSE;
+    apimodule_uri_data *data = NULL;
     apimodule_token *atoken = NULL;
 
 	do {
-    	if (!details || !details->session || !err || !details->module_data) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
+		if (!details || !details->session || !err || !details->module_data) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
 		data = (apimodule_uri_data *)details->module_data;
 
-    	if (!data->token_label) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
+		if (!data->token_label) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
-    	atoken = lookup_apimodule_token(data->token_label->str);
+		atoken = lookup_apimodule_token(data->token_label->str);
 
-    	if (!atoken) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
+		if (!atoken) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
-    	CK_ATTRIBUTE nPrkAttribs[] = {
-        	{ CKA_TOKEN, &bFalse, sizeof(bFalse) },
-        	{ CKA_CLASS, &privClass, sizeof(privClass) },
-        	{ CKA_KEY_TYPE, &keyType, sizeof(keyType) },
-        	{ CKA_LABEL,            (void *)PKCS11_APIMODULE_SWKLABEL,        		strlen(PKCS11_APIMODULE_SWKLABEL) },
-        	{ CKA_ID,            	(void *)PKCS11_APIMODULE_SWKID,        		strlen(PKCS11_APIMODULE_SWKID) },
-        	{ CKA_PRIVATE, &bTrue, sizeof(bTrue) },
-        	{ CKA_DECRYPT, &bTrue, sizeof(bTrue) },
-        	{ CKA_UNWRAP, &bTrue, sizeof(bTrue) },
-        	//{ CKA_EXTRACTABLE, &bTrue, sizeof(bTrue) }
-    	};
+		CK_ATTRIBUTE nPrkAttribs[] = {
+			{ CKA_TOKEN, &bFalse, sizeof(bFalse) },
+			{ CKA_CLASS, &privClass, sizeof(privClass) },
+			{ CKA_KEY_TYPE, &keyType, sizeof(keyType) },
+			{ CKA_LABEL, (void *)PKCS11_APIMODULE_SWKLABEL, strlen(PKCS11_APIMODULE_SWKLABEL) },
+			{ CKA_ID,  (void *)PKCS11_APIMODULE_SWKID, strlen(PKCS11_APIMODULE_SWKID) },
+			{ CKA_PRIVATE, &bTrue, sizeof(bTrue) },
+			{ CKA_DECRYPT, &bTrue, sizeof(bTrue) },
+			{ CKA_UNWRAP, &bTrue, sizeof(bTrue) },
+			//{ CKA_EXTRACTABLE, &bTrue, sizeof(bTrue) }
+		};
 
-        SET_TOKEN_ATTRIBUTE(nPrkAttribs, 0);
+		SET_TOKEN_ATTRIBUTE(nPrkAttribs, 0);
 
-    	hPrk = CK_INVALID_HANDLE;
-    	rv = func_list->C_UnwrapKey(atoken->session, &mechanism, atoken->privatekey_challenge_handle, 
-			k_buffer_data(details->session), k_buffer_length(details->session), 
-			nPrkAttribs, sizeof(nPrkAttribs)/sizeof(CK_ATTRIBUTE), &hPrk);
+		hPrk = CK_INVALID_HANDLE;
+		rv = func_list->C_UnwrapKey(atoken->session, &mechanism, atoken->privatekey_challenge_handle, 
+				k_buffer_data(details->session), k_buffer_length(details->session), 
+				nPrkAttribs, sizeof(nPrkAttribs)/sizeof(CK_ATTRIBUTE), &hPrk);
 
 		if (rv != CKR_OK) {
 			k_debug_msg("error unwrapping wrapping key");
-        	k_set_error(err, -1, "cannot add wrapping key");
+			k_set_error(err, -1, "cannot add wrapping key");
 			break;
 		}
 		ret = TRUE;
