@@ -197,7 +197,7 @@ C_OnDemand_KeyLoad (const char *uri_string)
 
     if (!apimodule_uri_to_uri_data(uri_string, &uri_data)) {
     	rv = CKR_ARGUMENTS_BAD;
-	goto end;
+	    goto end;
     }
 
     atoken = lookup_apimodule_token(uri_data.token_label->str);
@@ -205,6 +205,13 @@ C_OnDemand_KeyLoad (const char *uri_string)
         atoken = init_apimodule_token(&uri_data, FALSE, &err);
 
     if (atoken) {
+
+		if( g_strcmp0(atoken->pin->str, uri_data.pin->str) != 0 )
+		{
+			k_critical_msg("Pin value mismatch for token:%s and ignoring url:%s", uri_data.token_label->str, uri_string);
+			rv = CKR_GENERAL_ERROR;
+			goto end;
+		}
         rv = apimodule_findobject(atoken->session, &uri_data, &is_present);
         // If Object/Key label found in Token, return
         if ((rv != CKR_OK) || is_present)
