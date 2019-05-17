@@ -17,7 +17,7 @@ CLIENT_CSR=$DATADIR/client.csr
 SERVER_ROOTCERT=$SERVER_DATADIR/root_cert.pem
 SERVER_CERT=$SERVER_DATADIR/cert-rsa.pem
 
-SGX=1
+#SGX=1
 SPY=1
 INSTALLDIR=/opt/dhsm2
 SPY_MODULE=/usr/lib64/pkcs11/pkcs11-spy.so
@@ -70,14 +70,13 @@ TOKENNAME=KMS
 AES=1
 
 AES_LABEL=AESKEY
-KEYID_AES=9b2d82db-5c56-452b-9e29-3b50550c3d5d
-KEYID_AES=5545338d-8ee2-491a-98fa-0673538aff73
+KEYID_AES=c665a306-5cd7-47b2-b827-f7f23d534795
 RSA_LABEL=RSAKEY
 KEYID_RSA=b819cd77-72ad-497f-ad0a-45bb5565aaf9
 
 if [ "x$AES" != "x" ]
 then
-	PRIVATE_KEY2="pkcs11:token=$TOKENNAME;id=$KEYID_AES;object=$AES_LABEL;type=private;pin-value=$PIN"
+	PRIVATE_KEY="pkcs11:token=$TOKENNAME;id=$KEYID_AES;object=$AES_LABEL;type=private;pin-value=$PIN"
 else
-	PRIVATE_KEY2="pkcs11:token=$TOKENNAME;id=$KEYID_RSA;object=$RSA_LABEL;type=private;pin-value=$PIN"
+	PRIVATE_KEY="pkcs11:token=$TOKENNAME;id=$KEYID_RSA;object=$RSA_LABEL;type=private;pin-value=$PIN"
 fi

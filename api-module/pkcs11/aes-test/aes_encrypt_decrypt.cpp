@@ -12,12 +12,23 @@
 #include <gmodule.h>
 #include "key-agent/key_agent.h"
 
+typedef struct {
+    GString *token_label;
+    GString *key_label;
+    GString *key_id;
+    GString *pin;
+    CK_SLOT_ID slot_id;
+} apimodule_uri_data;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
 static CK_RV (*c_ondemand_keyload)(const char *url);
+gboolean (*parse_uri_data)(const char *uri, apimodule_uri_data *uri_data);
+gboolean (*clean_uri_data)(apimodule_uri_data *uri_data);
+apimodule_uri_data uri_data;
 
 #ifdef __cplusplus
 }
@@ -25,11 +36,12 @@ static CK_RV (*c_ondemand_keyload)(const char *url);
 CK_FUNCTION_LIST_PTR func_list;
 
 
+
 #define RV_CHECK(fn, rv) \
 do { \
     if((rv != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)) { \
         fprintf(stderr, "%s() failed: 0x%lx ! \n", fn, rv); \
-	exit(0); \
+		goto err; \
     } \
     else { \
     } \
@@ -171,6 +183,14 @@ load_module(const char *module_name, CK_FUNCTION_LIST_PTR_PTR funcs)
             k_critical_msg("%s: can't find C_OnDemand_KeyLoad", module_name);
             break;
         }
+        if (!g_module_symbol(mod, "apimodule_uri_to_uri_data", (gpointer *)&parse_uri_data)) {
+            k_critical_msg("%s: can't find apimodule_uri_to_uri_data", module_name);
+            break;
+        }
+        if (!g_module_symbol(mod, "apimodule_uri_data_cleanup", (gpointer *)&clean_uri_data)) {
+            k_critical_msg("%s: can't find apimodule_uri_data_cleanup", module_name);
+            break;
+        }
 
         if ((rv = c_get_function_list(funcs)) == CKR_OK) {
            return CKR_OK;
@@ -201,36 +221,15 @@ int main(int argc, char* argv[])
     gboolean present = false;
     CK_SLOT_ID slot_id;
 
-    // Input values like NPM module name and key-id are changed as per KMS key values
-    gchar inputPart1[] = "pkcs11:model=DHSM%20v2;type=private;object=test;token=";
-    gchar idStr[] = "id=";
-    gchar pinStr[] = "pin-value=";
-    gchar pin[] = "1234";
-    gchar *inputString = NULL;
-    gchar* token_name = argv[1];
-    gchar* key_id = argv[2];
-    CK_UTF8CHAR label[] = "test";
+    gchar* uri = argv[1];
     CK_BYTE iv[]= {  0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
 
-    if( (argc < 2) || (!token_name) || (!key_id) ) {
-        fprintf(stderr, "Invalid no.of Arguments. Make sure Token name and key_id passed as input ! \n");
+    if( (argc < 1) || (!uri) ) {
+        fprintf(stderr, "Invalid no.of Arguments. Please run %s <URI>\n", argv[0]);
         return -1;
     }    
 
-    inputString = g_strconcat(inputPart1, token_name, ";", idStr, key_id, ";", pinStr, pin, NULL);
-    if(!inputString) {
-        fprintf(stderr, "Error forming PKCS11 URI from input values ! \n");
-        return -1;
-    }
-    fprintf(stdout, "inputString: %s \n", inputString);
-
-    CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
-    CK_ATTRIBUTE attribs[] = {
-	    { CKA_CLASS, &privClass, sizeof(privClass) },
-	    { CKA_LABEL, label, sizeof(label)-1 },
-	    //{ CKA_ID, (CK_UTF8CHAR_PTR)key_id, strlen(key_id) }
-    };
 
     GString *module_path=g_string_new(getenv("INSTALLDIR"));
     g_string_append(module_path, "/lib/libpkcs11-api.so");
@@ -238,12 +237,20 @@ int main(int argc, char* argv[])
         fprintf(stderr, "Error loading module\n");
         return -1;
     }
+	g_string_free( module_path, false);
 
+
+	if( parse_uri_data(uri, &uri_data) != TRUE ){
+        fprintf(stderr, "Error in parsing pkcs11 uri %s <URI>\n", uri);
+        return -1;
+    }    
+
+    CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
+    CK_ATTRIBUTE attribs[] = {
+	    { CKA_CLASS, &privClass, sizeof(privClass) },
+	    { CKA_ID, (CK_UTF8CHAR_PTR)uri_data.key_id->str, strlen(uri_data.key_id->str) }
+    };
     CK_MECHANISM mechanism = { CKM_AES_CBC, NULL_PTR, 0 };
-    //rv = C_GetFunctionList(&func_list);
-    //RV_CHECK("func_list->C_GetFunctionList", rv);
-
-
 
     memset( &initArgs, (size_t)sizeof( CK_C_INITIALIZE_ARGS ), 0);
     initArgs.flags = CKF_OS_LOCKING_OK;       // -> let PKCS11 use its own locking
@@ -253,18 +260,14 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-
-
-    if(CKR_OK != c_ondemand_keyload(inputString))
+    if(CKR_OK != c_ondemand_keyload(uri))
     {
-        g_free(inputString);
         return -1;
     }
-    g_free(inputString);
 
-    rv = FindToken(token_name, &present, &slot_id);
+    rv = FindToken(uri_data.token_label->str, &present, &slot_id);
     if(!present) {
-        fprintf(stderr, "Token %s not found \n", token_name);
+        fprintf(stderr, "Token %s not found \n", uri_data.token_label->str);
         goto err;
     }
     // Open read-write session
@@ -272,20 +275,18 @@ int main(int argc, char* argv[])
     RV_CHECK("C_OpenSession", rv);
 
     // Login USER into the sessions so we can create a private objects
-    rv = func_list->C_Login(hSession,CKU_USER,(unsigned char*)pin,strlen(pin));
+    rv = func_list->C_Login(hSession,CKU_USER,(unsigned char*)uri_data.pin->str,strlen(uri_data.pin->str));
     if ( rv != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)
     {
         fprintf(stderr, "C_Login\n");
-	goto err;
+	    goto err;
     }
-
-
     // Now find the objects while logged in should find them all.
     rv = func_list->C_FindObjectsInit(hSession,&attribs[0], 2);
     if ( rv != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)
     {
         fprintf(stderr, "C_FindObjectsInit\n");
-	goto err;
+		goto err;
     }
 
 
@@ -297,7 +298,7 @@ int main(int argc, char* argv[])
     if( ulObjectCount != 1 )
     {
         fprintf(stderr, "C_FindObjects object not found\n");
-	goto err;
+	    goto err;
     }
 
 
@@ -335,6 +336,7 @@ int main(int argc, char* argv[])
     func_list->C_Logout(hSession);
 
 err:
+	clean_uri_data(&uri_data);
     return rv;
 }
 
