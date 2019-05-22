@@ -1,0 +1,77 @@
+CURRENT_DIR="__PWD__"
+DATADIR="${CURRENT_DIR}/data"
+mkdir $DATADIR
+
+OPENSSL=openssl
+ENGINE=/usr/lib64/engines-1.1/pkcs11.so
+
+#SGX=1
+SPY=1
+INSTALLDIR="__PREFIX__"
+SPY_MODULE=/usr/lib64/pkcs11/pkcs11-spy.so
+REAL_PKCS11_MODULE=$INSTALLDIR/lib/libpkcs11-api.so
+
+SOFTHSM_UTIL=softhsm2-util
+SOFTHSM_LIB=/usr/lib64/pkcs11/libsofthsm2.so
+SOFTHSM_TOKEN_DIR=/var/lib/softhsm/tokens
+
+TOOLKIT_INSTALLDIR="__SGXTOOLKIT__"
+SOFTWARE_MODULE=$SOFTHSM_LIB
+TOOLKIT_MODULE=$TOOLKIT_INSTALLDIR/lib/libp11sgx.so
+TOOLKIT_TOKEN_DIR=""
+
+MODULE=$SOFTHSM_MODULE
+
+
+cp ${CURRENT_DIR}/pkcs11-apimodule.ini.in $DATADIR/pkcs11-apimodule.ini
+if [ "x$SGX" != "x" ]
+then
+    MODE=SGX 
+    MODULE=$TOOLKIT_MODULE
+
+    if [ "x$SPY" == "x1" ]
+    then
+	export PKCS11SPY=$TOOLKIT_INSTALLDIR/lib/libp11sgx.so
+        TOOLKIT_MODULE=$SPY_MODULE
+    else
+        export PKCS11SPY=
+    fi
+else
+    MODE=SW
+    MODULE=$SOFTWARE_MODULE
+    if [ "x$SPY" == "x1" ]
+    then
+	export PKCS11SPY=$SOFTHSM_LIB
+        SOFTWARE_MODULE=$SPY_MODULE
+    else
+        export PKCS11SPY=
+    fi
+fi
+
+cp ${CURRENT_DIR}/pkcs11-apimodule.ini.in $DATADIR/pkcs11-apimodule.ini
+sed -i -e "s|__DHSM_MODE__|${MODE}|g" \
+    -e "s|__DHSM_INSTALL__|${INSTALLDIR}|g" \
+    -e "s|__SOFTWARE_MODULE__|${SOFTWARE_MODULE}|g" \
+    -e "s|__TOOLKIT_MODULE__|${TOOLKIT_MODULE}|g" \
+    "$DATADIR/pkcs11-apimodule.ini"
+
+export DHSM2_PKCS11_APIMODULE_CONF=$DATADIR/pkcs11-apimodule.ini
+
+PIN=1234
+TOKENNAME=KMS
+
+AES_LABEL=AESKEY
+KEYID_AES=50e9fbab-0bde-449c-8b55-a1ec37f8cc17
+RSA_LABEL=RSAKEY
+KEYID_RSA=c789a62f-b5d6-4633-b615-3ef81bc24b5a
+
+
+if [ ! -f "$MODULE" ]; then
+        if [ "x$SGX" == "x1" ]; then
+                echo "Please set correct Toolkit Module path variable: \$TOOLKIT_MODULE variable in config"
+        else
+                echo "Please set correct Softhms Module path variable: \$SOFTHSM_LIB variable in config"
+        fi
+        exit -1
+fi
+

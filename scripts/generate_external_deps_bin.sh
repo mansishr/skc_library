@@ -1,5 +1,5 @@
 #!/bin/bash
-script_dir=$(dirname $0)
+script_dir=$(dirname "$(readlink -f "$0")")
 source ${script_dir}/config.ini
 
 if [ -f ${script_dir}/$UTILS_SOURCE ]; then
@@ -8,12 +8,18 @@ else
     echo -e "Utils Script not found Error, Exit." && exit 1
 fi
 
-set_log $FLAG_ENABLE "DHSM2_WORKLOAD"
+set_log $FLAG_ENABLE "DHSM2_WORKLOAD_EXT_BIN"
 
 if [ -z "$1" ]; then
 	exit_script $LOG_ERROR "Please give $0 <version>" $CODE_EXEC_ERROR
 fi
 ver="$1"
+
+if [ $DHSM2_PRIVATE_KEY_SUPPORT != $TRUE ]; then
+        log_msg $LOG_DEBUG "PRIVATE_KEY_SUPPORT disabled so skipping external binary generation" 
+	exit $CODE_EXEC_SUCCESS
+fi
+
 
 install_pre_requisites "devOps"
 
@@ -22,14 +28,14 @@ bin_name="${DHSM2_COMPONENT_EXT_DEPS_BIN_PREFIX}${ver}.bin"
 
 rm -rf $build_dir/
 
-if [ ! -d $DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR ] || [ ! -d $DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR ]; then
+if [ ! -d $DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR ]; then
 	exit_script $LOG_ERROR "${DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR} or ${DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR} is empty" $CODE_EXEC_ERROR
 fi
 
 
 mkdir -p $build_dir/scripts/
 
-tar -cvf $build_dir/workload_deps_bins.tar.gz $DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR $DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR
+tar -cvf $build_dir/workload_deps_bins.tar.gz $DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR
 if [ $? -ne 0 ]; then
 	exit_script $LOG_ERROR "Error in generation of tar" $CODE_EXEC_ERROR
 fi 
@@ -62,11 +68,10 @@ if [ $? -ne $CODE_EXEC_SUCCESS ]; then
 fi
 
 
-openssl_lib_cnt=\$(get_file_count \"libssl.so.$DHSM2_COMPONENT_REQ_LIB_OPENSSL_VER*\")
 curl_lib_cnt=\$(get_file_count \"libcurl.so.$DHSM2_COMPONENT_REQ_LIB_CURL_VER*\")
-log_msg $LOG_DEBUG \"Count: ssl: \$openssl_lib_cnt, curl: \$curl_lib_cnt\"
+log_msg $LOG_DEBUG \"Count: curl: \$curl_lib_cnt\"
 
-if [ \$openssl_lib_cnt -eq 0 ] || [ \$curl_lib_cnt -eq 0 ]; then
+if [ \$curl_lib_cnt -eq 0 ]; then
 	log_msg $LOG_DEBUG \"Installing Deps\"
 	sudo tar -xvf workload_deps_bins.tar.gz -C /
 	log_msg $LOG_DEBUG \"External Deps successfully installed\"

@@ -1,5 +1,6 @@
 #!/bin/bash
 script_dir=$(dirname "$(readlink -f "$0")")
+conf_ops=""
 
 source ${script_dir}/config.ini
 
@@ -19,29 +20,33 @@ install_pre_requisites "dev"
 
 bash ${script_dir}/pre-req.sh "${script_dir}" "$1" 
 
+if [ $DHSM2_PRIVATE_KEY_SUPPORT -eq $TRUE ] && [ -d ${DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR} ]; then
+   	log_msg $LOG_DEBUG "with libcurl "		
+	conf_ops=" --with-libcurl=${DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR}"
+fi
+if [ -d "${DHSM2_SGX_TOOLKIT_PATH}" ]; then
+   	log_msg $LOG_DEBUG "with sgx toolkit "		
+	conf_ops="${conf_ops} --with-sgx-toolkit=${DHSM2_SGX_TOOLKIT_PATH}"
+fi
+
 pushd ${script_dir}/../
 log_msg $LOG_DEBUG "KeyAgent: AutoConfigure started"
-exec_linux_cmd "autoreconf -i" $EXEC_RULE_ABORT "autoconf" $CODE_EXEC_ERROR
+exec_linux_cmd "autoreconf -i" $EXEC_RULE_ABORT "SKC: autoconf" $CODE_EXEC_ERROR
 log_msg $LOG_DEBUG "KeyAgent: AutoConfigure completed"		
 
 log_msg $LOG_DEBUG "KeyAgent: compilation started"
-if [ -d "${DHSM2_SGX_TOOLKIT_PATH}" ]; then
-	
-   log_msg $LOG_DEBUG "with sgx toolkit "		
-   exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static --with-sgx-toolkit=${DHSM2_SGX_TOOLKIT_PATH}" $EXEC_RULE_ABORT "configure" $CODE_EXEC_ERROR
-else
-   log_msg $LOG_DEBUG "without sgx toolkit "		
-   exec_linux_cmd "./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static" $EXEC_RULE_ABORT "configure" $CODE_EXEC_ERROR
-fi
+
+cmd="./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static ${conf_ops}"
+exec_linux_cmd "$cmd" $EXEC_RULE_ABORT "SKC: configure cmd:$cmd" $CODE_EXEC_ERROR
 log_msg $LOG_DEBUG "KeyAgent: compilation completed"
 
 log_msg $LOG_DEBUG "KeyAgent build started"
-exec_linux_cmd "make clean" $EXEC_RULE_ABORT 'make clean' $CODE_EXEC_ERROR
-exec_linux_cmd "make" $EXEC_RULE_ABORT "make" $CODE_EXEC_ERROR
+exec_linux_cmd "make clean" $EXEC_RULE_ABORT 'SKC: make clean' $CODE_EXEC_ERROR
+exec_linux_cmd "make" $EXEC_RULE_ABORT "SKC: make" $CODE_EXEC_ERROR
 log_msg $LOG_DEBUG "KeyAgent build completed"
 
 log_msg $LOG_DEBUG "KeyAgent: Installation started"
-exec_linux_cmd "make install" $EXEC_RULE_ABORT 'make install' $CODE_EXEC_ERROR
+exec_linux_cmd "make install" $EXEC_RULE_ABORT 'SKC: make install' $CODE_EXEC_ERROR
 log_msg $LOG_DEBUG "KeyAgent: Installation completed"
 
 exit_script $LOG_DEBUG "Workload component installed in path:${DHSM2_INSTALL_DIR} successfully" $CODE_EXEC_SUCCESS

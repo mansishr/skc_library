@@ -72,6 +72,8 @@ AC_PROG_LIBTOOL
 AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
+	tests/Makefile
+	tests/aes-test/Makefile
 ])
 
 AC_OUTPUT

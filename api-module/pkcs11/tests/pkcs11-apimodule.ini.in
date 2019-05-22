@@ -2,6 +2,7 @@
 keyagent_conf=__DHSM_INSTALL__/etc/key-agent.ini
 mode=__DHSM_MODE__
 debug=true
+preload_keys=/tmp/keys.txt
 [SW]
 module=__SOFTWARE_MODULE__
 use_token_objects=true
