@@ -435,12 +435,22 @@ cleanup:
 extern "C" gboolean
 npm_key_load(keyagent_keyload_details *details, GError **error)
 {
+    gboolean ret = FALSE;
     loadkey_info info = {0, NULL, 0};
-    g_return_val_if_fail(details->url, FALSE );
+    g_return_val_if_fail((details && details->url), FALSE );
     gchar **url_tokens = NULL;
-    url_tokens = g_strsplit (details->url, ":", -1) ; 
+    url_tokens = g_strsplit (details->url, ":", -1); 
+
+    if (!g_strcmp0((const char*) url_tokens[0], "REFERENCE") == 0)
+    {
+	k_critical_msg("Invalid key url token, url:%s\n", url_tokens[0]);
+	goto cleanup;
+    }
     info.keyid = atoi(url_tokens[1]);
     info.details = details;
     g_strfreev(url_tokens);
 	return __npm_loadkey(&info, error);
+cleanup:
+	g_strfreev(url_tokens);
+	return ret;
 }

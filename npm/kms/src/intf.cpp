@@ -324,9 +324,14 @@ __npm_loadkey(loadkey_info *info, GError **err)
         gchar *keytype_str			= NULL;
 	
 	url_tokens							= g_strsplit (info->url, ":", -1) ;
+	if (!g_strcmp0((const char*) url_tokens[0], (const char*)KMS_PREFIX_TOKEN) == 0)
+	{
+		k_critical_msg("Invalid key url token, url:%s\n", url_tokens[0]);
+		goto cleanup;
+	}
 	session_ids							= KEYAGENT_NPM_OP(&info->details->cbs,session_get_ids)();
-
 	url									= g_string_new(kms_npm::server_url->str);
+
 	g_string_append(url, "/v1/keys/");
 	g_string_append(url, url_tokens[1]);
 	g_string_append(url, "/dhsm2-transfer");
@@ -487,10 +492,12 @@ cleanup:
 	k_string_free(policy_url, TRUE);
 	k_buffer_unref(return_data);
 	k_buffer_unref(policy_ret_data);
-	g_ptr_array_free(headers, TRUE);
+	if(headers)
+		g_ptr_array_free(headers, TRUE);
 	if( policy_headers )
 		g_ptr_array_free(policy_headers, TRUE);
-	g_ptr_array_free(res_headers, TRUE);
+	if(res_headers)
+		g_ptr_array_free(res_headers, TRUE);
 	return ret;
 }
 

@@ -10,6 +10,7 @@
 #include "key-agent/types.h"
 #include "key-agent/npm/npm.h"
 #include "key-agent/key_agent.h"
+#include "npm/kms/kms.h"
 
 static gboolean verbose		= FALSE;
 static gboolean debug 		= FALSE;
@@ -76,7 +77,6 @@ static void init_npm(module_info *fixture, gconstpointer user_data)
     g_autoptr(GError) error                                 = NULL;
     module_info *minfo                                      = (module_info *)user_data;
     keyagent_npm_real *npm                                  = (keyagent_npm_real *)&minfo->npm;
-	g_assert_cmpint(keyagent_init(key_agent_config, &error),==,TRUE);
     void *init_func                                         = NPM_MODULE_OP(npm, init);
     g_assert_nonnull(npm);
     g_assert_nonnull(init_func);
@@ -127,21 +127,20 @@ static void npm_load_key(module_info *fixture, gconstpointer user_data)
 	g_autoptr(GError) tmp_error3			= NULL;
     module_info *minfo                      = (module_info *)user_data;
 	keyagent_npm_real *npm					= (keyagent_npm_real *)&minfo->npm;
+
+	keyagent_keyload_details info1 = {0, NULL, NULL}; 
+	info1.url					    = keyurl;
 	g_assert_nonnull(npm);
 	g_assert_nonnull(NPM_MODULE_OP(npm, key_load));
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
 
-	/*Test case 1: With valide register URL and key URL*/
-	g_assert_null(keyagent_loadkey(keyurl, &tmp_error));
+	/*Test case 1: With invalide register URL and new key URL*/
+	info1.url = "TEST:a67a6747-bd53-4280-90e0-5d310ba5fe";
+	g_assert_cmpint(NPM_MODULE_OP(npm, key_load)(&info1, &tmp_error), ==, FALSE);
 
-	/*Test case 2: With valide register URL and new key URL*/
-	/*g_assert_cmpint(keyagent_loadkey("KMS:a67a6747-bd53-4280-90e0-5d310ba5fed8", &tmp_error2), ==, TRUE);*/
+	/*Test case 2: With register URL and key URL as NULL*/
+	g_assert_cmpint(NPM_MODULE_OP(npm, key_load)(NULL, &tmp_error), ==, FALSE);
 
-	/*Test case 3: With invalide URL as NULL*/
-	g_assert_cmpint(NPM_MODULE_OP(npm, key_load)(NULL, &tmp_error3), ==, FALSE);
-
-	/*Test case 4: With invalide register URL and invalide key URL*/
-	g_assert_nonnull(keyagent_loadkey("TEST:a67a6747-bd53-4280-90e0-5d310ba5fe", NULL));
 }
 
 void fill_userdata( module_info *data, const char *module_path, char *conf_file_path)
