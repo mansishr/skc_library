@@ -27,6 +27,9 @@ if [ ! -d $DHSM2_COMPONENT_INSTALL_DIR ]; then
 	exit_script $LOG_ERROR "${DHSM2_COMPONENT_INSTALL_DIR} is empty" $CODE_EXEC_ERROR
 fi
 
+# Create temperory directroy and copy the necessary scripts for packaging to self-installable binary
+mkdir -p $DHSM2_DEVOPS_SCRIPTS_PATH
+cp ${script_dir}/*common*.sh* ${script_dir}/*workload* ${script_dir}/*.ini $DHSM2_DEVOPS_SCRIPTS_PATH
 
 mkdir -p $build_dir/scripts/
 
@@ -34,6 +37,9 @@ tar -cvf $build_dir/workload_bins.tar.gz $DHSM2_COMPONENT_INSTALL_DIR/
 if [ $? -ne 0 ]; then
 	exit_script $LOG_ERROR "Error in copy binaries from ${DHSM2_COMPONENT_INSTALL_DIR}" $CODE_EXEC_ERROR
 fi 
+
+# Remove the created temperory directory
+rm -rf $DHSM2_COMPONENT_DEVOPS_DIR
 
 log_msg $LOG_DEBUG "$script_dir"
 cp ${script_dir}/*.sh ${script_dir}/*.ini $build_dir/scripts/
