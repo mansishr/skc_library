@@ -22,6 +22,7 @@ install-data-hook:$(dest_conf_files)
 	$(SED) -i \
                 -e "s|__PREFIX__|@prefix@|" \
                 -e "s|__SGXTOOLKIT__|$(SGXTOOLKIT)|" \
+                -e "s|__CURL_BIN__|$(CURL_BIN)|" \
                 $(dest_conf_files)
 
 include_HEADERS = include/k_errors.h include/k_types.h

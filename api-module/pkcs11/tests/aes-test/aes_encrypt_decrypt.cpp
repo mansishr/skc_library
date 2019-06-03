@@ -10,6 +10,7 @@
 
 #include <glib.h>
 #include <gmodule.h>
+#include "config.h"
 #include "key-agent/key_agent.h"
 
 typedef struct {
@@ -229,9 +230,13 @@ int main(int argc, char* argv[])
         fprintf(stderr, "Invalid no.of Arguments. Please run %s <URI>\n", argv[0]);
         return -1;
     }    
+    
+    GString *module_path=NULL;
+    if( getenv("INSTALLDIR") != NULL )
+    	     module_path = g_string_new(getenv("INSTALLDIR"));
+    else
+    	     module_path = g_string_new(DHSM2_INSTALL_DIR);
 
-
-    GString *module_path=g_string_new(getenv("INSTALLDIR"));
     g_string_append(module_path, "/lib/libpkcs11-api.so");
     if (load_module(module_path->str, &func_list) != CKR_OK) {
         fprintf(stderr, "Error loading module\n");

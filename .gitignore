@@ -52,3 +52,7 @@ npm/tests/test_app/npm_tapp
 key-agent/tests/test_app/keyagent_testapp
 *.Po
 G[R|P|T|F|L]*
+api-module/pkcs11/tests/aes-test/aes_encrypt_decrypt
+api-module/pkcs11/tests/data/
+api-module/pkcs11/tests/rsa-test/testdata
+api-module/pkcs11/tests/aes-test/Makefile.am
