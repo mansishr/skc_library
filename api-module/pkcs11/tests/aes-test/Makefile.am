@@ -1,0 +1,9 @@
+AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) $(OPENSSL_INCLUDES) -std=c++11
+
+noinst_PROGRAMS = \
+   aes_encrypt_decrypt
+
+aes_encrypt_decrypt_SOURCES = \
+   aes_encrypt_decrypt.cpp
+
+aes_encrypt_decrypt_LDFLAGS =  -ljsoncpp $(GLIB_LIBS) $(GMODULE_LIBS)
