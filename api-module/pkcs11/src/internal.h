@@ -11,6 +11,7 @@ typedef struct {
 	GString *key_label;
 	GString *key_id;
 	GString *pin;
+	CK_ULONG type;
     CK_SLOT_ID slot_id;
 } apimodule_uri_data;
 

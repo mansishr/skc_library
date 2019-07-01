@@ -12,14 +12,7 @@
 #include <gmodule.h>
 #include "config.h"
 #include "key-agent/key_agent.h"
-
-typedef struct {
-    GString *token_label;
-    GString *key_label;
-    GString *key_id;
-    GString *pin;
-    CK_SLOT_ID slot_id;
-} apimodule_uri_data;
+#include "api-module/pkcs11/src/internal.h"
 
 #ifdef __cplusplus
 extern "C" {

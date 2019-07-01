@@ -27,6 +27,7 @@ void
 apimodule_uri_data_init(apimodule_uri_data *uri_data) 
 {
     memset(uri_data,0, sizeof(apimodule_uri_data));
+    uri_data->type = CKO_DATA;
 }
 
 void
@@ -36,6 +37,7 @@ apimodule_uri_data_cleanup(apimodule_uri_data *uri_data)
     if (uri_data->key_label) g_string_free(uri_data->key_label, TRUE);
     if (uri_data->key_id) g_string_free(uri_data->key_id, TRUE);
     if (uri_data->pin) g_string_free(uri_data->pin, TRUE);
+    uri_data->type = -1;
     uri_data->slot_id = -1;
 }
 
@@ -48,6 +50,9 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 	CK_ATTRIBUTE_PTR label_attr;
 	CK_ATTRIBUTE_PTR id_attr;
 	const char* upin;
+	CK_ATTRIBUTE_PTR priv_class;
+	CK_ULONG typeval;
+	gchar* typestr = NULL;
     int rv = CKR_OK;
 
 	if (!uri || !uri_data)
@@ -82,6 +87,20 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 		goto out;
     }
 
+    typestr = g_strrstr(uri,"type=");
+    if(typestr != NULL)
+    {
+    	if ((priv_class = p11_kit_uri_get_attribute (key_uri, CKA_CLASS)) == NULL) {
+		k_critical_msg("p11_kit_uri_get_attribute failed for CKA_CLASS (got NULL value)");
+		goto out;
+	}
+	uri_data->type = *((CK_ULONG *)priv_class->pValue);
+	if(uri_data->type != CKO_SECRET_KEY && uri_data->type != CKO_PRIVATE_KEY )
+	{
+		k_critical_msg("Incompatible type in uri for key-id");
+		goto out;
+	}
+    }
     if ((upin = (char*) p11_kit_uri_get_pin_value(key_uri)) == NULL) {
         k_debug_msg("Getting upin from PKCS#11 URI failed");
 		goto out;
@@ -100,6 +119,7 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 	ret = TRUE;
 out:
     p11_kit_uri_free(key_uri);
+
     return ret;
 }
 
@@ -339,6 +359,7 @@ apimodule_findobject(CK_SESSION_HANDLE hSession, apimodule_uri_data *data, gbool
 		    {CKA_CLASS, &obj_class, sizeof(obj_class) }
 	    };
 	    rv = func_list->C_GetAttributeValue(hSession, hObjects[0], tmpl, 1);
+
 	    k_debug_msg("C_GetAttributeValue %d %s", rv,
 		    (obj_class == CKO_PRIVATE_KEY ? "private" : (obj_class == CKO_SECRET_KEY ? "secret" : "other")));
     }
