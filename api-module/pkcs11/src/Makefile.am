@@ -1,5 +1,5 @@
 AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) \
-	`pkg-config --cflags p11-kit-1` \
+	`pkg-config --cflags p11-kit-1` `pkg-config --cflags p11-kit-1 | sed "s| ||g"`/p11-kit \
 	$(GMODULE_CFLAGS)
 
 if SGXTOOLKIT

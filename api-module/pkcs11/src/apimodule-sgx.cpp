@@ -6,25 +6,8 @@
 #include "key-agent/key_agent.h"
 #include "key-agent/types.h"
 
-#include <p11-sgx/Constants.h>
+#include "p11Defines.h"
 
-#define CKM_EXPORT_QUOTE_RSA_PUBLIC_KEY   0x0000210FUL
-typedef struct CK_QUOTE_RSA_PUBLIC_KEY_PARAMS {
-    CK_BYTE_PTR       pSpid;
-    CK_ULONG          ulSpidLen;
-    CK_BYTE_PTR       pSigRL;
-    CK_ULONG          ulSigRLLen;
-    CK_ULONG          ulQuoteSignatureType;
-} CK_QUOTE_RSA_PUBLIC_KEY_PARAMS;
-
-typedef CK_QUOTE_RSA_PUBLIC_KEY_PARAMS * CK_QUOTE_RSA_PUBLIC_KEY_PARAMS_PTR;
-
-typedef struct CK_RSA_PUBLIC_KEY_PARAMS {
-    CK_ULONG ulExponentLen;
-    CK_ULONG ulModulusLen;
-} CK_RSA_PUBLIC_KEY_PARAMS;
-
-typedef CK_RSA_PUBLIC_KEY_PARAMS * CK_RSA_PUBLIC_KEY_PARAMS_PTR;
 
 static gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *, void *, GError **err);
 static gboolean sgx_set_wrapping_key(keyagent_apimodule_session_details *, void *, GError **err);
@@ -255,7 +238,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 {
     CK_RV				rv					= CKR_GENERAL_ERROR;
     gboolean			result				= FALSE;
-	CK_MECHANISM_TYPE	mechanismType		= CKM_EXPORT_QUOTE_RSA_PUBLIC_KEY;
+	CK_MECHANISM_TYPE	mechanismType		= CKM_EXPORT_EPID_QUOTE_RSA_PUBLIC_KEY;
     CK_MECHANISM		mechanism			= { mechanismType, NULL, 0 };
     CK_RSA_PUBLIC_KEY_PARAMS* rsaPublicKeyParams = NULL;
     CK_MECHANISM_PTR    pMechanism  		= &mechanism;
@@ -301,7 +284,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 
     do {
 
-    	CK_QUOTE_RSA_PUBLIC_KEY_PARAMS quoteRSAParams = {
+    	CK_EPID_QUOTE_RSA_PUBLIC_KEY_PARAMS quoteRSAParams = {
 			spid,
 			spid_len,
         	sigrl,
