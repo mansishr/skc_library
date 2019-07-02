@@ -376,7 +376,6 @@ apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GEr
     keyagent_apimodule_ops *ops				= NULL;
     apimodule_uri_data *data 				= NULL;
     apimodule_token *atoken 				= NULL;
-
     do {
     	if (!details || !err || !details->module_data) {
         	k_set_error(err, -1, "Input parameters are invalid!");
@@ -389,7 +388,6 @@ apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GEr
         	k_set_error(err, -1, "Input parameters are invalid!");
 		break;
 	}
-
     	atoken = lookup_apimodule_token(data->token_label->str);
     	ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
 
@@ -397,10 +395,20 @@ apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GEr
         	k_set_error(err, -1, "Input parameters are invalid!");
 		break;
 	}
+	CK_ULONG type = (details->type == KEYAGENT_AESKEY ? CKO_SECRET_KEY : CKO_PRIVATE_KEY);
 
+	if (data->type == CKO_DATA){
+		data->type = type;
+    		k_debug_msg("type is NULL !!!");
+	}
+	if (data->type != type) {
+		k_critical_msg("Incompatible type in uri for key-id:%s", data->key_id->str);
+		k_set_error(err, -1, "Incompatible type in uri for key-id:%s", data->key_id->str);
+		break;
+	}
         if (ops->load_key(details, extra, err))
             result = TRUE;
-
+	
     } while(FALSE);
 
     return result;

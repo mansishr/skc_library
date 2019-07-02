@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) $(OPENSSL_INCLUDES) -std=c++11
+AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) $(OPENSSL_INCLUDES) -std=c++11 `pkg-config --cflags p11-kit-1` 
 
 noinst_PROGRAMS = \
    aes_encrypt_decrypt
