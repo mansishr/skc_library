@@ -12,7 +12,6 @@
 
 #include <sgx_error.h>
 #include <sgx_capable.h>
-#include <sgx_pce.h>
 
 using namespace std;
 
@@ -22,8 +21,6 @@ namespace sgx_application_sgx_stm {
     gboolean linkable_quote;
     const char *spid;
     const char *sigrl;
-    const char *attestation_type;
-    const char* qlPolicy;
 }
 
 extern "C" void
@@ -41,28 +38,14 @@ application_stm_init(const char *config_directory, GError **err)
 	return;
 
     sgx_application_sgx_stm::debug = key_config_get_boolean_optional(config, "core", "debug", false);
-    sgx_application_sgx_stm::attestation_type = key_config_get_string(config, "core", "type", err);
+    sgx_application_sgx_stm::linkable_quote = key_config_get_boolean_optional(config, "quote", "linkable", false);
+    sgx_application_sgx_stm::spid = key_config_get_string(config, "quote", "spid", err);
     if (*err)
 	return;
-    k_debug_msg("attestation_type %s", sgx_application_sgx_stm::attestation_type);
-
-    if (strcmp(sgx_application_sgx_stm::attestation_type ,"EPID") == 0) {
-    sgx_application_sgx_stm::linkable_quote = key_config_get_boolean_optional(config, "EPID", "linkable", false);
-    sgx_application_sgx_stm::spid = key_config_get_string(config, "EPID", "spid", err);
-    if (*err)
-	return;
-
-    sgx_application_sgx_stm::sigrl = key_config_get_string_optional(config, "EPID", "sigrl", NULL);
-   } else if (strcmp(sgx_application_sgx_stm::attestation_type, "ECDSA") == 0) {
-       sgx_application_sgx_stm::qlPolicy = key_config_get_string(config, "ECDSA", "launch_policy", err);
-       if (*err)
-	   return;
-    } else {
-        k_debug_msg("invalid attestaion type");
-	return;
-    }
+    sgx_application_sgx_stm::sigrl = key_config_get_string_optional(config, "quote", "sigrl", NULL);
 
     init_delay = key_config_get_integer_optional(config, "testing", "initdelay", 0);
+		
     if (init_delay)
         sleep(init_delay);
 }
@@ -111,30 +94,13 @@ stm_create_challenge(keyagent_stm_create_challenge_details *details, GError **er
 	return FALSE;
     }
 
-   if (strcmp(sgx_application_sgx_stm::attestation_type ,"EPID") == 0) {
-       sgx_challenge_request.linkable = sgx_application_sgx_stm::linkable_quote;
-       sgx_challenge_request.spid = strdup(sgx_application_sgx_stm::spid);
-       sgx_challenge_request.sigrl = (sgx_application_sgx_stm::sigrl ? strdup(sgx_application_sgx_stm::sigrl) : NULL);
-    } else {
-	if (strcmp(sgx_application_sgx_stm::qlPolicy, "PERSISTENT") == 0) {
-            sgx_challenge_request.launch_policy = SGX_QL_PERSISTENT;
-        } else if(strcmp(sgx_application_sgx_stm::qlPolicy, "EPHEMERAL") == 0) {
-            sgx_challenge_request.launch_policy = SGX_QL_EPHEMERAL;
-        } else {
-            sgx_challenge_request.launch_policy = SGX_QL_DEFAULT;
-        }
-        k_debug_msg("launch_policy: %d\n", sgx_challenge_request.launch_policy); 
-    }
-
-    sgx_challenge_request.attestationType = strdup(sgx_application_sgx_stm::attestation_type);
+    sgx_challenge_request.linkable = sgx_application_sgx_stm::linkable_quote;
+    sgx_challenge_request.spid = strdup(sgx_application_sgx_stm::spid);
+    sgx_challenge_request.sigrl = (sgx_application_sgx_stm::sigrl ? strdup(sgx_application_sgx_stm::sigrl) : NULL);
 
     ret = (*details->apimodule_get_challenge_cb)(&details->apimodule_details, &sgx_challenge_request, err);
-
-    free((void *)sgx_challenge_request.attestationType);
-    if (strcmp(sgx_application_sgx_stm::attestation_type ,"EPID") == 0) {
-	    free((void *)sgx_challenge_request.spid);
-	    if (sgx_challenge_request.sigrl) free((void *)sgx_challenge_request.sigrl);
-    }
+    free((void *)sgx_challenge_request.spid);
+    if (sgx_challenge_request.sigrl) free((void *)sgx_challenge_request.sigrl);
 	
     if (!details->apimodule_details.challenge && !*err) {
 	k_set_error (err, STM_ERROR_API_MODULE_LOADKEY, 

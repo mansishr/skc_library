@@ -238,29 +238,20 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 {
     CK_RV				rv					= CKR_GENERAL_ERROR;
     gboolean			result				= FALSE;
-    CK_MECHANISM_TYPE	mechanismType		= CKM_EXPORT_EPID_QUOTE_RSA_PUBLIC_KEY;
+	CK_MECHANISM_TYPE	mechanismType		= CKM_EXPORT_EPID_QUOTE_RSA_PUBLIC_KEY;
+    CK_MECHANISM		mechanism			= { mechanismType, NULL, 0 };
     CK_RSA_PUBLIC_KEY_PARAMS* rsaPublicKeyParams = NULL;
+    CK_MECHANISM_PTR    pMechanism  		= &mechanism;
     CK_ULONG			quote_len	        = 0UL;
     k_buffer_ptr		quote_details		= NULL;
     struct keyagent_sgx_challenge_request   *challenge_request = (struct keyagent_sgx_challenge_request *)request;
     CK_ULONG            signatureType       = UNLINKABLE_SIGNATURE;
-    apimodule_uri_data *data 				= NULL;
+	apimodule_uri_data *data 				= NULL;
     apimodule_token *atoken 				= NULL;
-    CK_BYTE_PTR spid						= NULL;
-    CK_ULONG spid_len						= 0;
-    CK_BYTE_PTR sigrl						= NULL;
-    CK_ULONG sigrl_len						= 0;
-    CK_ULONG launch_policy					= 0;
-    if (strcmp(challenge_request->attestationType,"EPID") == 0) {
-        mechanismType           = CKM_EXPORT_EPID_QUOTE_RSA_PUBLIC_KEY;
-    } else if (strcmp(challenge_request->attestationType,"ECDSA") == 0) {
-        mechanismType           = CKM_EXPORT_ECDSA_QUOTE_RSA_PUBLIC_KEY;
-    } else {
-	    k_debug_msg("incorrect attestaion type");
-	    k_set_error(err, -1, "Input parameters are invalid!");
-    }
-    CK_MECHANISM		mechanism			= { mechanismType, NULL, 0 };
-    CK_MECHANISM_PTR    	pMechanism  			= &mechanism;
+	CK_BYTE_PTR spid						= NULL;
+	CK_ULONG spid_len						= 0;
+	CK_BYTE_PTR sigrl						= NULL;
+	CK_ULONG sigrl_len						= 0;
 
     if (!details || !request || !err || !details->module_data) {
         k_set_error(err, -1, "Input parameters are invalid!");
@@ -283,89 +274,78 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 
     atoken = lookup_apimodule_token(data->token_label->str);
 
-	if (strcmp(challenge_request->attestationType,"EPID") == 0) {
-			k_info_msg("EPID request "); 
-			signatureType = (challenge_request->linkable ? LINKABLE_SIGNATURE : UNLINKABLE_SIGNATURE);
-			spid = (CK_BYTE_PTR)challenge_request->spid;
-			spid_len = (spid ? strlen(challenge_request->spid) : 0);
-			sigrl = (CK_BYTE_PTR)challenge_request->sigrl;
-			sigrl_len = (sigrl ? strlen(challenge_request->sigrl) : 0);
-			static CK_EPID_QUOTE_RSA_PUBLIC_KEY_PARAMS quoteRSAParams = {
-					spid,
-					spid_len,
-					sigrl,
-					sigrl_len,
-					signatureType
-			};
-			pMechanism->pParameter = &quoteRSAParams;
-			pMechanism->ulParameterLen = sizeof(quoteRSAParams);
-	} else if (strcmp(challenge_request->attestationType,"ECDSA") == 0) {
-			k_info_msg("ECDSA request ");
-			launch_policy = (CK_ULONG)challenge_request->launch_policy;
-			static CK_ECDSA_QUOTE_RSA_PUBLIC_KEY_PARAMS quoteRSAParams = {
-					launch_policy
-			};
-			pMechanism->pParameter = &quoteRSAParams;
-			pMechanism->ulParameterLen = sizeof(quoteRSAParams);
-	} else {
-			k_debug_msg("incorrect attestaion type");
-	    k_set_error(err, -1, "incorrect attestaion type!");
-	    goto end;
-    }
-	do {
-			rv = generate_rsa_keypair(atoken, PKCS11_APIMODULE_QUOTELABEL, PKCS11_APIMODULE_QUOTEID);
-			if (rv != CKR_OK) {
-					k_set_error(err, -1, "failed to login on token");
-					break;
-			}
+    if (challenge_request) {
+        signatureType = (challenge_request->linkable ? LINKABLE_SIGNATURE : UNLINKABLE_SIGNATURE);
+		spid = (CK_BYTE_PTR)challenge_request->spid;
+		spid_len = (spid ? strlen(challenge_request->spid) : 0);
+		sigrl = (CK_BYTE_PTR)challenge_request->sigrl;
+		sigrl_len = (sigrl ? strlen(challenge_request->sigrl) : 0);
+	}
 
-			rv = func_list->C_WrapKey(atoken->session, pMechanism, (CK_OBJECT_HANDLE)NULL,
-							atoken->publickey_challenge_handle,
-							NULL,
-							&quote_len);
+    do {
 
-			if (CKR_OK != rv) {
-					k_info_msg("FAILED : C_WrapKey : failed to calc quote size!");
-					k_set_error(err, -1, "failed to calc quote size");
-					break;
-			}
+    	CK_EPID_QUOTE_RSA_PUBLIC_KEY_PARAMS quoteRSAParams = {
+			spid,
+			spid_len,
+        	sigrl,
+        	sigrl_len,
+        	signatureType
+    	};
 
-			quote_details = k_buffer_alloc(NULL, quote_len);
-			rv = func_list->C_WrapKey(atoken->session,
-							pMechanism,
-							(CK_OBJECT_HANDLE)NULL,
-							atoken->publickey_challenge_handle,
-							k_buffer_data(quote_details),
-							&quote_len);
+        rv = generate_rsa_keypair(atoken, PKCS11_APIMODULE_QUOTELABEL, PKCS11_APIMODULE_QUOTEID);
+		if (rv != CKR_OK) {
+    		k_set_error(err, -1, "failed to login on token");
+			break;
+		}
 
-			if (CKR_OK != rv) {
-					k_info_msg("FAILED : C_WrapKey : failed to get quote!");
-					k_set_error(err, -1, "failed to get quote");
-					break;
-			}
+        pMechanism->pParameter = &quoteRSAParams;
+        pMechanism->ulParameterLen = sizeof(quoteRSAParams);
 
-			rsaPublicKeyParams = (CK_RSA_PUBLIC_KEY_PARAMS*)k_buffer_data(quote_details);
+        rv = func_list->C_WrapKey(atoken->session, pMechanism, (CK_OBJECT_HANDLE)NULL,
+            atoken->publickey_challenge_handle,
+            NULL,
+            &quote_len);
 
-			struct keyagent_sgx_quote_info quote_info = {
-					.keydetails = {
-							.rsa = {
-									.exponent_len = rsaPublicKeyParams->ulExponentLen,	
-									.modulus_len = rsaPublicKeyParams->ulModulusLen,
-							},
-					},
-					.keytype = KEYAGENT_RSAKEY
-			};
+        if (CKR_OK != rv) {
+            k_info_msg("FAILED : C_WrapKey : failed to calc quote size!");
+    		k_set_error(err, -1, "failed to calc quote size");
+            break;
+        }
 
-			atoken->challenge = k_buffer_alloc(NULL,0);
-			k_buffer_append(atoken->challenge, (guint8*)&quote_info, sizeof(quote_info));
-			k_buffer_append(atoken->challenge, k_buffer_data(quote_details) + sizeof(CK_RSA_PUBLIC_KEY_PARAMS), quote_len - sizeof(CK_RSA_PUBLIC_KEY_PARAMS));
-			result = TRUE;
-	} while (FALSE);
+        quote_details = k_buffer_alloc(NULL, quote_len);
+        rv = func_list->C_WrapKey(atoken->session,
+            pMechanism,
+            (CK_OBJECT_HANDLE)NULL,
+            atoken->publickey_challenge_handle,
+            k_buffer_data(quote_details),
+            &quote_len);
 
+        if (CKR_OK != rv) {
+            k_info_msg("FAILED : C_WrapKey : failed to get quote!");
+    		k_set_error(err, -1, "failed to get quote");
+            break;
+        }
+
+        rsaPublicKeyParams = (CK_RSA_PUBLIC_KEY_PARAMS*)k_buffer_data(quote_details);
+
+		struct keyagent_sgx_quote_info quote_info = {
+			.keydetails = {
+                .rsa = {
+                    .exponent_len = rsaPublicKeyParams->ulExponentLen,	
+			        .modulus_len = rsaPublicKeyParams->ulModulusLen,
+                },
+            },
+			.keytype = KEYAGENT_RSAKEY
+		};
+
+		atoken->challenge = k_buffer_alloc(NULL,0);
+		k_buffer_append(atoken->challenge, (guint8*)&quote_info, sizeof(quote_info));
+		k_buffer_append(atoken->challenge, k_buffer_data(quote_details) + sizeof(CK_RSA_PUBLIC_KEY_PARAMS), quote_len - sizeof(CK_RSA_PUBLIC_KEY_PARAMS));
+		result = TRUE;
+    } while (FALSE);
 end:
 	k_buffer_unref(quote_details);
-
-	return result;
+    return result;
 }
 
 gboolean

@@ -470,8 +470,6 @@ struct keyagent_sgx_challenge_request {
     gboolean linkable;
     const char *spid;
     const char *sigrl;
-    gint launch_policy;
-    const char *attestationType;
 };
 
 #endif
