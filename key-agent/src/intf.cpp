@@ -84,16 +84,17 @@ DLL_LOCAL gboolean
 __do_keyagent_init(const char *filename, GError **err)
 {
 
+    g_return_val_if_fail(filename, FALSE);
     g_rw_lock_init (&keyagent::rwlock);
 
     keyagent::configdirectory = g_string_new(g_path_get_dirname(filename));
-	keyagent::configfilename = g_string_new(filename);
-	keyagent::config = key_config_openfile(filename, err);
-	if (*err != NULL)
-	{
-        k_critical_msg ("Error loading key file: %s %p", (*err)->message, keyagent::config);
-		return FALSE;
-	}
+    keyagent::configfilename = g_string_new(filename);
+    keyagent::config = key_config_openfile(filename, err);
+    if (*err != NULL)
+    {
+       	k_critical_msg ("Error loading key file: %s %p", (*err)->message, keyagent::config);
+        return FALSE;
+    }
 
     keyagent::npm_directory = g_string_new(key_config_get_string(keyagent::config, "core", "npm-directory", err));
 	if (*err != NULL) 
@@ -292,13 +293,22 @@ keyagent_apimodule_register(const char *label, keyagent_apimodule_ops *ops, GErr
 extern "C" gboolean DLL_PUBLIC
 keyagent_loadkey_with_moduledata(keyagent_url url, void *module_data, GError **err)
 {
+	g_return_val_if_fail(url, FALSE);
+	gchar **url_tokens = NULL;
 	keyagent_key *key = NULL;
+	gboolean ret = FALSE;
+
+	url_tokens = g_strsplit (url, ":", -1) ;
+	if ((g_strcmp0 (url_tokens[0], "")  == 0) || (g_strcmp0 (url_tokens[1], "")  == 0))
+	{
+		k_critical_msg("Expected token missing in url:%s \n", url);
+		goto cleanup;
+	}
     loadkey_t loadkey;
 
     loadkey.url = url;
     loadkey.err = err;
-	loadkey.module_data = module_data;
-	gboolean ret = FALSE;
+    loadkey.module_data = module_data;
 
     g_rw_lock_writer_lock(&keyagent::rwlock);
 
@@ -326,4 +336,8 @@ keyagent_loadkey_with_moduledata(keyagent_url url, void *module_data, GError **e
     out:
     g_rw_lock_writer_unlock(&keyagent::rwlock);
     return ret;
+
+    cleanup:
+           g_strfreev(url_tokens);
+           return ret; 
 }

@@ -109,14 +109,6 @@ typedef struct _request {
     GString *stm_name;
 } keyagent_request;
 
-#define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
-	if (!g_module_symbol ((MODULE), (FUNCNAME), (gpointer *)&(RET))) \
-    { \
-		g_set_error (&tmp_error, KEYAGENT_ERROR, (ERRCLASS), \
-                   "%s", g_module_error ()); \
-		goto errexit; \
-    } \
-} while (0)
 
 #define CERTIFICATE_FILE_FORMAT "PEM"
 #define FORMAT_PEM "PEM"
