@@ -7,7 +7,6 @@ lib_LTLIBRARIES = \
 libkey_agent_la_SOURCES = \
     intf.cpp \
     request.cpp \
-    curl.cpp \
     cert.cpp \
 	../npm/npm_init.cpp \
 	../stm/stm_init.cpp \

@@ -11,6 +11,21 @@
     #define DLL_LOCAL
 #endif
 
+#define FORMAT_PEM "PEM"
+#define FORMAT_ENG "ENG"
+
+typedef struct {
+   const char *certfile;
+   const char *ca_certfile;
+   const char *certtype;
+   const char *keyname;
+   const char *keytype;
+   const char *key_password;
+   gboolean ssl_verify;
+   gint ssl_version;
+} keyagent_ssl_opts;
+
+
 typedef struct {
 	GByteArray *bytes;
     gint ref_count;

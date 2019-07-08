@@ -1,9 +1,8 @@
-#define G_LOG_DOMAIN "keyagent-curl"
+#define G_LOG_DOMAIN "util-curl"
 
-#include <cstdint>
-#include <curl/curl.h>
-#include "key-agent/key_agent.h"
-#include "key-agent/src/internal.h"
+
+#include "k_types.h"
+#include "curl/curl.h"
 
 
 size_t DLL_LOCAL
@@ -36,69 +35,76 @@ void DLL_LOCAL
 __build_header_list(gpointer data, gpointer user_data)
 {
         struct curl_slist **header_list = (struct curl_slist **)user_data;
-		gchar *s = (gchar *)data;
+	gchar *s = (gchar *)data;
         *header_list = curl_slist_append(*header_list, s);
 }
 
 extern "C"
-int DLL_LOCAL
-__keyagent_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, GString *userpwd, gboolean verbose)
+int 
+skc_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, GString *userpwd, gboolean verbose)
 {
     CURL *curl;
     struct curl_slist *header_list = NULL;
     const char **cpp;
     long res_status = -1;
-	gint verify = 0;
+    gint verify = 0;
 
-	curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
     if (!curl)
-		g_error("curl_easy_init failed!");
+    {
+	g_error("curl_easy_init failed!");
+	return -1;
+    }
 
     SETOPT(curl, CURLOPT_URL, url->str);
-	if (verbose)
-		SETOPT(curl, CURLOPT_VERBOSE, 1L);
+    if (verbose)
+	SETOPT(curl, CURLOPT_VERBOSE, 1L);
 
-	if (ssl_opts) {
+    if (ssl_opts) {
+	if(ssl_opts->ssl_version) SETOPT(curl, CURLOPT_SSLVERSION, ssl_opts->ssl_version);
     	if (ssl_opts->certtype) SETOPT(curl, CURLOPT_SSLCERTTYPE, ssl_opts->certtype);
     	if (ssl_opts->certfile) SETOPT(curl, CURLOPT_SSLCERT, ssl_opts->certfile);
     	if (ssl_opts->keytype) SETOPT(curl, CURLOPT_SSLKEYTYPE, ssl_opts->keytype);
     	if (ssl_opts->keyname) SETOPT(curl, CURLOPT_SSLKEY, ssl_opts->keyname);
     	if (ssl_opts->ca_certfile) SETOPT(curl, CURLOPT_CAINFO, ssl_opts->ca_certfile);
-		verify = (ssl_opts->ssl_verify == TRUE)?1:0;
+ 	if (ssl_opts->key_password) SETOPT(curl, CURLOPT_KEYPASSWD, ssl_opts->key_password);
 	
-		if ( g_strcmp0(ssl_opts->keytype, FORMAT_ENG ) == 0)
+
+        if ( g_strcmp0(ssl_opts->keytype, FORMAT_ENG ) == 0)
         {
             SETOPT(curl, CURLOPT_SSLENGINE, "pkcs11");
             SETOPT(curl, CURLOPT_SSLENGINE_DEFAULT, 1L);
         }
 
-	    SETOPT(curl, CURLOPT_SSL_VERIFYPEER, verify);
-	}
-	if (postdata) 
-		SETOPT(curl, CURLOPT_POSTFIELDS, postdata->str);
+	verify = (ssl_opts->ssl_verify == TRUE)?1:0;
+	SETOPT(curl, CURLOPT_SSL_VERIFYPEER, verify);
+    }
+		
+    if (postdata) 
+	SETOPT(curl, CURLOPT_POSTFIELDS, postdata->str);
 
-	g_ptr_array_foreach (headers, __build_header_list, &header_list);
+    g_ptr_array_foreach (headers, __build_header_list, &header_list);
 
     SETOPT(curl, CURLOPT_HTTPHEADER, header_list);
     SETOPT(curl, CURLOPT_WRITEFUNCTION, __write_byte_array);
     SETOPT(curl, CURLOPT_WRITEDATA, returndata);
 
     if (userpwd) {
-		SETOPT(curl, CURLOPT_USERPWD, userpwd->str);
-	    SETOPT(curl, CURLOPT_SSL_VERIFYPEER, verify);
-	}
-	if ( response_headers )
-	{
-		SETOPT(curl, CURLOPT_HEADERFUNCTION, __get_response_header);
-		SETOPT(curl, CURLOPT_HEADERDATA, response_headers);
-	}
+	SETOPT(curl, CURLOPT_USERPWD, userpwd->str);
+	SETOPT(curl, CURLOPT_SSL_VERIFYPEER, verify);
+    }
+    if ( response_headers )
+    {
+	SETOPT(curl, CURLOPT_HEADERFUNCTION, __get_response_header);
+	SETOPT(curl, CURLOPT_HEADERDATA, response_headers);
+    }
 
 
-	curl_easy_perform(curl);
+    curl_easy_perform(curl);
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &res_status);
     curl_easy_cleanup(curl);
 
 out:
-	return res_status;
+    return res_status;
 }

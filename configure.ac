@@ -76,6 +76,7 @@ AC_CONFIG_FILES([
 	credential-agent/commandline_tool/Makefile
 	credential-agent/tests/Makefile
 	testserver/Makefile
+	utils/Makefile
 ])
 
 AC_CONFIG_SUBDIRS([

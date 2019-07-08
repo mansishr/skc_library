@@ -16,6 +16,7 @@
 #include "key-agent/key_agent.h"
 #include "key-agent/stm/stm.h"
 #include "keyserver.h"
+#include "k_debug.h"
 
 using namespace server;
 using namespace std;

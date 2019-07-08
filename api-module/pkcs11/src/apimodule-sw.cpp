@@ -4,7 +4,10 @@
 #include "k_errors.h"
 #include "internal.h"
 
+#include <stdint.h>
+
 #include "key-agent/key_agent.h"
+#include "key-agent/stm/stm.h"
 #include "key-agent/types.h"
 
 static gboolean sw_get_challenge(keyagent_apimodule_get_challenge_details *, void *, GError **err);
@@ -292,10 +295,13 @@ void rsaWrapUnwrap(CK_MECHANISM_TYPE mechanismType, CK_SESSION_HANDLE hSession, 
 static gboolean
 sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy, GError **err)
 {
-    CK_RV				rv					= CKR_GENERAL_ERROR;
-    gboolean			result				= FALSE;
-	apimodule_uri_data *data 				= NULL;
-    apimodule_token *atoken 				= NULL;
+    CK_RV rv					= CKR_GENERAL_ERROR;
+    gboolean	result				= FALSE;
+    apimodule_uri_data *data 			= NULL;
+    apimodule_token *atoken 			= NULL;
+
+    u_int32_t major_no				= 1;
+    u_int32_t minor_no				= 0;
 
     if (!details || !err || !details->module_data) {
         k_set_error(err, -1, "Input parameters are invalid!");
@@ -358,14 +364,18 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 		}
 
 		struct keyagent_sgx_quote_info quote_info = {
+			.major_num = major_no,
+			.minor_num = minor_no,
+			.quote_size = 0,
+			.quote_type = KEYAGENT_SGX_QUOTE_TYPE_INVALID,
+			.keytype = KEYAGENT_RSAKEY,
 			.keydetails = {
-                .rsa = {
-                    .exponent_len = attribs[EXPONENT_INDEX].ulValueLen,
-			        .modulus_len = attribs[MODULUS_INDEX].ulValueLen,
-                },
-            },
-			.keytype = KEYAGENT_RSAKEY
-		};
+				.rsa = {
+			    		.exponent_len = attribs[EXPONENT_INDEX].ulValueLen,
+					.modulus_len = attribs[MODULUS_INDEX].ulValueLen,
+				       },
+		    		 },
+			};
 
 		atoken->challenge = k_buffer_alloc(NULL,0);
 		k_buffer_append(atoken->challenge, (guint8*)&quote_info, sizeof(quote_info));

@@ -1,11 +1,12 @@
 AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) \
 	`pkg-config --cflags p11-kit-1` `pkg-config --cflags p11-kit-1 | sed "s| ||g"`/p11-kit \
-	$(GMODULE_CFLAGS)
+	$(GMODULE_CFLAGS)  -std=c++11
 
 if SGXTOOLKIT
 AM_CPPFLAGS += \
 	-DSGXTOOLKIT \
-	-I$(SGXTOOLKIT)/include
+	-I$(SGXTOOLKIT)/include \
+	-I$(SGXSDK_INCDIR)
 endif
 
 lib_LTLIBRARIES = \

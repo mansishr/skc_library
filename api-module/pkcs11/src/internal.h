@@ -57,16 +57,17 @@ struct ck_gcm_params {
     
 typedef struct ck_gcm_params CK_GCM_PARAMS;
 typedef struct ck_gcm_params *CK_GCM_PARAMS_PTR;
-    
+
+#define DEFAULT_SPID_LEN 	32    
 #define CKM_AES_KEY_WRAP        (0x2109UL)
 #define CKM_AES_KEY_WRAP_PAD    (0x210aUL)
 
 #ifndef CKM_AES_GCM
-#define CKM_AES_GCM                            (0x1087UL)
+#define CKM_AES_GCM            	(0x1087UL)
 #endif
 
 #ifndef CKZ_DATA_SPECIFIED
-#define CKZ_DATA_SPECIFIED     (0x00000001UL)
+#define CKZ_DATA_SPECIFIED     	(0x00000001UL)
 #endif
 
 #ifdef  __cplusplus
@@ -98,6 +99,7 @@ apimodule_token *lookup_apimodule_token(const char *label);
 gboolean cache_apimodule_token(apimodule_token *atoken);
 void free_apimodule_token(apimodule_token *atoken);
 apimodule_token *init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err);
+gboolean convert_hexstring_to_byte_array(unsigned char *dest, const void *vsrc, size_t len);
 
 #ifdef  __cplusplus
 }

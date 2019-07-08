@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include "npm/kms/kms.h"
+#include "utils/utils.h"
 #include "k_debug.h"
 #include <jsoncpp/json/json.h>
 #include <exception>
@@ -220,7 +221,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
     builder.settings_["indentation"]	= "";
     post_data							= g_string_new(Json::writeString(builder, session_data).c_str());
 
-	res_status                          =  KEYAGENT_NPM_OP(&info->details->cbs,https_send)(session_url, headers, post_data, 
+	res_status                          =  skc_https_send(session_url, headers, post_data, 
 			                                    NULL, return_data,&info->details->ssl_opts, kms_npm::userpwd, kms_npm::debug);
 	if (res_status == -1 || res_status == 0)
 	{
@@ -355,7 +356,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 	return_data							= k_buffer_alloc(NULL,0);
 	res_headers							= g_ptr_array_new ();
-	res_status                          = KEYAGENT_NPM_OP(&info->details->cbs,https_send)(url, headers, NULL, 
+	res_status                          = skc_https_send(url, headers, NULL, 
 			                                    res_headers, return_data,&info->details->ssl_opts, kms_npm::userpwd, kms_npm::debug);
 
 	if (res_status == -1 || res_status == 0)
@@ -447,7 +448,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 			g_ptr_array_add (policy_headers, (gpointer) "Content-Type: application/json");
 
 			policy_ret_data				= k_buffer_alloc(NULL,0);
-			res_status					= KEYAGENT_NPM_OP(&info->details->cbs,https_send)(policy_url, policy_headers, NULL, NULL, policy_ret_data, 
+			res_status					= skc_https_send(policy_url, policy_headers, NULL, NULL, policy_ret_data, 
 			                                                 &info->details->ssl_opts, kms_npm::userpwd, kms_npm::debug);
 			if( res_status != 200)
 			{			

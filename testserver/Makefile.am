@@ -1,7 +1,7 @@
 
 
 RESTBED_PREFIX	=	$(HOME)/dhsm/distributed_hsm-restbed
-MYLDFLAGS	= -L/usr/local/lib64 -Wl,-rpath=/usr/local/lib64  -Wl,-rpath=$(RESTBED_PREFIX)/distribution/library -L$(RESTBED_PREFIX)/distribution/library $(OPENSSL_LIBS) -lssl -lrestbed -ljsoncpp 
+MYLDFLAGS	= -L/usr/local/lib64 -Wl,-rpath=/usr/local/lib64  -Wl,-rpath=$(RESTBED_PREFIX)/distribution/library -L$(RESTBED_PREFIX)/distribution/library $(OPENSSL_LIBS) -lssl -lrestbed -ljsoncpp -lcrypto
 
 AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) -std=c++11  -I$(RESTBED_PREFIX)/distribution/include -I$(RESTBED_PREFIX)/dependency/openssl/include
 

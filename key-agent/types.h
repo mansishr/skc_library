@@ -47,15 +47,6 @@ typedef struct {
     GString                 *swk_type;
 } keyagent_session;
 
-typedef struct {
-	const char *certfile;
-	const char *ca_certfile;
-	const char *certtype;
-	const char *keyname;
-	const char *keytype;
-    gboolean ssl_verify;
-} keyagent_ssl_opts;
-
 
 typedef struct {
     GString  *url;
@@ -348,9 +339,15 @@ typedef enum {
 
 typedef enum {
     STM_ERROR_QUOTE = 1,
-	STM_ERROR_API_MODULE_LOADKEY,
-	STM_ERROR_INVALID_CHALLENGE_DATA,
-	STM_ERROR_INVALID_LOADKEY_DATA,
+    STM_ERROR_API_MODULE_LOADKEY,
+    STM_ERROR_INVALID_CHALLENGE_DATA,
+    STM_ERROR_INVALID_LOADKEY_DATA,
+    STM_ERROR_INVALID_CERT_DATA,
+    STM_ERROR_IAS_SERVER_CONNCECTION,
+    STM_ERROR_IAS_SERVER_CERT_VERIFY,
+    STM_ERROR_IAS_SERVER_SIGN_VERIFY,
+    STM_ERROR_JSON_PARSE,
+	
 } StmErrors;
 
 typedef enum {
@@ -376,8 +373,6 @@ DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_create, gboolean, (const char *req
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,session_lookup_swktype, GQuark, (const char *type));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_challenge_verify, gboolean, (const char *name, k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, GError **));
 
-DECLARE_KEYAGENT_INTERNAL_OP(keyagent,https_send,int, (GString *url, GPtrArray *headers, GString *postdata, GPtrArray *response_headers, k_buffer_ptr returndata, keyagent_ssl_opts *ssl_opts, GString *userpwd, gboolean verbose));
-
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_create, GQuark,(const char *request_id, keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,key_policy_add, gboolean, (keyagent_url url, k_attributes_ptr policy_attrs, gint cache_id, GError **error));
 
@@ -388,7 +383,6 @@ typedef struct {
     DECLARE_KEYAGENT_OP(keyagent,session_get_ids);
     DECLARE_KEYAGENT_OP(keyagent,session_create);
     DECLARE_KEYAGENT_OP(keyagent,session_lookup_swktype);
-    DECLARE_KEYAGENT_OP(keyagent,https_send);
     DECLARE_KEYAGENT_OP(keyagent,key_create);
     DECLARE_KEYAGENT_OP(keyagent,key_policy_add);
 } keyagent_npm_callbacks;
@@ -462,23 +456,49 @@ typedef struct ka_apimodule_ops{
 	apimodule_set_wrapping_key_func set_wrapping_key;
 } keyagent_apimodule_ops;
 
+typedef struct ecdsa_quote_verify_data
+{
+	gint  pckCert_size;
+}ecdsa_quote_verify_data;
+
+typedef struct epid_quote_verify_data
+{
+	char spid[32];
+}epid_quote_verify_data;
+
+typedef struct sw_quote_verify_data{
+	gint dummy;
+}sw_quote_verify_data;
+typedef union qdetails {
+	ecdsa_quote_verify_data ecdsa_quote_details;
+	epid_quote_verify_data epid_quote_details;
+	sw_quote_verify_data sw_quto_details;	
+}apimodule_quote_details;
+
 struct keyagent_sgx_quote_info {
-    union {
-        struct {
-	        u_int32_t exponent_len;
-	        u_int32_t modulus_len;
-        } rsa;
-        struct {
-            u_int32_t dummy;
-        } ec;
-    } keydetails;
+	u_int32_t major_num;
+	u_int32_t minor_num;  
+	gint quote_size;
+	gint quote_type;
 	keyagent_keytype keytype;
+	union {
+	    struct {
+	    	u_int32_t exponent_len;
+	    	u_int32_t modulus_len;
+	    } rsa;
+	    struct {
+	        u_int32_t dummy;
+	    } ec;
+	} keydetails; 
+	apimodule_quote_details quote_details;
 };
 
 struct keyagent_sgx_challenge_request {
     gboolean linkable;
     const char *spid;
     const char *sigrl;
+    gint launch_policy;
+    const char *attestationType;
 };
 
 #endif

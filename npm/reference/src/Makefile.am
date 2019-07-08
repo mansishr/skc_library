@@ -10,7 +10,8 @@ npm_reference_la_SOURCES = \
 
 npm_reference_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS) \
 	-ljsoncpp \
-	$(TOPDIR)/config-file/src/libkey_configfile.la
+	$(TOPDIR)/config-file/src/libkey_configfile.la \
+	$(TOPDIR)/utils/libskc_utils.la
 
 
 

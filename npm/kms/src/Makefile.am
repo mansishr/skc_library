@@ -12,4 +12,5 @@ npm_kms_la_SOURCES = \
 
 npm_kms_la_LDFLAGS = -module -version-info @VERSION_INFO@ $(GLIB_LIBS) \
 	$(TOPDIR)/config-file/src/libkey_configfile.la \
+	$(TOPDIR)/utils/libskc_utils.la \
 	-ljsoncpp

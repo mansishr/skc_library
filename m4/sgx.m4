@@ -135,6 +135,7 @@ AC_DEFUN([SGX_SDK_CHECK],[
               [ 
 	        AC_MSG_NOTICE([Found your Intel SGX SDK in $SGXSDKDIR])
 		AC_SUBST(SGXSDK_INCDIR, $SGXSDKDIR/include)
+		AC_SUBST(SGXSDK_LIBDIR, $SGXSDKDIR/lib64)
 	      ],
 	      [ AS_IF([test "x$1" = "xtrue"],
 			[

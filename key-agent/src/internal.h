@@ -61,7 +61,6 @@ typedef struct {
     ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,session_get_ids); \
     ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,session_create); \
     ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,session_lookup_swktype); \
-    ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,https_send); \
     ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,key_create); \
     ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,key_policy_add); \
 } while(0)
@@ -111,8 +110,6 @@ typedef struct _request {
 
 
 #define CERTIFICATE_FILE_FORMAT "PEM"
-#define FORMAT_PEM "PEM"
-#define FORMAT_ENG "ENG"
 
 #define KEYAGENT_KEY_FORMAT_PEM_STR "PEMFILE"
 #define KEYAGENT_KEY_FORMAT_PKCS11_STR "PKCS11"

@@ -523,3 +523,19 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 
     return atoken;
 }
+
+gboolean 
+convert_hexstring_to_byte_array(unsigned char *dest, const void *vsrc, size_t len)
+{
+        size_t i;
+        const unsigned char *src= (const unsigned char *) vsrc;
+
+        for (i= 0; i<len; ++i) {
+                unsigned int v;
+                if ( sscanf(&src[i*2], "%2xhh", &v) == 0 ) return FALSE;
+                dest[i]= (unsigned char) v;
+        }
+        return TRUE;
+}
+
+

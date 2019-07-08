@@ -56,3 +56,5 @@ api-module/pkcs11/tests/aes-test/aes_encrypt_decrypt
 api-module/pkcs11/tests/data/
 api-module/pkcs11/tests/config
 api-module/pkcs11/tests/rsa-test/testdata
+stm/sgx/tests/sgx-epid-quote-verify
+api-module/pkcs11/tests/rsa-test/testdata2
