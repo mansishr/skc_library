@@ -78,7 +78,6 @@ AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
 	cli/Makefile
-	tests/test_app/Makefile
 ])
 
 AC_OUTPUT

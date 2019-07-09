@@ -35,6 +35,11 @@ DLL_LOCAL keyagent_key *
 __keyagent_key_lookup(const char *url)
 {
     GQuark key_url_quark = g_quark_from_string(url);
+    if(keyagent::key_hash == NULL)
+    {
+	k_critical_msg("hash table lookup not found for url:%s \n", url);
+	return NULL;
+    }
     return (keyagent_key *)g_hash_table_lookup(keyagent::key_hash, GINT_TO_POINTER(key_url_quark));
 }
 

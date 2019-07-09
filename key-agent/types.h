@@ -309,6 +309,15 @@ GQuark KEYAGENT_ATTR_POLICY_CREATED_AT;
 #define INIT_KEYAGENT_INTERFACE(SUBTYPE,MODULE,NAME,ERROR) \
     KEYAGENT_MODULE_LOOKUP((MODULE)->module, #SUBTYPE"_"#NAME, (MODULE)->ops.SUBTYPE##_func_##NAME, (ERROR))
 
+#define KEYAGENT_MODULE_LOOKUP(MODULE,FUNCNAME,RET, ERRCLASS) do { \
+        if (!g_module_symbol ((MODULE), (FUNCNAME), (gpointer *)&(RET))) \
+    { \
+                g_set_error (&tmp_error, KEYAGENT_ERROR, (ERRCLASS), \
+                   "%s", g_module_error ()); \
+                goto errexit; \
+    } \
+} while (0)
+
 #define KEYAGENT_MODULE_OP(SUBTYPE,MODULE,NAME)  (MODULE)->ops.SUBTYPE##_func_##NAME
 
 typedef enum {
