@@ -55,11 +55,7 @@ namespace stmsgx_epid_ssl_data{
 	extern  gchar *ias_base_url;
 	extern  gchar *ias_version;
 	extern  gchar *ias_cacert;
-	extern  gchar *client_cert;
-	extern  gchar *client_key;
-	extern  gchar *client_key_password;
-	extern  gchar *key_type;
-	extern  gchar *cert_type;
+	extern  gchar *ias_sub_key;
 	extern  gchar *cacert;
 	extern  gchar *proxy;
 	extern  gboolean verify;
