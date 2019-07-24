@@ -83,8 +83,12 @@ __free_char_pointer(gpointer data)
 DLL_LOCAL gboolean
 __do_keyagent_init(const char *filename, GError **err)
 {
-
-    g_return_val_if_fail(filename, FALSE);
+    if(filename == NULL)
+    {
+	g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_INVALID_CONF_VALUE,
+			"Invalid Config file:");
+	return FALSE;
+    }
     g_rw_lock_init (&keyagent::rwlock);
 
     keyagent::configdirectory = g_string_new(g_path_get_dirname(filename));
@@ -148,6 +152,12 @@ __do_keyagent_init(const char *filename, GError **err)
 
     LOOKUP_KEYAGENT_INTERNAL_NPM_OPS(&keyagent::npm_ops);
 	keyagent::npm_hash = g_hash_table_new (g_str_hash, g_str_equal);
+	if(keyagent::npm_hash == NULL)
+	{
+		g_set_error (err, KEYAGENT_ERROR, KEYAGENT_ERROR_OUT_OF_MEMORY,"Error in Hash Table creation\n");
+		return FALSE;
+	}
+
 	keyagent::stm_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
 	keyagent::key_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, __keyagent_key_hash_key_free, __keyagent_key_hash_value_free);
 	keyagent::session_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, __keyagent_session_hash_key_free, __keyagent_session_hash_value_free);
