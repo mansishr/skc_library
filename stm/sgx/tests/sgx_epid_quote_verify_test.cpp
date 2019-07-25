@@ -78,32 +78,26 @@ int main ( int argc, char **argv )
 	gboolean ret = FALSE;
 	g_autoptr(GError) err = NULL;
 
-	if( argc < 4 )
+    if( argc < 3 )
 	{
-		k_critical_msg("Insufficient inputs: %s <AttestationReportSigningCACert.pem> <IAS_Client_CERT> \
-				<IAS_CLIENT_KEY> <QUOTE_BUFFER_FILE_PATH>", argv[0]);
+        k_critical_msg("Insufficient inputs: %s <AttestationReportSigningCACert.pem> <IAS_SUBSCRIPTION_KEY> <QUOTE_BUFFER_FILE_PATH>\n", argv[0]);
 		return 0;
 	}
 
-	k_debug_msg("IAS Signing Cert:%s\nIAS Client Cert:%s\nIAS Client Key:%s\nQuote Buffer file:%s\n", 
-			argv[1], argv[2], argv[3], argv[4]);
+    k_debug_msg("IAS Signing Cert:%s\nIAS Sub Key:%s\nBuffer Quote:%s\n",
+        argv[1], argv[2], argv[3]);
 
 
-	stmsgx_epid_ssl_data::ias_base_url  	= "https://test-as.sgx.trustedservices.intel.com";
+    stmsgx_epid_ssl_data::ias_base_url      = "https://api.trustedservices.intel.com/sgx/dev";
 	stmsgx_epid_ssl_data::ias_version  	= "v3";
 	stmsgx_epid_ssl_data::ias_cacert  	= argv[1];
-	stmsgx_epid_ssl_data::client_cert  	= argv[2];
-	stmsgx_epid_ssl_data::client_key   	= argv[3];
-	quote_buffer_file			= argv[4];
+    stmsgx_epid_ssl_data::ias_sub_key   = argv[2];
+    quote_buffer_file                   = argv[3];
 
  	//stmsgx_epid_ssl_data::cacert  		= "/etc/pki/tls/certs/ca-bundle.crt";
-	stmsgx_epid_ssl_data::key_type     	= FORMAT_PEM;
-	stmsgx_epid_ssl_data::cert_type    	= FORMAT_PEM;
 	stmsgx_epid_ssl_data::verify     	= TRUE;
 
 	if(	(access( stmsgx_epid_ssl_data::ias_cacert, F_OK ) == -1) ||  
-		(access( stmsgx_epid_ssl_data::client_cert, F_OK ) == -1) ||  
-		(access( stmsgx_epid_ssl_data::client_key, F_OK ) == -1) ||
 		(access( quote_buffer_file, F_OK ) == -1) )
 	{
 		k_critical_msg("Input files are invalid\n");

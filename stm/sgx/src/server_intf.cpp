@@ -55,41 +55,23 @@ sgxstm_read_epid_quote_config(void *config, GError **err)
         stmsgx_epid_ssl_data::ias_version       = key_config_get_string(config, "EPID_DATA_SERVER", "ias_api_version", err);
 	if( *err )
 		return ret;
-        stmsgx_epid_ssl_data::ias_cacert  	= key_config_get_string(config, "EPID_DATA_SERVER", "ias_signing_cert", err);
+
+	stmsgx_epid_ssl_data::ias_cacert  	= key_config_get_string(config, "EPID_DATA_SERVER", "ias_signing_cert", err);
 	if( *err )
 		return ret;
 
-        stmsgx_epid_ssl_data::client_cert       = key_config_get_string(config, "EPID_DATA_SERVER", "ias_client_cert", err);
+    stmsgx_epid_ssl_data::ias_sub_key       = key_config_get_string(config, "EPID_DATA_SERVER", "ias_subcription_key", err);
 	if( *err )
 		return ret;
 
-        stmsgx_epid_ssl_data::client_key        = key_config_get_string(config, "EPID_DATA_SERVER", "ias_client_key", err);
-	if( *err )
-		return ret;
-
-        stmsgx_epid_ssl_data::key_type          = key_config_get_string_optional(config, "EPID_DATA_SERVER", 
-											"ias_client_key_type", "PEM");
-        stmsgx_epid_ssl_data::cert_type         = key_config_get_string_optional(config, "EPID_DATA_SERVER", 
-											"ias_client_cert_type", "PEM");
         stmsgx_epid_ssl_data::verify            = key_config_get_boolean_optional(config, "EPID_DATA_SERVER", "ssl_verify", true);
 
- 	if( 	(access( stmsgx_epid_ssl_data::ias_cacert, F_OK ) == -1) || 
-	    	(access( stmsgx_epid_ssl_data::client_cert, F_OK ) == -1) || 
-		(access( stmsgx_epid_ssl_data::client_key, F_OK ) == -1) ){
+ 	if( 	(access( stmsgx_epid_ssl_data::ias_cacert, F_OK ) == -1) ){
         	g_set_error (err, STM_ERROR, STM_ERROR_INVALID_CERT_DATA,
-                     "Invalid IAS Signing Cert Path:%s or  IAS Client Cert Path:%s or IAS Client Key path: %s",
-			stmsgx_epid_ssl_data::ias_cacert, 
-			stmsgx_epid_ssl_data::client_cert, 
-			stmsgx_epid_ssl_data::client_key);
+                     "Invalid IAS Signing Cert Path:%s", stmsgx_epid_ssl_data::ias_cacert);
                 return ret;
         }
 
-	if( (g_strcmp0( stmsgx_epid_ssl_data::key_type, "PEM") != 0)  ||
-	    (g_strcmp0( stmsgx_epid_ssl_data::cert_type,  "PEM") != 0)  ){
-        	g_set_error (err, STM_ERROR, STM_ERROR_INVALID_CERT_DATA,
-                     "Invalid key/cert type");
-                return FALSE;
-	}
 	return TRUE;
 }
 
@@ -230,7 +212,7 @@ static int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
  * certificates + quote.
  */
 static RSA *
-extract_pubkey_from_quote(k_buffer_ptr quote)//, u_int32_t certificatesSize)
+extract_pubkey_from_quote(k_buffer_ptr quote, gint type)//, u_int32_t certificatesSize)
 {
 	int ret = FALSE;
 	RSA *rsa = NULL;
@@ -241,8 +223,10 @@ extract_pubkey_from_quote(k_buffer_ptr quote)//, u_int32_t certificatesSize)
 	gsize hash_data_size = SHA256_SIZE;
 	GChecksum *hash = NULL;
 
+	u_int32_t pckCert_size = 0;
 	struct keyagent_sgx_quote_info *quote_info = (struct keyagent_sgx_quote_info *)k_buffer_data(quote);
-	u_int32_t pckCert_size = (quote_info)->quote_details.ecdsa_quote_details.pckCert_size;
+	if(type == KEYAGENT_SGX_QUOTE_TYPE_ECDSA )
+		pckCert_size = (quote_info)->quote_details.ecdsa_quote_details.pckCert_size;
 	u_int32_t public_key_size = rsa_modulus_len(quote_info) + rsa_exponent_len(quote_info);
 
 	do {
@@ -403,7 +387,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
 				k_info_msg("quote write to file failed\n");
 		}
 #endif
-		rsa = extract_pubkey_from_quote(quote);
+		rsa = extract_pubkey_from_quote(quote, KEYAGENT_SGX_QUOTE_TYPE_EPID);
 	} else if(sgx_server_sgx_stm::quote_type == KEYAGENT_SGX_QUOTE_TYPE_ECDSA){
 			public_key_size = rsa_modulus_len(quote_info) + rsa_exponent_len(quote_info);
 			u_int32_t pckCert_size = (quote_info)->quote_details.ecdsa_quote_details.pckCert_size;
@@ -416,7 +400,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
 			k_debug_msg("quoteSize: %d", quoteSize);
 
 			sgxQuote  = (sgx_quote_t*)(k_buffer_data(quote) + sizeof(struct keyagent_sgx_quote_info) + public_key_size + pckCert_size);
-			rsa = extract_pubkey_from_quote(quote);
+			rsa = extract_pubkey_from_quote(quote, KEYAGENT_SGX_QUOTE_TYPE_ECDSA);
 	} else {
 			k_critical_msg("invalid attestaion type");
 			return ret;
@@ -493,5 +477,7 @@ out:
 	if (SGX_CONFIG_ID_SVN) k_buffer_unref(SGX_CONFIG_ID_SVN);
 	if (SGX_ENCLAVE_SVN_MINIMUM) k_buffer_unref(SGX_ENCLAVE_SVN_MINIMUM);
 	if (SGX_CONFIG_ID) k_buffer_unref(SGX_CONFIG_ID);
+
+	k_info_msg("Exit from quote verify with status:%d", ret);
 	return ret;
 }

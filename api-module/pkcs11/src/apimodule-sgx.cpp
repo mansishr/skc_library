@@ -281,11 +281,13 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 	CK_MECHANISM_TYPE   mechanismType		= 0;
 	gint actual_quote_size				= 0;
 	gint full_key_size				= 0;
-	CK_BYTE spid_arr[16]				= {0};
+    CK_BYTE spid_arr[DEFAULT_SPID_LEN/2]	= {0};
 	CK_MECHANISM mechanism				= {0};
 	CK_MECHANISM_PTR   pMechanism  			= NULL;
 	u_int32_t major_no				= 1;
 	u_int32_t minor_no				= 0;
+    CK_EPID_QUOTE_RSA_PUBLIC_KEY_PARAMS 
+				quoteRSAParams  = {0};
 
 
 	if (strcmp(challenge_request->attestationType,"EPID") == 0) {
@@ -315,7 +317,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 	}
 
 	if (strcmp(challenge_request->attestationType,"EPID") == 0) {
-		k_debug_msg("EPID request"); 
+        k_debug_msg("EPID request "); 
 
 		if( challenge_request && strlen(challenge_request->spid) != DEFAULT_SPID_LEN )
 		{
@@ -341,14 +343,13 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 		sigrl 					= (CK_BYTE_PTR)challenge_request->sigrl;
 		sigrl_len 				= (sigrl ? strlen(challenge_request->sigrl)/2 : 0);
 
-		static CK_EPID_QUOTE_RSA_PUBLIC_KEY_PARAMS 
-			quoteRSAParams = {
-				spid,
-				spid_len,
-				sigrl,
-				sigrl_len,
-				signatureType 
-			};
+
+	k_debug_msg("Sigrl:%s and sigrl len:%d, sigtype:%d, spid_len:%d", sigrl, sigrl_len, signatureType, spid_len);
+	quoteRSAParams.pSpid 			= spid;
+	quoteRSAParams.ulSpidLen 		= spid_len;
+	quoteRSAParams.pSigRL 			= sigrl;
+	quoteRSAParams.ulSigRLLen 		= sigrl_len;
+	quoteRSAParams.ulQuoteSignatureType 	= signatureType;
 		pMechanism->pParameter 			= &quoteRSAParams;
 		pMechanism->ulParameterLen 		= sizeof(quoteRSAParams);
 
@@ -420,7 +421,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 					sgx_quote_t *sgx_quote			= reinterpret_cast<sgx_quote_t*>(k_buffer_data(quote_details)+full_key_size);
 
 
-			const gchar *encoded_sgx_quote 		= g_base64_encode((const guchar*) sgx_quote, actual_quote_size);
+			const gchar *encoded_sgx_quote 		= g_base64_encode((const guchar*) (sgx_quote), actual_quote_size);
 			result 					= g_file_set_contents (quote_file,
 							encoded_sgx_quote,
 							strlen(encoded_sgx_quote),

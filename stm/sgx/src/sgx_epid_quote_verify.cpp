@@ -12,11 +12,7 @@ namespace stmsgx_epid_ssl_data{
 	gchar *ias_base_url;
 	gchar *ias_version;
 	gchar *ias_cacert;
-	gchar *client_cert;
-	gchar *client_key;
-	gchar *client_key_password;
-	gchar *key_type;
-	gchar *cert_type;
+	gchar *ias_sub_key;
 	gchar *cacert;
 	gchar *proxy;
 	gboolean verify;
@@ -190,17 +186,6 @@ set_quote_verify_ssl_options(keyagent_ssl_opts *ssl_opts)
 {
 	if( stmsgx_epid_ssl_data::cacert )
  		ssl_opts->ca_certfile		= strdup(stmsgx_epid_ssl_data::cacert);
-	if( stmsgx_epid_ssl_data::client_cert )
-		ssl_opts->certfile	       	= strdup(stmsgx_epid_ssl_data::client_cert);
-	if( stmsgx_epid_ssl_data::client_key )
-		ssl_opts->keyname	       	= strdup(stmsgx_epid_ssl_data::client_key);
-	if( stmsgx_epid_ssl_data::cert_type )
-		ssl_opts->certtype	       	= strdup(stmsgx_epid_ssl_data::cert_type);
-	if( stmsgx_epid_ssl_data::key_type )
-		ssl_opts->keytype		= strdup(stmsgx_epid_ssl_data::key_type);
-	if(stmsgx_epid_ssl_data::client_key_password)
-		ssl_opts->key_password	    	= strdup(stmsgx_epid_ssl_data::client_key_password);
-
 	ssl_opts->ssl_verify		       	= stmsgx_epid_ssl_data::verify;
 	ssl_opts->ssl_version		       	= CURL_SSLVERSION_TLSv1_2;
 }
@@ -557,6 +542,7 @@ stmsgx_epid_quote_verify(sgx_quote_epid *epid,  GError **err)
 	g_return_val_if_fail( ( epid && epid->data.report.quote ), ret );
 
 	GString *url		      		= NULL;
+	GString *sub_key		      	= NULL;
 	GString *post_data	      		= NULL;
 	GPtrArray *headers	      		= NULL;
 	GPtrArray *res_headers	      		= NULL;
@@ -568,17 +554,23 @@ stmsgx_epid_quote_verify(sgx_quote_epid *epid,  GError **err)
 
 
 	url = g_string_new(stmsgx_epid_ssl_data::ias_base_url);
-	g_string_append(url, "/attestation/sgx/");
+	g_string_append(url, "/attestation/");
 	g_string_append(url, stmsgx_epid_ssl_data::ias_version); 
 	g_string_append(url, "/report");
 
+
+	sub_key = g_string_new("Ocp-Apim-Subscription-Key: ");
+	g_string_append(sub_key, stmsgx_epid_ssl_data::ias_sub_key);
+
 	k_debug_msg("Quote:%s\nQuote Len:%d\n", k_buffer_data(epid->data.report.quote), k_buffer_length(epid->data.report.quote));
+	k_debug_msg("Subscription key:%s\n", sub_key->str);
 
 	report_request["isvEnclaveQuote"] 	= (gchar *) k_buffer_data(epid->data.report.quote);
 
  	headers               			= g_ptr_array_new ();
 	g_ptr_array_add (headers, (gpointer) "Accept: application/json");
 	g_ptr_array_add (headers, (gpointer) "Content-Type: application/json");
+	g_ptr_array_add (headers, (gpointer) sub_key->str);
 
 	res_headers           			= g_ptr_array_new ();
 	epid->data.report.res_data		= k_buffer_alloc(NULL, 0);
@@ -643,6 +635,7 @@ stmsgx_epid_quote_verify(sgx_quote_epid *epid,  GError **err)
 out:
 	g_string_free(post_data, TRUE);
 	g_string_free(url, TRUE);
+	g_string_free(sub_key, TRUE);
         g_ptr_array_free(headers, TRUE);
         g_ptr_array_free(res_headers, TRUE);
 	return ret;
