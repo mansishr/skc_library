@@ -24,6 +24,7 @@ static gboolean apimodule_preload_keys(GError **err);
 static char* pre_load_keyfile = NULL;
 
 static CK_RV (*c_initialize)(CK_VOID_PTR pInitArgs);
+static CK_RV (*c_finalize)(CK_VOID_PTR pInitArgs);
 
 GHashTable *apimodule_token_hash = NULL;
 GHashTable *apimodule_api_hash = NULL;
@@ -31,6 +32,15 @@ GHashTable *module_hash = NULL;
 static const char *loadable_module = NULL;
 CK_FUNCTION_LIST_PTR func_list = NULL;
 keyagent_apimodule_ops apimodule_ops;
+static char *mode=NULL;
+
+void
+apimodule_prepare_child(void)
+{
+    C_Finalize(NULL);
+    C_Initialize(NULL);
+    return;
+}
 
 CK_RV
 C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
@@ -39,6 +49,8 @@ C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
     static gsize init = 0;
     if (g_once_init_enter (&init)) {
         rv = apimodule_init(ppFunctionList);
+	if( g_strcmp0(mode, "SGX") == 0 )
+		pthread_atfork(NULL,NULL, apimodule_prepare_child);
         g_once_init_leave (&init, 1);
     }
     *ppFunctionList = func_list;
@@ -62,6 +74,11 @@ C_Initialize(CK_VOID_PTR pInitArgs)
     return ret;
 }
 
+CK_RV
+C_Finalize(CK_VOID_PTR pDummy)
+{
+	return c_finalize(pDummy);
+}
 CK_RV
 apimodule_unload_module(void *module)
 {
@@ -97,6 +114,8 @@ apimodule_load_module(const char *module_name, CK_FUNCTION_LIST_PTR_PTR funcs)
 	if ((rv = c_get_function_list(funcs)) == CKR_OK) {
 		if (g_module_symbol(mod, "C_Initialize", (gpointer *)&c_initialize))
 		   (*funcs)->C_Initialize = C_Initialize;
+		if (g_module_symbol(mod, "C_Finalize", (gpointer *)&c_finalize))
+		   (*funcs)->C_Finalize = C_Finalize;
 		return CKR_OK;
 	} else{
 		k_critical_msg("C_GetFunctionList failed %lx, %s", rv, module_name);
@@ -150,7 +169,7 @@ apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
         return CKR_GENERAL_ERROR;
     }
 
-    const char *mode =  key_config_get_string(config, "core", "mode", &error);
+    mode =  key_config_get_string(config, "core", "mode", &error);
     if (!keyagent_config_filename) {
         k_critical_error(error);
         return CKR_GENERAL_ERROR;

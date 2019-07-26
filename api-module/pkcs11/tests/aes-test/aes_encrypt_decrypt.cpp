@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include <memory.h>       
 #include <vector>       
-#include <p11-kit-1/p11-kit/pkcs11.h>
 
 #include <openssl/bio.h>
 #include <openssl/pem.h>
 
 #include <glib.h>
 #include <gmodule.h>
+#include <unistd.h>
+#include <sys/wait.h> 
 #include "config.h"
 #include "key-agent/key_agent.h"
 #include "api-module/pkcs11/src/internal.h"
@@ -19,10 +20,12 @@ extern "C" {
 #endif
 
 
+CK_RV do_aes_encrypt_decrypt(apimodule_uri_data *uri_data);
 static CK_RV (*c_ondemand_keyload)(const char *url);
 gboolean (*parse_uri_data)(const char *uri, apimodule_uri_data *uri_data);
 gboolean (*clean_uri_data)(apimodule_uri_data *uri_data);
 apimodule_uri_data uri_data;
+gchar* uri = NULL;
 
 #ifdef __cplusplus
 }
@@ -194,8 +197,7 @@ load_module(const char *module_name, CK_FUNCTION_LIST_PTR_PTR funcs)
     return rv; 
 }
 
-                                             
-int main(int argc, char* argv[])
+CK_RV do_aes_encrypt_decrypt(apimodule_uri_data *uri_data)
 {
     CK_RV                rv = 0;
     CK_C_INITIALIZE_ARGS initArgs;
@@ -215,38 +217,13 @@ int main(int argc, char* argv[])
     gboolean present = false;
     CK_SLOT_ID slot_id;
 
-    gchar* uri = argv[1];
     CK_BYTE iv[]= {  0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
-
-    if( (argc < 1) || (!uri) ) {
-        fprintf(stderr, "Invalid no.of Arguments. Please run %s <URI>\n", argv[0]);
-        return -1;
-    }    
-    
-    GString *module_path=NULL;
-    if( getenv("INSTALLDIR") != NULL )
-    	     module_path = g_string_new(getenv("INSTALLDIR"));
-    else
-    	     module_path = g_string_new(DHSM2_INSTALL_DIR);
-
-    g_string_append(module_path, "/lib/libpkcs11-api.so");
-    if (load_module(module_path->str, &func_list) != CKR_OK) {
-        fprintf(stderr, "Error loading module\n");
-        return -1;
-    }
-	g_string_free( module_path, false);
-
-
-	if( parse_uri_data(uri, &uri_data) != TRUE ){
-        fprintf(stderr, "Error in parsing pkcs11 uri %s <URI>\n", uri);
-        return -1;
-    }    
 
     CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
     CK_ATTRIBUTE attribs[] = {
 	    { CKA_CLASS, &privClass, sizeof(privClass) },
-	    { CKA_ID, (CK_UTF8CHAR_PTR)uri_data.key_id->str, strlen(uri_data.key_id->str) }
+	    { CKA_ID, (CK_UTF8CHAR_PTR)uri_data->key_id->str, strlen(uri_data->key_id->str) }
     };
     CK_MECHANISM mechanism = { CKM_AES_CBC, NULL_PTR, 0 };
 
@@ -255,17 +232,18 @@ int main(int argc, char* argv[])
     rv = func_list->C_Initialize( NULL );
     if (rv != CKR_OK && rv != CKR_CRYPTOKI_ALREADY_INITIALIZED ) {
         fprintf(stderr, "PKCS11: failed func_list->C_Initialize (error:%lx)", rv );
-        return -1;
+	goto err;
     }
 
     if(CKR_OK != c_ondemand_keyload(uri))
     {
-        return -1;
+        fprintf(stderr, "PKCS11: OnDemand KeyLoad failed\n");
+	goto err;
     }
 
-    rv = FindToken(uri_data.token_label->str, &present, &slot_id);
+    rv = FindToken(uri_data->token_label->str, &present, &slot_id);
     if(!present) {
-        fprintf(stderr, "Token %s not found \n", uri_data.token_label->str);
+        fprintf(stderr, "Token %s not found \n", uri_data->token_label->str);
         goto err;
     }
     // Open read-write session
@@ -273,7 +251,7 @@ int main(int argc, char* argv[])
     RV_CHECK("C_OpenSession", rv);
 
     // Login USER into the sessions so we can create a private objects
-    rv = func_list->C_Login(hSession,CKU_USER,(unsigned char*)uri_data.pin->str,strlen(uri_data.pin->str));
+    rv = func_list->C_Login(hSession,CKU_USER,(unsigned char*)uri_data->pin->str,strlen(uri_data->pin->str));
     if ( rv != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)
     {
         fprintf(stderr, "C_Login\n");
@@ -298,8 +276,6 @@ int main(int argc, char* argv[])
         fprintf(stderr, "C_FindObjects object not found\n");
 	    goto err;
     }
-
-
 
     rv = func_list->C_FindObjectsFinal(hSession);
     hKey = hObjects;
@@ -334,7 +310,82 @@ int main(int argc, char* argv[])
     func_list->C_Logout(hSession);
 
 err:
-	clean_uri_data(&uri_data);
+	//clean_uri_data(uri_data);
     return rv;
+
+}
+
+void* thread_aes_encrypt_decrypt_test(void *x)
+{
+        apimodule_uri_data  *data = (apimodule_uri_data *)x;
+        CK_RV rv = do_aes_encrypt_decrypt(data);
+        return NULL;
+}
+
+
+                                             
+int main(int argc, char* argv[])
+{
+    uri = argv[1];
+    pthread_t thread;
+    pid_t forkStatus;
+    CK_RV rv;
+
+    if( (argc < 1) || (!uri) ) {
+        fprintf(stderr, "Invalid no.of Arguments. Please run %s <URI>\n", argv[0]);
+        return -1;
+    }    
+    
+    GString *module_path=NULL;
+    if( getenv("INSTALLDIR") != NULL )
+    	     module_path = g_string_new(getenv("INSTALLDIR"));
+    else
+    	     module_path = g_string_new(DHSM2_INSTALL_DIR);
+
+    g_string_append(module_path, "/lib/libpkcs11-api.so");
+    if (load_module(module_path->str, &func_list) != CKR_OK) {
+        fprintf(stderr, "Error loading module\n");
+        return -1;
+    }
+    g_string_free( module_path, false);
+
+
+    if( parse_uri_data(uri, &uri_data) != TRUE ){
+        fprintf(stderr, "Error in parsing pkcs11 uri %s <URI>\n", uri);
+        return -1;
+    }    
+   
+    rv = do_aes_encrypt_decrypt(&uri_data);    
+
+#ifndef FORK_TEST
+
+    if(pthread_create(&thread, NULL, thread_aes_encrypt_decrypt_test, (void *)&uri_data)) {
+		fprintf(stderr, "Error creating thread\n");
+		return -1;
+    }
+	
+    if(pthread_join(thread, NULL)) {
+		fprintf(stderr, "Error joining thread\n");
+		return -1;
+    }
+
+    forkStatus = fork();
+
+    /* Child... */
+    if (forkStatus == 0) {
+	rv = do_aes_encrypt_decrypt(&uri_data);
+	/* Parent... */
+    } else if (forkStatus != -1) {
+	wait(NULL);
+	rv = do_aes_encrypt_decrypt(&uri_data);
+    } else {
+	perror("Error while calling the fork function");
+    }
+
+#endif
+
+   clean_uri_data(&uri_data);
+    return 0;
+
 }
 
