@@ -316,15 +316,15 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
     k_buffer_ptr SGX_CONFIG_ID_SVN 		= NULL;
     k_buffer_ptr SGX_ENCLAVE_SVN_MINIMUM 	= NULL;
     k_buffer_ptr SGX_CONFIG_ID 			= NULL;
-	k_buffer_ptr CHALLENGE_KEYTYPE		= NULL;
+    k_buffer_ptr CHALLENGE_KEYTYPE		= NULL;
 
     g_autoptr (GError) err 			= NULL;
     gchar *encoded_sgx_quote 			= NULL;
     sgx_quote_epid epid;
 
-    unsigned char* prod_id[2];
-    unsigned char* config_svn[2];
-    unsigned char* enclave_svn_min[2];
+    unsigned char prod_id[2];
+    unsigned char config_svn[2];
+    unsigned char enclave_svn_min[2];
 
     BIO_MEM_ptr mbio(BIO_new(BIO_s_mem()), ::BIO_free);
 
@@ -417,43 +417,43 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
 			if (sgx_server_sgx_stm::quote_type == KEYAGENT_SGX_QUOTE_TYPE_ECDSA) {
 				if (!verifyEcdsaQuote(quote, public_key_size, 0, sgx_server_sgx_stm::tcbInfoURL, sgx_server_sgx_stm::qeIdentityPath)) {
 						goto out;
-					}
+				}
 			}
 
-			len 					= i2d_RSA_PUBKEY(rsa, NULL);
+			len = i2d_RSA_PUBKEY(rsa, NULL);
 			i2d_RSA_PUBKEY_bio(mbio.get(), rsa);
 			BIO_get_mem_ptr(mbio.get(), &mem);
-			CHALLENGE_RSA_PUBLIC_KEY 			= k_buffer_alloc(mem->data, mem->length);
+			CHALLENGE_RSA_PUBLIC_KEY = k_buffer_alloc(mem->data, mem->length);
 
 			*challenge_attrs = challenge_set = k_attribute_set_alloc(9);
 
-			CHALLENGE_KEYTYPE 				= k_buffer_alloc(NULL, strlen("RSA")+1);
+			CHALLENGE_KEYTYPE = k_buffer_alloc(NULL, strlen("RSA")+1);
 			strcpy((char *)k_buffer_data(CHALLENGE_KEYTYPE), "RSA");
 			k_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_KEYTYPE", CHALLENGE_KEYTYPE);
 			k_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_RSA_PUBLIC_KEY", CHALLENGE_RSA_PUBLIC_KEY);
 
-			SGX_ENCLAVE_ISSUER 				= k_buffer_alloc(NULL, sizeof(sgx_measurement_t));
+			SGX_ENCLAVE_ISSUER = k_buffer_alloc(NULL, sizeof(sgx_measurement_t));
 			memcpy(k_buffer_data(SGX_ENCLAVE_ISSUER), (unsigned char *)(sgxQuote->report_body.mr_signer.m), sizeof(sgx_measurement_t));
 
-			prod_id[0] 					= (unsigned char *) (sgxQuote->report_body.isv_prod_id >> 8);
-			prod_id[1] 					= (unsigned char *) (sgxQuote->report_body.isv_prod_id & 0x00FF);
-			SGX_ENCLAVE_PROD_ID 			= k_buffer_alloc(prod_id, sizeof(sgxQuote->report_body.isv_prod_id));
+			prod_id[0] = sgxQuote->report_body.isv_prod_id >> 8;
+			prod_id[1] = sgxQuote->report_body.isv_prod_id & 0x00FF;
+			SGX_ENCLAVE_PROD_ID = k_buffer_alloc(prod_id, sizeof(sgxQuote->report_body.isv_prod_id));
 
-			SGX_ENCLAVE_EXT_PROD_ID 			= k_buffer_alloc(NULL, sizeof(sgxQuote->report_body.isv_ext_prod_id));
+			SGX_ENCLAVE_EXT_PROD_ID	= k_buffer_alloc(NULL, sizeof(sgxQuote->report_body.isv_ext_prod_id));
 			memcpy(k_buffer_data(SGX_ENCLAVE_EXT_PROD_ID), (unsigned char *)(sgxQuote->report_body.isv_ext_prod_id), sizeof(sgx_isvext_prod_id_t));
 
-			SGX_ENCLAVE_MEASUREMENT 			= k_buffer_alloc(NULL, sizeof(sgx_measurement_t));
+			SGX_ENCLAVE_MEASUREMENT = k_buffer_alloc(NULL, sizeof(sgx_measurement_t));
 			memcpy(k_buffer_data(SGX_ENCLAVE_MEASUREMENT), (unsigned char *)(sgxQuote->report_body.mr_enclave.m), sizeof(sgx_measurement_t));
 
-			config_svn[0] 				= (unsigned char *) (sgxQuote->report_body.config_svn >> 8);
-			config_svn[1] 				= (unsigned char *) (sgxQuote->report_body.config_svn & 0x00FF);
-			SGX_CONFIG_ID_SVN 				= k_buffer_alloc(config_svn, sizeof(sgxQuote->report_body.config_svn));
+			config_svn[0] = sgxQuote->report_body.config_svn >> 8;
+			config_svn[1] = sgxQuote->report_body.config_svn & 0x00FF;
+			SGX_CONFIG_ID_SVN = k_buffer_alloc(config_svn, sizeof(sgxQuote->report_body.config_svn));
 
-			enclave_svn_min[0] 				= (unsigned char *) (sgxQuote->report_body.isv_svn >> 8);
-			enclave_svn_min[1] 				= (unsigned char *) (sgxQuote->report_body.isv_svn & 0x00FF);
-			SGX_ENCLAVE_SVN_MINIMUM 			= k_buffer_alloc(enclave_svn_min, sizeof(sgxQuote->report_body.isv_svn));
+			enclave_svn_min[0] = sgxQuote->report_body.isv_svn >> 8;
+			enclave_svn_min[1] = sgxQuote->report_body.isv_svn & 0x00FF;
+			SGX_ENCLAVE_SVN_MINIMUM	= k_buffer_alloc(enclave_svn_min, sizeof(sgxQuote->report_body.isv_svn));
 
-			SGX_CONFIG_ID 				= k_buffer_alloc(NULL, sizeof(sgx_config_id_t));
+			SGX_CONFIG_ID = k_buffer_alloc(NULL, sizeof(sgx_config_id_t));
 			memcpy(k_buffer_data(SGX_CONFIG_ID), (unsigned char *)(sgxQuote->report_body.config_id), sizeof(sgx_config_id_t));
 
 			k_attribute_set_add_attribute(challenge_set, (char *)"SGX_ENCLAVE_ISSUER", SGX_ENCLAVE_ISSUER);
@@ -464,7 +464,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
 			k_attribute_set_add_attribute(challenge_set, (char *)"SGX_ENCLAVE_SVN_MINIMUM", SGX_ENCLAVE_SVN_MINIMUM);
 			k_attribute_set_add_attribute(challenge_set, (char *)"SGX_CONFIG_ID", SGX_CONFIG_ID);
 
-			ret 					= TRUE;
+			ret = TRUE;
 	}
 out:
 	if (CHALLENGE_RSA_PUBLIC_KEY) k_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
