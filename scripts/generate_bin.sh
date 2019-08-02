@@ -70,6 +70,8 @@ fi
 rm -rf $DHSM2_COMPONENT_INSTALL_DIR
 #sudo mkdir $DHSM2_COMPONENT_INSTALL_DIR
 sudo tar -xvf workload_bins.tar.gz -C /
+curl -v -X GET \"https://sbx.api.trustedservices.intel.com/sgx/certification/v1/qe/identity\" -o /opt/skc/store/qeIdentity.json
+chmod 777 /opt/skc/store/qeIdentity.json 
 exit_script $LOG_DEBUG \"Workload Binaries Successfully Installaed\" $CODE_EXEC_SUCCESS
 
 sudo mkdir -p $DHSM2_COMPONENT_DEVOPS_DIR

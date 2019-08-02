@@ -94,7 +94,8 @@ download_and_install_pccs_server()
 	cp -p external/dcap_source/QuoteGeneration/qcnl/linux/sgx_default_qcnl.conf /etc
 	sed -i "s/USE_SECURE_CERT=.*/USE_SECURE_CERT=FALSE/g" /etc/sgx_default_qcnl.conf
 
-	pushd external/dcap_source/QuoteGeneration/pccs
+	cp -r external/dcap_source/QuoteGeneration/pccs /opt/intel
+	pushd /opt/intel/pccs
 	sed -i  "6i\\\tproxy: 'http://proxy-us.intel.com:911'," pckclient.js
 	# download and install pre-built nodejs in /usr/local
 	wget $NODE_JS_URL
@@ -118,7 +119,7 @@ printf "{
 
 	./uninstall.sh
 	./install.sh
-	popd #external/dcap_source/QuoteGeneration/pccs
+	popd #/opt/intel/pccs
 	
 	popd #linux-sgx
 	popd #GIT_CLONE_PATH
@@ -239,8 +240,10 @@ setup_sgx_toolkit()
 	rm -rf $GIT_CLONE_PATH/distributed_hsm-sgxtoolkit
 
 	git clone $SGX_TOOLKIT_URL $GIT_CLONE_PATH/distributed_hsm-sgxtoolkit
+	cp scripts/sgx_measurement.diff $GIT_CLONE_PATH/distributed_hsm-sgxtoolkit
 	pushd  $GIT_CLONE_PATH/distributed_hsm-sgxtoolkit
 	git checkout $SGX_TOOLKIT_BRANCH
+	git apply sgx_measurement.diff
 	bash autogen.sh
 
 	if [ $SGX_TOOLKIT_WITH_DCAP ]; then
@@ -259,6 +262,7 @@ elif [[ "$OP" = *"install" ]]; then
 	echo "Install SGX components (Driver, SDK, PSW)"
 	yum install gcc-c++ git kernel-headers autotools-latest kernel-devel -y
 	core_sgx_setup
+	download_and_install_pccs_server
 	setup_sgx_toolkit
 elif [[ "$OP" = *"install-pccs-server"* ]]; then
 	echo "Install SGX PCCS server"
