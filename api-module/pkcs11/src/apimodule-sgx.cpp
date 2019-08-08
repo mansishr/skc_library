@@ -523,8 +523,8 @@ sgx_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, G
     CK_KEY_TYPE keyType = CKK_AES;
     CK_OBJECT_HANDLE hPrk = CK_INVALID_HANDLE;
     CK_RV rv = CKR_GENERAL_ERROR;
-    CK_MECHANISM_TYPE mechanismType = CKM_RSA_PKCS;
-    //CK_MECHANISM_TYPE mechanismType = CKM_RSA_PKCS_OAEP;
+    //CK_MECHANISM_TYPE mechanismType = CKM_RSA_PKCS;
+    CK_MECHANISM_TYPE mechanismType = CKM_RSA_PKCS_OAEP;
     CK_MECHANISM mechanism = { mechanismType, NULL, 0 };
     gboolean ret = FALSE;
     apimodule_uri_data *data = NULL;

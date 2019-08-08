@@ -19,7 +19,7 @@ if [ $TOKEN_CNT -eq 1 ]; then
 		fi
 		TOKEN_SLOT=`pkcs11-tool --module $MODULE -L |  tr '\n' '@' | sed -e "s/.*Crypto API Toolkit Slot ID:\(.*\)@\s\+token label\s\+: $TOKENNAME@.*/\1/"`
 		TOKEN_SLOT=$(echo "${TOKEN_SLOT}" | sed -e 's/^[[:space:]]*//')
-		rm -fr  ${TOOLKIT_TOKEN_DIR}/slot${TOKEN_SLOT}.token
+		rm -fr  ${TOOLKIT_TOKEN_DIR}/slot${TOKEN_SLOT}/
 	fi
 else
 	echo "Nothing to clean: $TOKENNAME not found\n"

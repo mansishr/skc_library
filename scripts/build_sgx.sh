@@ -4,7 +4,7 @@ SGX_VERSION=2.6
 SYSLIB_PATH=/usr/lib64
 KERNEL_DRIVER="kernel-devel-uname-r == $(uname -r)"
 SGX_SDX_CLONE_PATH="https://github.com/intel/linux-sgx.git"
-SGX_TOOLKIT_BRANCH="v4+next-major"
+SGX_TOOLKIT_BRANCH="v6+next-major"
 SGX_TOOLKIT_URL="ssh://git-amr-1.devtools.intel.com:29418/distributed_hsm-sgxtoolkit"
 SGX_TOOLKIT_INSTALL_PREFIX="/opt/intel/sgxtoolkit"
 GIT_CLONE_PATH=/tmp/sgxstuff
