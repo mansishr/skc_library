@@ -95,6 +95,7 @@ server_stm_init(const char *config_directory, GError **err)
 			return;
 		}
 	}
+        OpenSSL_add_all_algorithms();
 }
 
 extern "C" void
@@ -336,6 +337,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
 	    k_debug_error(err);
 	    return ret;
     }
+
 
     if (sgx_server_sgx_stm::quote_type == KEYAGENT_SGX_QUOTE_TYPE_EPID){
 

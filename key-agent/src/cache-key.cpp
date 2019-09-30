@@ -161,6 +161,8 @@ __keyagent_cache_loadkey_policy_attr(gint key_id, const char *attr_name, GError 
 
 #define SET_KEY_ATTR(KEYID, ATTRS, NAME, ERROR) do { \
     k_buffer_ptr NAME = __keyagent_cache_loadkey_attr((KEYID), #NAME, (ERROR)); \
+	if(NAME == NULL)\
+		return FALSE;\
     k_debug_generate_checksum("CACHE-R-"#NAME, k_buffer_data(NAME), k_buffer_length(NAME)); \
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR((ATTRS), NAME); \
     k_buffer_unref(NAME); \
@@ -213,15 +215,19 @@ __create_ecc_key(key_data *data, GError **error)
 extern "C" void DLL_LOCAL
 __delete_key(int key_id, const char *table, const char *field)
 {
-    GdaSqlParser *parser;
+    GdaSqlParser *parser=NULL;
     GdaStatement *stmt = NULL;
     GdaSet *params = NULL;
     g_autoptr(GError) tmp_error = NULL;
-    int ret = 0xff;
+    int ret = -1;
     GString *sql = g_string_new(NULL);
+    if (!sql) goto out;
 
     g_string_printf(sql,"DELETE FROM %s WHERE %s=##keyid::gint", table, field);
+
     parser = gda_sql_parser_new ();
+    if (!parser) goto out;
+
     stmt = gda_sql_parser_parse_string(parser, sql->str, NULL, &tmp_error);
     g_object_unref (parser);
 
@@ -236,10 +242,11 @@ __delete_key(int key_id, const char *table, const char *field)
     if (ret >= 0)
         gda_connection_commit_transaction(GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), NULL, NULL);
 out:
-    if (ret == -1)
+    if (ret == -1 && tmp_error!=NULL)
         k_info_error(tmp_error);
     if (params) g_object_unref (params);
     if (stmt) g_object_unref (stmt);
+    if (parser) g_object_unref (parser);
     if (sql) g_string_free(sql, TRUE);
     return;
 }

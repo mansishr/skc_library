@@ -102,8 +102,9 @@ __keyagent_key_policy_add(keyagent_url url, k_attributes_ptr policy_attrs, gint 
 	key->policy_attributes = k_attributes_ref(policy_attrs);
 	ret=TRUE;
 out:
-    if (cache_id == -1)
+    if ((cache_id == -1)&&key)
         __keyagent_cache_key_policy((keyagent_key *)key, error);
+
 	return ret;
 }
 
@@ -221,9 +222,13 @@ __keyagent_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type)
 extern "C" gboolean  DLL_LOCAL
 __validate_key_usage_policy(keyagent_key_real *key)
 {
+
 	VALIDATE_KEY_POLICY_ATTR(key, NOT_BEFORE);
 	VALIDATE_KEY_POLICY_ATTR(key, NOT_AFTER);
 	VALIDATE_KEY_POLICY_ATTR(key, NOT_AFTER);
+	
+	return TRUE;
+
 }
 
 extern "C" gboolean 

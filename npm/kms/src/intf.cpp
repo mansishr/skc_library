@@ -32,12 +32,10 @@ namespace kms_npm
 
 std::string get_json_value(Json::Value value, const char *key)
 {
-    char exceptstr[64]					= "Error in parsing json key:";
     if( !value.isMember(key))
     {
-        strcat(exceptstr, key);
-		throw std::runtime_error(exceptstr);
-	}
+	throw std::runtime_error("Error in parsing json key:"+(std::string)key);
+    }
     return value[key].asString();
 }
 
@@ -146,6 +144,7 @@ get_time_val_from_json( Json::Value json_data, const char *name )
 	} catch (exception  e) {
 		k_critical_msg("%s\n", e.what());
 	}
+	return policy_attr;
 }
 
 k_buffer_ptr decode_base64_data(k_buffer_ptr ptr)
@@ -291,7 +290,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	info->tries						   += 1;
 
 	Json::Value transfer_data;
-	keyagent_keytype keytype; 
+	keyagent_keytype keytype=KEYAGENT_INVALIDKEY; 
 
 	gboolean ret						= FALSE;
 	long res_status						= -1;

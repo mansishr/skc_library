@@ -19,12 +19,12 @@ namespace stmsgx_epid_ssl_data{
         X509_STORE *store;
 }
 
-gboolean set_quote_verify_ssl_options(keyagent_ssl_opts *ssl_opts);
+
 
 void DLL_LOCAL
 print_hexstring (FILE *fp, const void *vsrc, size_t len)
 {
-        const unsigned char *sp= (const unsigned char *) vsrc;
+        const unsigned char *sp = (const unsigned char *) vsrc;
         size_t i;
         for(i= 0; i< len; ++i) {
                 fprintf(fp, "%02x", sp[i]);
@@ -34,13 +34,11 @@ print_hexstring (FILE *fp, const void *vsrc, size_t len)
 std::string DLL_LOCAL
 get_json_value(Json::Value value, const char *key)
 {
-	char exceptstr[64]                                  = "Error in parsing json key:";
-	if( !value.isMember(key))
-	{
-	    strcat(exceptstr, key);
-		    throw std::runtime_error(exceptstr);
-	}
-	return value[key].asString();
+    if( !value.isMember(key))
+    {
+        throw std::runtime_error("Error in parsing json key:"+(std::string)key);
+    }
+       return value[key].asString();
 }
 
 void DLL_LOCAL
@@ -84,7 +82,6 @@ stmsgx_put_ias_signing_cert_to_store(char *ias_cacert_path, GError **error)
 	gboolean ret = FALSE;
 	FILE *fp = NULL;
 
-	OpenSSL_add_all_algorithms();
   	ERR_load_BIO_strings();
   	ERR_load_crypto_strings();
 
@@ -181,7 +178,7 @@ out:
 	return ret;
 }
 
-gboolean DLL_LOCAL
+void DLL_LOCAL
 set_quote_verify_ssl_options(keyagent_ssl_opts *ssl_opts)
 {
 	if( stmsgx_epid_ssl_data::cacert )

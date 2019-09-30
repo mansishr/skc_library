@@ -72,5 +72,5 @@ gboolean stmsgx_get_epid_sigrl(sgx_quote_epid *epid, GError **err);
 gboolean stmsgx_epid_quote_verify(sgx_quote_epid *epid,  GError **err);
 void stmsgx_clear_epid_report_data(sgx_quote_epid *epid);
 void stmsgx_clear_epid_sigrl_data(sgx_quote_epid *epid);
-
+void set_quote_verify_ssl_options(keyagent_ssl_opts *ssl_opts);
 #endif

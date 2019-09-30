@@ -193,6 +193,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
     gboolean ret = FALSE;
     k_buffer_ptr CHALLENGE_RSA_PUBLIC_KEY = NULL;
     k_buffer_ptr SW_ISSUER = NULL;
+    k_buffer_ptr CHALLENGE_KEYTYPE=NULL;
     BIO* bio = NULL;
     RSA *rsa = NULL;
     int len = 0;
@@ -202,11 +203,15 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
     BUF_MEM *mem = NULL;
 
     SW_ISSUER = k_buffer_alloc(NULL, STM_ISSUER_SIZE);
-	memset(k_buffer_data(SW_ISSUER), ' ', STM_ISSUER_SIZE);
+    if(!SW_ISSUER)
+    {
+	ret=FALSE;
+	goto out;		
+    }
+    memset(k_buffer_data(SW_ISSUER), ' ', STM_ISSUER_SIZE);
     strcpy((char *)k_buffer_data(SW_ISSUER), "Intel");
-
     *challenge_attrs = NULL;
-
+	
 	rsa = local_verify_quote(quote);
 	if (!rsa)
 		goto out;
@@ -217,7 +222,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
     CHALLENGE_RSA_PUBLIC_KEY = k_buffer_alloc(mem->data, mem->length);
 
     *challenge_attrs = challenge_set = k_attribute_set_alloc(2);
-    k_buffer_ptr CHALLENGE_KEYTYPE;
+
     CHALLENGE_KEYTYPE = k_buffer_alloc(NULL, strlen("RSA")+1);
     strcpy((char *)k_buffer_data(CHALLENGE_KEYTYPE), "RSA");
     k_attribute_set_add_attribute(challenge_set, (char *)"CHALLENGE_KEYTYPE", CHALLENGE_KEYTYPE);
@@ -225,6 +230,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
     k_attribute_set_add_attribute(challenge_set, (char *)"SW_ISSUER", SW_ISSUER);
 
     ret = TRUE;
+	
 out:
     if (CHALLENGE_RSA_PUBLIC_KEY) k_buffer_unref(CHALLENGE_RSA_PUBLIC_KEY);
     if (SW_ISSUER) k_buffer_unref(SW_ISSUER);

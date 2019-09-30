@@ -32,6 +32,7 @@ extern "C" gint DLL_LOCAL
 __keyagent_cache_generate_fake_id()
 {
     g_atomic_int_add(&keyagent::localcache::fake_cache_ids, 1);
+    return keyagent::localcache::fake_cache_ids;
 }
 
 gboolean DLL_LOCAL

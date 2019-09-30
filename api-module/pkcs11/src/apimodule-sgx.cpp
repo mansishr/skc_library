@@ -451,7 +451,8 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 			break;
 		}
 		uint32_t certSize = cert_buffer->size;
-		cert_information = k_buffer_alloc(NULL, certSize);
+		cert_information = k_buffer_alloc(NULL, certSize+1);
+		memset(cert_information->bytes->data,'\0',certSize+1);
 		memcpy(k_buffer_data(cert_information), (unsigned char*)(cert_buffer->certification_data), certSize);
 		///Fetch PCK Certoficate from PCK Cert chain. PCK is the 1st certificate in the chain.
 		///Hence we will fetch it by getting the position of the ending of PCK and copying it.

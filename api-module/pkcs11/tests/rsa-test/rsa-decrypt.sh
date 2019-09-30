@@ -15,7 +15,7 @@ cmdline="rsautl \
 -engine pkcs11 \
 -keyform engine \
 -inkey $PRIVATE_KEY \
--out ${current_dir}/testdata.dec \
+-out $DATADIR/testdata.dec \
 -in $DATADIR/testdata.enc"
 
 echo "set args $cmdline" > .gdbinit

@@ -86,15 +86,11 @@ cleanup:
 
 std::string get_json_value(Json::Value value, const char *key)
 {
-    char exceptstr[32]="Error in parsing json key:";
     if( !value.isMember(key))
     {
-		//cout<< "Exception occured" <<endl;
-        strcat(exceptstr, key);
-		throw std::runtime_error(exceptstr);
-	}
-    //printf("going to return value\n");
-    return value[key].asString();
+        throw std::runtime_error("Error in parsing json key:"+(std::string)key);
+    }
+       return value[key].asString();
 }
 
 void json_print(Json::Value &val)
@@ -182,7 +178,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	k_buffer_ptr challenge = NULL;
     k_buffer_ptr return_data = NULL;
     k_buffer_ptr protected_swk = NULL;
-	GPtrArray *headers;
+	GPtrArray *headers = NULL;
 
 	Json::Value session_data;
     Json::Value session_return_data;

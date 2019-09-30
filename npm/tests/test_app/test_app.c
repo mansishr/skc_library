@@ -59,6 +59,7 @@ errexit:
 		g_module_close(conf->npm.module);
 		return NULL;
 	}
+	return NULL;
 }
 
 gboolean fatal_handler(const gchar *log_domain,
@@ -204,7 +205,7 @@ int main(int argc, char *argv[])
 	}
 	npm_config_dir=g_strconcat(DHSM2_INSTALL_DIR,"/etc/", NULL);
 
-	g_autoptr(GError) tmp_error;
+	g_autoptr(GError) tmp_error = NULL;
 	memset (&module, 0x00, sizeof(module_info));
 	module.error=tmp_error;
 

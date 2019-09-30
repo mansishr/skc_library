@@ -208,27 +208,33 @@ gboolean verifyEcdsaQuote(k_buffer_ptr quote, u_int32_t public_key_size, u_int32
 	k_buffer_ptr pckCert = NULL;
 	k_buffer_ptr intermediateCrl = NULL;
 	k_buffer_ptr tcbInfo = NULL;
+	BIO* certBio = NULL;
+	X509* certX509 = NULL;
 	string intermediateCrlUrl, fmspcVal, qeIdentity;
 	Status statusCode;
+	size_t certLen = 0;
+	const char* pckCertificate = NULL;
 
 	pckCert = k_buffer_alloc(NULL, pckCert_size);
+
+	if(!pckCert)
+		return ret;
+	
 	memcpy(k_buffer_data(pckCert), (char *)(k_buffer_data(quote) + sizeof(struct keyagent_sgx_quote_info)), pckCert_size);
 	((char *)k_buffer_data(pckCert))[pckCert_size]=0; ///This is necessary else junk value will come.
 
 	const auto sgxQuote  = (k_buffer_data(quote) + sizeof(struct keyagent_sgx_quote_info) + public_key_size + pckCert_size);
-	
-	//Fetching X509 for FMSPC and IntermediateCRL.
-	OpenSSL_add_all_algorithms();
-	size_t certLen = k_buffer_length(pckCert);
-	const char* pckCertificate = (const char*)(k_buffer_data(pckCert));
-	BIO* certBio = BIO_new(BIO_s_mem());
+	 
+	certLen = k_buffer_length(pckCert);
+	pckCertificate = (const char*)(k_buffer_data(pckCert));
+	certBio = BIO_new(BIO_s_mem());
 	BIO_write(certBio, pckCertificate, certLen);
-	X509* certX509 = PEM_read_bio_X509(certBio, NULL, NULL, NULL);
+	certX509 = PEM_read_bio_X509(certBio, NULL, NULL, NULL);
 	if (!certX509) {
 		k_info_msg("unable to parse certificate in memory");
 		goto out;
 	}
-
+	
 	getIntermediateCrlUrl(certX509, intermediateCrlUrl);
 	if (!intermediateCrlUrl.empty() ) {
 		intermediateCrl = k_buffer_alloc(NULL,0);
@@ -269,6 +275,7 @@ gboolean verifyEcdsaQuote(k_buffer_ptr quote, u_int32_t public_key_size, u_int32
 	} else {
 			k_info_msg("ECDSA quote verification from DCAP library unsuccessful!!!!%d", statusCode);
 	}
+	
 out:
 	if (pckCert) k_buffer_unref(pckCert);
 	if (certBio) BIO_free_all(certBio);

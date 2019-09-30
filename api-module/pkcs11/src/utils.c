@@ -131,11 +131,13 @@ apimodule_findtoken(apimodule_uri_data *data, gboolean *is_token_present)
     CK_SLOT_ID *slots = NULL;
     CK_TOKEN_INFO   token_info;
 
-    *is_token_present = FALSE;
+
     if (!data || !is_token_present) {
         rv = CKR_ARGUMENTS_BAD;
         goto end;
     }
+    
+    *is_token_present = FALSE;
 
     rv = func_list->C_GetSlotList(FALSE, NULL_PTR, &nslots);
     if ((rv != CKR_OK) || !nslots) {
@@ -422,7 +424,7 @@ apimodule_hexdump(char *desc, void *addr, int len) {
 apimodule_token *
 alloc_apimodule_token(const char *label, const char *pin)
 {
-    apimodule_token *atoken = (apimodule_token *)calloc(1,sizeof(apimodule_token));
+    apimodule_token *atoken = g_new0(apimodule_token,1);
     atoken->token_label = g_string_new(label);
     atoken->pin = g_string_new(pin);
     atoken->use_token_objects = FALSE;

@@ -117,7 +117,7 @@ __get_session(const char *label, GError **error)
     GdaStatement *stmt;
     GdaSet *params;
     GdaDataModel *model;
-    session_data *session_data;
+    session_data *session_data=NULL;
 
     parser = gda_sql_parser_new ();
     stmt = gda_sql_parser_parse_string(parser,
@@ -174,8 +174,15 @@ __keyagent_cache_session(keyagent_session *_session, GError **error)
     }
     gda_connection_commit_transaction(GPOINTER_TO_GDA_CONNECTION(keyagent::localcache::connection_pointer), NULL, NULL);
     session_data = __get_session(session->name->str, error);
-    id = session_data->id;
-    __session_data_free(session_data);
+
+    if(!session_data) {
+	g_set_error (error, KEYAGENT_ERROR, KEYAGENT_ERROR_KEY_CREATE_PARAMS, "Invalid arguments for %s", __func__);
+	ret=FALSE;
+	goto out;	
+    }
+    	id = session_data->id;
+	__session_data_free(session_data);
+    
 out:
     __keyagent_session_set_cache_id(_session, id);
     g_rw_lock_writer_unlock(&keyagent::localcache::cache_rwlock);

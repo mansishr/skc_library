@@ -138,34 +138,52 @@ __keyagent_stm_apimodule_enable(const char *name)
 extern "C" gboolean DLL_LOCAL
 __keyagent_stm_set_session(const char *request_id, keyagent_session *session, GError **error)
 {
-    g_return_val_if_fail(session != NULL, FALSE);
+    if(!session){
+         k_set_error (error, STM_ERROR_INVALID_SESSION_DATA,"%s: %s", __func__, "Invalid session data");
+         return FALSE;
+    }   
+    
     keyagent_stm_real *lstm = NULL;
     keyagent_stm_session_details details;
     keyagent_request *request = NULL;
-	gboolean status = FALSE;
-
+    gboolean status = FALSE;
+    
     __keyagent_stm_get_by_name(__keyagent_session_get_stmname(session, error), (keyagent_module **)&lstm);
 
-    g_return_val_if_fail(lstm != NULL, FALSE);
+    if(!lstm)
+    {
+	goto errexit;
+    }
 
     request = (keyagent_request *)g_hash_table_lookup(keyagent::apimodule_loadkey_hash, request_id);
-    g_return_val_if_fail(request != NULL, FALSE);
-
+    if(!request)
+    {
+	goto errexit;
+    }
+    
     lstm->session = (keyagent_session_real *)session;
+    if(!lstm->session)
+    {
+   	   goto errexit;
+    }
+
     details.apimodule_details.module_data = request->module_data;
     request->stm_name = lstm->stm.label;
     details.request_id = request_id; 
-	details.apimodule_details.label = __keyagent_session_get_stmname(session, error);
+    details.apimodule_details.label = __keyagent_session_get_stmname(session, error);
     details.apimodule_details.session = session->swk;
+	
     details.apimodule_details.swk_type = __keyagent_session_lookup_swktype(lstm->session->swk_type->str);
-	details.set_wrapping_key_cb = keyagent::apimodule_ops.set_wrapping_key;
+    details.set_wrapping_key_cb = keyagent::apimodule_ops.set_wrapping_key;
     status = STM_MODULE_OP(lstm,set_session)(&details, error);
-	k_debug_msg("%s:%d %p status %d", __func__, __LINE__, *error, status);
+    k_debug_msg("%s:%d %p status %d", __func__, __LINE__, *error, status);
 
-    if (lstm->session)
-        k_debug_generate_checksum("CLIENT:SESSION", k_buffer_data(lstm->session->swk), k_buffer_length(lstm->session->swk));
+    k_debug_generate_checksum("CLIENT:SESSION", k_buffer_data(lstm->session->swk), k_buffer_length(lstm->session->swk));
 
     return status;
+    errexit:
+       k_set_error (error, STM_ERROR_INVALID_SESSION_DATA,"%s: %s", __func__, "Invalid session data");
+       return FALSE;
 }
 
 extern "C" gboolean DLL_LOCAL
