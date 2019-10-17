@@ -6,6 +6,7 @@ KERNEL_DRIVER="kernel-devel-uname-r == $(uname -r)"
 SGX_SDX_CLONE_PATH="https://github.com/intel/linux-sgx.git"
 SGX_TOOLKIT_BRANCH="v6+next-major"
 SGX_TOOLKIT_URL="ssh://git-amr-1.devtools.intel.com:29418/distributed_hsm-sgxtoolkit"
+OPENSSL_DOWNLOAD_URL="https://www.openssl.org/source/openssl-1.1.1d.tar.gz"
 SGX_TOOLKIT_INSTALL_PREFIX="/opt/intel/sgxtoolkit"
 GIT_CLONE_PATH=/tmp/sgxstuff
 SGX_DRIVER_VERSION=1.12
@@ -67,12 +68,19 @@ uninstall_sgx()
 
 compile_linux_sgx_ssl()
 {
-	source /opt/intel/sgxsdk/environment
-	pushd $GIT_CLONE_PATH/linux-sgx/external/sgxssl
-	./prepare_sgxssl.sh
+	set -x
+	mkdir -p $GIT_CLONE_PATH
+	pushd $GIT_CLONE_PATH
+	git clone https://github.com/intel/intel-sgx-ssl.git $GIT_CLONE_PATH/sgxssl
+	cd $GIT_CLONE_PATH/sgxssl
+	cd openssl_source
+	wget $OPENSSL_DOWNLOAD_URL || exit 
+	cd ..
 	cd Linux
+	source /opt/intel/sgxsdk/environment
+	make clean all || exit 1
 	make install || exit 1
-	popd #linux-sgx/external/sgxssl
+	popd
 }
 
 download_and_install_pccs_server()
@@ -135,9 +143,11 @@ download_and_install_sgx_components()
 	git clone $SGX_SDX_CLONE_PATH
 	pushd linux-sgx
 
+	git checkout 50d5bec588674c22b60eaf5a5dea0368c7cde97f
+
 	# checkout external/dcap_source	
 	git submodule init
-	git submodule update
+	git submodule update || exit 1
 
 	yum install epel-release automake autoconf libtool ocaml ocaml-ocamlbuild unzip wget python openssl-devel libcurl-devel protobuf-devel cmake cmake3 zip dkms llvm-toolset-7-cmake llvm-toolset-7 -y
 
@@ -269,6 +279,8 @@ elif [[ "$OP" = *"install-pccs-server"* ]]; then
 	download_and_install_pccs_server
 elif [[ "$OP" = *"install-sgxtoolkit"* ]]; then
 	setup_sgx_toolkit
+elif [[ "$OP" = *"install-sgxssl"* ]]; then
+	compile_linux_sgx_ssl
 else
 	"Command: invalid command"
 fi

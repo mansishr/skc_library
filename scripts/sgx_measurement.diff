@@ -1,37 +1,40 @@
 diff --git a/src/p11Sample/p11SgxSample.cpp b/src/p11Sample/p11SgxSample.cpp
-index 2a6442e..abbb238 100644
+index 9c7d501..02f0201 100644
 --- a/src/p11Sample/p11SgxSample.cpp
 +++ b/src/p11Sample/p11SgxSample.cpp
-@@ -61,6 +61,7 @@ void Sleep_App(unsigned milliseconds)
- }
- #endif
+@@ -55,6 +55,8 @@ void Sleep_App(unsigned milliseconds)
+ #include <cstring>
+ #include <dlfcn.h>
  
 +void print_quote_details(sgx_quote_t *sgxQuote);
- void unloadLibrary(void * p11ProviderHandle)
++
+ void Sleep_App(unsigned milliseconds)
  {
-     if (p11ProviderHandle)
-@@ -2669,6 +2670,9 @@ bool customQuoteEpid(CK_MECHANISM_TYPE     mechanismType,
-         uint32_t fullPublicKeySize = sizeof(CK_RSA_PUBLIC_KEY_PARAMS) + rsaPublicKeyParams->ulModulusLen + rsaPublicKeyParams->ulExponentLen;
+     usleep(milliseconds * 1000); // takes microseconds
+@@ -2545,6 +2547,7 @@ bool customQuoteEpid(CK_MECHANISM_TYPE     mechanismType,
  
          sgx_quote_t* sgxQuote  = reinterpret_cast<sgx_quote_t*>(quotePublicKey.data() + fullPublicKeySize);
-+	print_quote_details(sgxQuote);
-+
-+
          uint32_t     quoteSize = quotePublicKeyLen - fullPublicKeySize;
++	print_quote_details(sgxQuote);
  
          std::vector<CK_BYTE> quote;
-@@ -2763,6 +2767,7 @@ bool customQuoteEcdsa(CK_MECHANISM_TYPE     mechanismType,
-         uint32_t fullPublicKeySize = sizeof(CK_RSA_PUBLIC_KEY_PARAMS) + rsaPublicKeyParams->ulModulusLen + rsaPublicKeyParams->ulExponentLen;
- 
+         quote.resize(quoteSize);
+@@ -2640,6 +2643,8 @@ bool customQuoteEcdsa(CK_MECHANISM_TYPE     mechanismType,
          sgx_quote_t* sgxQuote  = reinterpret_cast<sgx_quote_t*>(quotePublicKey.data() + fullPublicKeySize);
-+	print_quote_details(sgxQuote);
          uint32_t     quoteSize = quotePublicKeyLen - fullPublicKeySize;
  
++	print_quote_details(sgxQuote);
++
          std::vector<CK_BYTE> quote;
-@@ -2847,3 +2852,49 @@ bool findObjects(CK_SESSION_HANDLE hSession, std::string& errorMessage)
+         quote.resize(quoteSize);
+ 
+@@ -2884,4 +2889,50 @@ bool eccSignVerifyTests(std::string curveName, CK_SESSION_HANDLE hSession, std::
+     C_DestroyObject(hSession, ecPrivateKey);
+ 
      return result;
- }
- 
+-}
+\ No newline at end of file
++}
 +void print_quote_details(sgx_quote_t *sgxQuote){
 +
 +	printf("SGX_ISSUER[size:%d]:", sizeof(sgxQuote->report_body.mr_signer.m));
