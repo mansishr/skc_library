@@ -436,7 +436,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 			}
 #endif
 
-		g_stpcpy( quote_info.quote_details.epid_quote_details.spid, challenge_request->spid);
+		memcpy( quote_info.quote_details.epid_quote_details.spid, challenge_request->spid, strlen(challenge_request->spid));
 		atoken->challenge 			= k_buffer_alloc(NULL,0);
 		k_buffer_append(atoken->challenge, (guint8*)&quote_info, sizeof(quote_info));
 	} else if( mechanismType == CKM_EXPORT_ECDSA_QUOTE_RSA_PUBLIC_KEY) {
@@ -474,7 +474,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 			k_set_error(err, -1, "pck certificate couldn't be fetched");
 			break;
 		}
-		const int pckCertSize = pckPos2;
+		const uint32_t pckCertSize = pckPos2;
 
 		struct keyagent_sgx_quote_info quote_info = {
 			.major_num = major_no,

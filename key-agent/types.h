@@ -462,7 +462,7 @@ typedef struct ka_apimodule_ops{
 
 typedef struct ecdsa_quote_verify_data
 {
-	gint  pckCert_size;
+	u_int32_t  pckCert_size;
 }ecdsa_quote_verify_data;
 
 typedef struct epid_quote_verify_data
@@ -471,7 +471,7 @@ typedef struct epid_quote_verify_data
 }epid_quote_verify_data;
 
 typedef struct sw_quote_verify_data{
-	gint dummy;
+	u_int32_t dummy;
 }sw_quote_verify_data;
 typedef union qdetails {
 	ecdsa_quote_verify_data ecdsa_quote_details;
@@ -482,9 +482,9 @@ typedef union qdetails {
 struct keyagent_sgx_quote_info {
 	u_int32_t major_num;
 	u_int32_t minor_num;  
-	gint quote_size;
-	gint quote_type;
-	keyagent_keytype keytype;
+	u_int32_t quote_size;
+	u_int32_t quote_type;
+	u_int32_t keytype;
 	union {
 	    struct {
 	    	u_int32_t exponent_len;

@@ -367,7 +367,7 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 			.major_num = major_no,
 			.minor_num = minor_no,
 			.quote_size = 0,
-			.quote_type = KEYAGENT_SGX_QUOTE_TYPE_INVALID,
+			.quote_type = KEYAGENT_SW_QUOTE_TYPE,
 			.keytype = KEYAGENT_RSAKEY,
 			.keydetails = {
 				.rsa = {

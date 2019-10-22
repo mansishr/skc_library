@@ -13,7 +13,7 @@ typedef enum {
 typedef enum{
     KEYAGENT_SGX_QUOTE_TYPE_EPID = 1,
     KEYAGENT_SGX_QUOTE_TYPE_ECDSA,
-    KEYAGENT_SGX_QUOTE_TYPE_INVALID
+    KEYAGENT_SW_QUOTE_TYPE
 }keyagent_sgx_quote_type;
 
 
