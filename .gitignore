@@ -59,3 +59,4 @@ api-module/pkcs11/tests/rsa-test/testdata
 stm/sgx/tests/sgx-epid-quote-verify
 api-module/pkcs11/tests/rsa-test/testdata.dec
 api-module/pkcs11/tests/rsa-test/testdata2
+api-module/pkcs11/tests/index.html*
