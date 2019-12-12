@@ -12,7 +12,7 @@
 using namespace stmsgx_epid_ssl_data;
 
 #define PATH "/store/AttestationReportSigningCACert.pem"
-#define CA_CERT_PATH DHSM2_INSTALL_DIR PATH
+#define CA_CERT_PATH SKC_INSTALL_DIR PATH
 
 gboolean do_sigrl_test(GError **err);
 gboolean do_epid_quote_verify_test(GError **err);

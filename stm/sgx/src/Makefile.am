@@ -15,7 +15,6 @@ stm_sgx_la_LDFLAGS = \
 	-module -version-info @VERSION_INFO@ \
 	$(OPENSSL_LIBS) \
 	$(COMMON_LDFLAGS) \
-	-L$(SGXSDK_LIBDIR) -lQuoteVerification \
 	$(TOPDIR)/utils/libskc_utils.la \
 	$(TOPDIR)/config-file/src/libkey_configfile.la \
 	-lcrypto \

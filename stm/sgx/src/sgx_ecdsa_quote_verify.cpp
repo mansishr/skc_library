@@ -16,7 +16,7 @@
 #include <QuoteVerification.h>
 #include "curl/curl.h"
 #include "utils/utils.h"
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 #include <openssl/rand.h>
 #include <openssl/evp.h>
@@ -131,7 +131,7 @@ void getFMSPC(X509* certX509, std::string& fmspcVal)
 	///Retrying to get fmspc
 	const int extsCount = X509_get_ext_count(certX509);
 	std::string fmspc;
-	STACK_OF(X509_EXTENSION) *exts = certX509->cert_info->extensions;
+	const STACK_OF(X509_EXTENSION) *exts = X509_get0_extensions(certX509);
 	for (int i=0; i < extsCount; i++) {
 		X509_EXTENSION *ex = sk_X509_EXTENSION_value(exts, i);
 		const ASN1_OBJECT *obj = X509_EXTENSION_get_object(ex);

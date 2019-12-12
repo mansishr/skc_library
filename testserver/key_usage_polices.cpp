@@ -13,7 +13,7 @@
 #include <string.h>
 #include "keyserver.h"
 #include <restbed>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <glib.h>
 #include <glib/gi18n.h>
 #include "k_errors.h"

@@ -149,8 +149,8 @@ apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
     apimodule_ops.init = apimodule_initialize;
     apimodule_ops.load_uri = apimodule_load_uri;
 
-    if ((config_filename = g_getenv("DHSM2_PKCS11_APIMODULE_CONF")) == NULL)
-        config_filename = DHSM2_CONF_PATH "/pkcs11-apimodule.ini"; 
+    if ((config_filename = g_getenv("SKC_PKCS11_APIMODULE_CONF")) == NULL)
+        config_filename = SKC_CONF_PATH "/pkcs11-apimodule.ini"; 
 
     GError *error = NULL;
     void *config = key_config_openfile(config_filename, &error);

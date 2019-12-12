@@ -13,8 +13,8 @@ AC_DEFUN([DHSM_SETUP],
     AC_SUBST(VERSION_INFO)
 
 	full_sysconfdir=`eval eval eval eval eval echo "${sysconfdir}" | sed "s#NONE#${prefix}#" | sed "s#NONE#${ac_default_prefix}#"` 
-	default_dhsm2_conf_path="`eval echo ${full_sysconfdir} | sed s,NONE,$ac_default_prefix,g`"
-	default_dhsm2_install_path="`eval echo ${prefix} | sed s,NONE,$ac_default_prefix,g`"
+	default_skc_conf_path="`eval echo ${full_sysconfdir} | sed s,NONE,$ac_default_prefix,g`"
+	default_skc_install_path="`eval echo ${prefix} | sed s,NONE,$ac_default_prefix,g`"
 
     GLIB_TESTS
     TOPDIR="$srcdir/$1"
@@ -27,20 +27,20 @@ AC_DEFUN([DHSM_SETUP],
     AC_SUBST(COMMON_LDFLAGS)
     AC_SUBST(GLIB_FLAGS)
     AC_SUBST(GLIB_LIBS)
-#AC_DEFINE_UNQUOTED(DHSM2_KEYAGENT_DLL_API_VISIBLITY, 1, [Enable API visibility in keyagent.so] )
+#AC_DEFINE_UNQUOTED(SKC_KEYAGENT_DLL_API_VISIBLITY, 1, [Enable API visibility in keyagent.so] )
 	AC_DEFINE_UNQUOTED(
-		[DHSM2_CONF_PATH],
-		["$default_dhsm2_conf_path"],
+		[SKC_CONF_PATH],
+		["$default_skc_conf_path"],
 		[The default location of configuration file directory]
 	)
 	 
-	AC_SUBST([default_dhsm2_conf_path])
+	AC_SUBST([default_skc_conf_path])
 
 	AC_DEFINE_UNQUOTED(
-		[DHSM2_INSTALL_DIR],
-		["$default_dhsm2_install_path"],
+		[SKC_INSTALL_DIR],
+		["$default_skc_install_path"],
 		[The default installation directory]
 	)
-	AC_SUBST([default_dhsm2_install_path])
+	AC_SUBST([default_skc_install_path])
 ])
 

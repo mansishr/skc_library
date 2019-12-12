@@ -331,7 +331,7 @@ stm_challenge_verify(k_buffer_ptr quote, k_attribute_set_ptr *challenge_attrs, G
 
     quote_info 					= (struct keyagent_sgx_quote_info *)k_buffer_data(quote);
     sgx_server_sgx_stm::quote_type		= quote_info->quote_type;
-    server_stm_init(DHSM2_CONF_PATH, &err);
+    server_stm_init(SKC_CONF_PATH, &err);
     if( err )
     {
 	    k_debug_error(err);

@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
 	}
 	if( !key_agent_config)
 	{
-		key_agent_config = g_strconcat (DHSM2_CONF_PATH,"/key-agent.ini", NULL);
+		key_agent_config = g_strconcat (SKC_CONF_PATH,"/key-agent.ini", NULL);
 	}
 
 	if( !key_server)
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
 		g_print ( "Invalid keyurl \n", argv[0]);
 	    exit (1);
 	}
-	npm_config_dir=g_strconcat(DHSM2_INSTALL_DIR,"/etc/", NULL);
+	npm_config_dir=g_strconcat(SKC_INSTALL_DIR,"/etc/", NULL);
 
 	g_autoptr(GError) tmp_error = NULL;
 	memset (&module, 0x00, sizeof(module_info));

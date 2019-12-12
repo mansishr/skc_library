@@ -1,159 +1,99 @@
 #!/bin/bash
 
-SGX_VERSION=2.6
+SGX_STACK_VERSION=2.7.1
+SGX_DRIVER_VERSION=1.3.1
+SGX_URL="https://download.01.org/intel-sgx/sgx-linux/${SGX_STACK_VERSION}/distro/rhel8.0-server"
 SYSLIB_PATH=/usr/lib64
-KERNEL_DRIVER="kernel-devel-uname-r == $(uname -r)"
-SGX_SDX_CLONE_PATH="https://github.com/intel/linux-sgx.git"
+SGX_DCAP_REPO="https://github.com/intel/SGXDataCenterAttestationPrimitives.git"
 SGX_TOOLKIT_BRANCH="v6+next-major"
 SGX_TOOLKIT_URL="ssh://git-amr-1.devtools.intel.com:29418/distributed_hsm-sgxtoolkit"
 OPENSSL_DOWNLOAD_URL="https://www.openssl.org/source/openssl-1.1.1d.tar.gz"
 SGX_TOOLKIT_INSTALL_PREFIX="/opt/intel/sgxtoolkit"
 GIT_CLONE_PATH=/tmp/sgxstuff
-SGX_DRIVER_VERSION=1.12
-CMAKE_EXPECTED_VERSION=3.13
-NODE_JS_VERSION=10.16.0
-GCC_REQUIRED_VERSION=7
-NODE_JS_URL="https://nodejs.org/dist/v$NODE_JS_VERSION/node-v$NODE_JS_VERSION-linux-x64.tar.xz"
-SGX_TOOLKIT_WITH_DCAP=1
-OP="$1"
-
-if [ -z "$1" ]; then
-	echo "No option provided"
-	OP="install"
-fi
 
 uninstall_sgx()
 {
 	if [[ -d /opt/intel/sgxsdk ]]; then
-		echo "Uninstall SGX SDX"
 		/opt/intel/sgxsdk/uninstall.sh
 	fi
 
 	if [[ -d /opt/intel/sgxpsw ]]; then
-		echo "Uninstall SGX PSW"
 		service aesmd stop
 		/opt/intel/sgxpsw/uninstall.sh
-		rm -rf  /opt/intel/sgxpsw/
 	fi
 
-	if [[ -d /opt/intel/sgxssl ]]; then
-		echo "Uninstall SGX SSL"
-		rm -rf /opt/intel/sgxssl
-	fi
-
-	if [[ -d $SGX_TOOLKIT_INSTALL_PREFIX ]]; then
-		echo "Uninstall SGX Toolkit"
-		rm -rf $SGX_TOOLKIT_INSTALL_PREFIX
-		rm -rf /opt/intel/cryptoapitoolkit/
-	fi
-
-	if [[ -d $GIT_CLONE_PATH ]]; then
-		rm -rf $GIT_CLONE_PATH
-	fi
-
-	modinfo intel_sgx
-	if [ $? -eq 0 ]; then
-		echo "Removing intel_sgx driver"
-		modprobe -r intel_sgx
-		dkms remove -m sgx -v $SGX_DRIVER_VERSION --all
-	else
-		echo "intel_sgx module not installed"
-	fi
+	modprobe -r intel_sgx
+	dkms remove -m sgx -v $SGX_DRIVER_VERSION --all
 
 	if [ -d /usr/src/sgx-$SGX_DRIVER_VERSION ]; then
 		rm -rf /usr/src/sgx-$SGX_DRIVER_VERSION/
 	fi
-	find $SYSLIB_PATH -name 'libsgx_*' -o -name 'libdcap_quoteprov.so*' -o -name 'libQuoteVerification.so' -exec rm -rf {} \;
+
+	if [[ -d /opt/intel/sgxssl ]]; then
+		echo "Uninstalling SGX SSL"
+		rm -rf /opt/intel/sgxssl
+	fi
+
+	if [[ -d $SGX_TOOLKIT_INSTALL_PREFIX ]]; then
+		echo "Uninstalling SGX Toolkit"
+		rm -rf $SGX_TOOLKIT_INSTALL_PREFIX
+		rm -rf /opt/intel/cryptoapitoolkit/
+	fi
+
+	if [[ -d /opt/intel/pccs ]]; then
+		/opt/intel/pccs/uninstall.sh
+		rm -rf /opt/intel/pccs
+		rm /etc/sgx_default_qcnl.conf
+	fi
+
+	find $SYSLIB_PATH -name 'libsgx_*' -exec rm -f {} \;
+	find $SYSLIB_PATH -name 'libdcap_*' -exec rm -f {} \;
+	rm -rf $GIT_CLONE_PATH
+}
+
+download_and_install_pccs_server()
+{
+	pushd $GIT_CLONE_PATH/QuoteGeneration
+        cp -p qcnl/linux/sgx_default_qcnl.conf /etc
+        sed -i "s/USE_SECURE_CERT=.*/USE_SECURE_CERT=FALSE/g" /etc/sgx_default_qcnl.conf
+
+        cp -r pccs /opt/intel
+        pushd /opt/intel/pccs
+
+        openssl genrsa 2048 > private.pem
+        openssl req -new -key private.pem -out csr.pem -subj "/CN=localhost"
+        openssl x509 -req -days 365 -in csr.pem -signkey private.pem -out file.crt
+	
+	sed -i '/"ApiKey":/ s/"ApiKey":[^,]*/"ApiKey": "9e0153b3f0c948d9ade866635f039e1e"/' config/default.json
+	sed -i '/"proxy":/ s/"proxy":[^,]*/"proxy": "http:\/\/proxy-us.intel.com:911"/' config/default.json
+	sed -i '/"uri":/ s/"uri":[^,]*/"uri": "https:\/\/sbx.api.trustedservices.intel.com\/sgx\/certification\/v2\/"/' config/default.json
+
+        ./install.sh
+        popd #/opt/intel/pccs
+
+        popd #GIT_CLONE_PATH
 }
 
 compile_linux_sgx_ssl()
 {
-	set -x
 	mkdir -p $GIT_CLONE_PATH
 	pushd $GIT_CLONE_PATH
 	git clone https://github.com/intel/intel-sgx-ssl.git $GIT_CLONE_PATH/sgxssl
 	cd $GIT_CLONE_PATH/sgxssl
 	cd openssl_source
 	wget $OPENSSL_DOWNLOAD_URL || exit 
-	cd ..
-	cd Linux
-	source /opt/intel/sgxsdk/environment
+	cd ../Linux
 	make clean all || exit 1
 	make install || exit 1
 	popd
 }
 
-download_and_install_pccs_server()
-{
-	mkdir -p $GIT_CLONE_PATH
-	pushd $GIT_CLONE_PATH
-
-	if [ ! -d $GIT_CLONE_PATH/linux-sgx ]; then
-		git clone $SGX_SDX_CLONE_PATH
-	fi
-	pushd linux-sgx
-
-	# checkout external/dcap_source
-	git submodule init
-	git submodule update
-
-	yum install epel-release npm -y
-
-	cp -p external/dcap_source/QuoteGeneration/qcnl/linux/sgx_default_qcnl.conf /etc
-	sed -i "s/USE_SECURE_CERT=.*/USE_SECURE_CERT=FALSE/g" /etc/sgx_default_qcnl.conf
-
-	cp -r external/dcap_source/QuoteGeneration/pccs /opt/intel
-	pushd /opt/intel/pccs
-	sed -i  "6i\\\tproxy: 'http://proxy-us.intel.com:911'," pckclient.js
-	# download and install pre-built nodejs in /usr/local
-	wget $NODE_JS_URL
-	tar xvf node-v*.tar.xz --strip-components=1 -C /usr/local/
-	rm -rf node-v*.tar.xz
-
-	npm config set http-proxy http://proxy-us.intel.com:911/
-	npm config set https-proxy http://proxy-us.intel.com:911/
-	openssl genrsa 2048 > private.pem
-	openssl req -new -key private.pem -out csr.pem -subj "/CN=localhost"
-	openssl x509 -req -days 365 -in csr.pem -signkey private.pem -out file.crt
-printf "{
-\"HTTPS_PORT\": 8081,
-\"hosts\": \"0.0.0.0\",
-\"uri\": \"https://sbx.api.trustedservices.intel.com/sgx/certification/v1/\",
-\"ApiKey\": \"9e0153b3f0c948d9ade866635f039e1e\",
-\"RefreshSchedule\": \"0 0 1 * * *\",
-\"CacheDB\": \"pckcache.db\",
-\"AdminToken\": \"\"
-}" > config.json
-
-	./uninstall.sh
-	./install.sh
-	popd #/opt/intel/pccs
-	
-	popd #linux-sgx
-	popd #GIT_CLONE_PATH
-}
-
 download_and_install_sgx_components()
 {
 	mkdir -p $GIT_CLONE_PATH
-	pushd $GIT_CLONE_PATH
-
-	gcc_version_check
-
-	git clone $SGX_SDX_CLONE_PATH
-	pushd linux-sgx
-
-	git checkout 50d5bec588674c22b60eaf5a5dea0368c7cde97f
-
-	# checkout external/dcap_source	
-	git submodule init
-	git submodule update || exit 1
-
-	yum install epel-release automake autoconf libtool ocaml ocaml-ocamlbuild unzip wget python openssl-devel libcurl-devel protobuf-devel cmake cmake3 zip dkms llvm-toolset-7-cmake llvm-toolset-7 -y
-
-	# DCAP driver build and installation
-	pushd external/dcap_source/driver/linux
-	yum install "kernel-devel-uname-r == $(uname -r)" -y
+	pushd  $GIT_CLONE_PATH
+	git clone $SGX_DCAP_REPO $GIT_CLONE_PATH/
+	pushd driver/linux
 	mkdir -p /usr/src/sgx-$SGX_DRIVER_VERSION/
 	cp -rpf * /usr/src/sgx-$SGX_DRIVER_VERSION/
 
@@ -162,86 +102,30 @@ download_and_install_sgx_components()
 	dkms install -m sgx -v $SGX_DRIVER_VERSION
 	modprobe intel_sgx
 
-	popd #external/dcap_source/driver/linux
+	popd #driver/linux
 
-	# build SGX SDK and PSW
-	./download_prebuilt.sh
-
-	# SGX SDK and PSW compilation
-	make || exit 1
-	make sdk_install_pkg
-	make psw_install_pkg
-
-	#installation
-	pushd linux/installer/bin/
-	chmod 777 *.bin
-	./sgx_linux_x64_psw_*.bin
-	./sgx_linux_x64_sdk_*.bin
-	source /opt/intel/sgxsdk/environment
-	popd #linux/installer/bin/
-
-	pushd external/dcap_source/
-	pushd QuoteGeneration
-
-	./download_prebuilt.sh
-	# On CentOS, QuoteGeneration make does not work as it tries to build debian package
-	make pkg || exit 1
-	popd #QuoteGeneration
+	wget -nd -rNc -e robots=off -l1 --no-parent --reject "index.html*" -A "*.bin" $SGX_URL
+	chmod +x *.bin
+	# install SGX PSW including aesmd
+	./sgx_linux_x64_psw*.bin || exit 1
+	# install SGX SDK
+	./sgx_linux_x64_sdk*.bin -prefix=/opt/intel || exit 1
 	
-	cp -p QuoteGeneration/quote_wrapper/common/inc/sgx_quote_3.h QuoteVerification/Src/AttestationLibrary/include/SgxEcdsaAttestation/QuoteVerification.h QuoteGeneration/pce_wrapper/inc/sgx_pce.h QuoteGeneration/quote_wrapper/common/inc/sgx_ql_lib_common.h QuoteGeneration/quote_wrapper/ql/inc/sgx_dcap_ql_wrapper.h /opt/intel/sgxsdk/include/
+	cd  $GIT_CLONE_PATH/QuoteGeneration
+	# Downlad and install the Intel signed architecture enclaves (QE, PCE)
+	./download_prebuilt.sh
 
-	cp -p QuoteGeneration/build/linux/*.so $SYSLIB_PATH
-	cp -p QuoteGeneration/psw/ae/data/prebuilt/*.so $SYSLIB_PATH
+	# Build the Quote Generation and Quote Provider Libraries
+	make quote_wrapper qpl_wrapper || exit 1
+
+	# Since QGL make supports only ubuntu package, we need to manualy copy few include files and Quote Generation libs
+	cp build/linux/*.so $SYSLIB_PATH
+	cp psw/ae/data/prebuilt/libsgx_qe3.signed.so psw/ae/data/prebuilt/libsgx_pce.signed.so $SYSLIB_PATH
+	cp -p quote_wrapper/common/inc/sgx_quote_3.h pce_wrapper/inc/sgx_pce.h quote_wrapper/ql/inc/sgx_dcap_ql_wrapper.h quote_wrapper/common/inc/sgx_ql_lib_common.h ../QuoteVerification/QVL/Src/AttestationLibrary/include/SgxEcdsaAttestation/QuoteVerification.h /opt/intel/sgxsdk/include/
 	ln -fs $SYSLIB_PATH/libsgx_dcap_ql.so $SYSLIB_PATH/libsgx_dcap_ql.so.1
-	ln -fs $SYSLIB_PATH/libsgx_default_qcnl_wrapper.so $SYSLIB_PATH/libsgx_default_qcnl_wrapper.so.1
-	ln -fs $SYSLIB_PATH/libdcap_quoteprov.so $SYSLIB_PATH/libdcap_quoteprov.so.1
-
-	pushd QuoteVerification/Src
-	CMAKE_ACTUAL_VERSION=$(cmake --version | sed "s/\(cmake\|cmake3\) version \([0-9]\.[0-9]\+\).*/\2/" | head -n1)
-	RESULT=$(echo "$CMAKE_ACTUAL_VERSION != $CMAKE_EXPECTED_VERSION" | bc -l)
-	if [ $RESULT -eq 1 ]; then
-		#Cmake3 version 3.13 required for QuoteVerification library to commpile with error so moving system installed cmake 3.6 to llvm-toolset cmake
-		mv /opt/rh/llvm-toolset-7/root/usr/bin/cmake /opt/rh/llvm-toolset-7/root/usr/bin/cmake_bck
-		ln -s /usr/bin/cmake3 /opt/rh/llvm-toolset-7/root/usr/bin/cmake
-		echo "		copying cmake3 version"
-	fi
-	sed -i 's/^BUILD_TESTS=ON$/BUILD_TESTS=OFF/g' release
-	./release || exit 1
-	popd #QuoteVerification/Src
-	cp -p QuoteVerification/Src/Build/Release/dist/lib/libQuoteVerification.so $SYSLIB_PATH
-	popd #external/dcap_source/
-
-	popd #linux-sgx
-	popd #$SGX_SDX_CLONE_PATH
-}
-
-core_sgx_setup()
-{
-	uninstall_sgx
-	download_and_install_sgx_components
-	compile_linux_sgx_ssl
-}
-
-gcc_version_check()
-{
-	yum install bc -y
-	rpm -q gcc
-	if [ $? -ne 0 ]; then
-		"GCC Package not found, please install the following: yum install gcc-c++ git kernel-headers autotools-latest kernel-devel $KERNEL_DRIVER"
-		exit 0
-	fi
-
-	GCC_ACTUAL_VERSION=$(gcc -dumpversion | sed "s/\([0-9]\).*/\1/")
-	RESULT=$(echo "$GCC_ACTUAL_VERSION >= $GCC_REQUIRED_VERSION" | bc -l)
-	echo "$GCC_ACTUAL_VERSION, $cmd, $result"
-
-	if [ $RESULT -eq 0 ]; then
-	     	echo "Expected GCC version: $GCC_REQUIRED_VERSION does not matched with actual $GCC_ACTUAL_VERSION"
-		echo  -e "Please run following command\nyum install centos-release-scl scl-utils devtoolset-7-gcc-c++ llvm-toolset-7-cmake llvm-toolset-7 -y\n"
-		echo -e "scl enable devtoolset-7 llvm-toolset-7 \"/bin/sh scripts/build_sgx.sh\""
-		exit -1
-	fi
-	echo "Required GCC version Found"
+	ln -sf $SYSLIB_PATH/libsgx_default_qcnl_wrapper.so $SYSLIB_PATH/libsgx_default_qcnl_wrapper.so.1
+	ln -sf $SYSLIB_PATH/libdcap_quoteprov.so $SYSLIB_PATH/libdcap_quoteprov.so.1
+	popd
 }
 
 setup_sgx_toolkit()
@@ -254,35 +138,24 @@ setup_sgx_toolkit()
 	pushd  $GIT_CLONE_PATH/distributed_hsm-sgxtoolkit
 	git checkout $SGX_TOOLKIT_BRANCH
 	git apply sgx_measurement.diff
+	
 	bash autogen.sh
-
-	if [ $SGX_TOOLKIT_WITH_DCAP ]; then
-	./configure --prefix=$SGX_TOOLKIT_INSTALL_PREFIX --with-dcap-path=$GIT_CLONE_PATH/linux-sgx/external/dcap_source
-	else
-	./configure --prefix=$SGX_TOOLKIT_INSTALL_PREFIX
-	fi
+	./configure --prefix=$SGX_TOOLKIT_INSTALL_PREFIX --with-dcap-path=$GIT_CLONE_PATH
 	make install || exit 1
 	popd
 }
 
-if [[ "$OP" = *"uninstall"* ]]; then
-	echo "Uninstall SGX commponents"
-	uninstall_sgx
-elif [[ "$OP" = *"install" ]]; then
-	echo "Install SGX components (Driver, SDK, PSW)"
-	yum install gcc-c++ git kernel-headers autotools-latest kernel-devel -y
-	core_sgx_setup
-	download_and_install_pccs_server
-	setup_sgx_toolkit
-elif [[ "$OP" = *"install-pccs-server"* ]]; then
-	echo "Install SGX PCCS server"
-	download_and_install_pccs_server
-elif [[ "$OP" = *"install-sgxtoolkit"* ]]; then
-	setup_sgx_toolkit
-elif [[ "$OP" = *"install-sgxssl"* ]]; then
-	compile_linux_sgx_ssl
-else
-	"Command: invalid command"
-fi
+install_prerequisites()
+{
+	yum groupinstall -y "Development Tools"
+	# RHEL 8 does not provide epel repo out of the box yet.
+	rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+	yum install -y python2 dkms kernel-devel-$(uname -r) elfutils-libelf-devel wget npm libcurl-devel ocaml protobuf || exit 1
+}
 
-#please provide /opt/intel as installation path for SDK
+install_prerequisites
+uninstall_sgx
+download_and_install_sgx_components
+compile_linux_sgx_ssl
+download_and_install_pccs_server
+setup_sgx_toolkit

@@ -10,7 +10,7 @@
 #include <openssl/err.h>
 #include <openssl/x509_vfy.h>
 #include <exception>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <string>
 #include "utils/utils.h"
 

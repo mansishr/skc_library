@@ -82,7 +82,7 @@ main (int argc, char *argv[])
 	k_debug_msg("TESTING");
 	if (!configfile)
 	{
-		configfile = g_strconcat (DHSM2_CONF_PATH,"/key-agent.ini", NULL);
+		configfile = g_strconcat (SKC_CONF_PATH,"/key-agent.ini", NULL);
 	}
 	if (!api_module && !keyurl && !keyagent_init(configfile, &error))
 	{

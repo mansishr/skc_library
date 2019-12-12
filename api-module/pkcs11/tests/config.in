@@ -55,7 +55,7 @@ sed -i -e "s|__DHSM_MODE__|${MODE}|g" \
     -e "s|__TOOLKIT_MODULE__|${TOOLKIT_MODULE}|g" \
     "$DATADIR/pkcs11-apimodule.ini"
 
-export DHSM2_PKCS11_APIMODULE_CONF=$DATADIR/pkcs11-apimodule.ini
+export SKC_PKCS11_APIMODULE_CONF=$DATADIR/pkcs11-apimodule.ini
 
 PIN=1234
 TOKENNAME=KMS

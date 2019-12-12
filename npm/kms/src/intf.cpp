@@ -8,7 +8,7 @@
 #include "npm/kms/kms.h"
 #include "utils/utils.h"
 #include "k_debug.h"
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <exception>
 
 using namespace std;

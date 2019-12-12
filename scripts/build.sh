@@ -11,7 +11,7 @@ else
 fi
 
 
-set_log $FLAG_ENABLE "DHSM2_WORKLOAD"
+set_log $FLAG_ENABLE "SKC_WORKLOAD"
 
 install_pre_requisites "devOps"
 check_pre_condition $FLAG_ENABLE 
@@ -20,13 +20,13 @@ install_pre_requisites "dev"
 
 bash ${script_dir}/pre-req.sh "${script_dir}" "$1" 
 
-if [ $DHSM2_PRIVATE_KEY_SUPPORT -eq $TRUE ] && [ -d ${DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR} ]; then
+if [ $SKC_PRIVATE_KEY_SUPPORT -eq $TRUE ] && [ -d ${SKC_COMPONENT_EXT_LIBCURL_INSTALL_DIR} ]; then
    	log_msg $LOG_DEBUG "with libcurl "		
-	conf_ops=" --with-libcurl=${DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR}"
+	conf_ops=" --with-libcurl=${SKC_COMPONENT_EXT_LIBCURL_INSTALL_DIR}"
 fi
-if [ -d "${DHSM2_SGX_TOOLKIT_PATH}" ]; then
+if [ -d "${SKC_SGX_TOOLKIT_PATH}" ]; then
    	log_msg $LOG_DEBUG "with sgx toolkit "		
-	conf_ops="${conf_ops} --with-sgx-toolkit=${DHSM2_SGX_TOOLKIT_PATH}"
+	conf_ops="${conf_ops} --with-sgx-toolkit=${SKC_SGX_TOOLKIT_PATH}"
 fi
 
 pushd ${script_dir}/../
@@ -36,7 +36,7 @@ log_msg $LOG_DEBUG "KeyAgent: AutoConfigure completed"
 
 log_msg $LOG_DEBUG "KeyAgent: compilation started"
 
-cmd="./configure --prefix=${DHSM2_COMPONENT_INSTALL_DIR} --disable-static ${conf_ops}"
+cmd="./configure --prefix=${SKC_COMPONENT_INSTALL_DIR} --disable-static ${conf_ops}"
 exec_linux_cmd "$cmd" $EXEC_RULE_ABORT "SKC: configure cmd:$cmd" $CODE_EXEC_ERROR
 log_msg $LOG_DEBUG "KeyAgent: compilation completed"
 
@@ -49,5 +49,5 @@ log_msg $LOG_DEBUG "KeyAgent: Installation started"
 exec_linux_cmd "make install" $EXEC_RULE_ABORT 'SKC: make install' $CODE_EXEC_ERROR
 log_msg $LOG_DEBUG "KeyAgent: Installation completed"
 
-exit_script $LOG_DEBUG "Workload component installed in path:${DHSM2_INSTALL_DIR} successfully" $CODE_EXEC_SUCCESS
+exit_script $LOG_DEBUG "Workload component installed in path:${SKC_INSTALL_DIR} successfully" $CODE_EXEC_SUCCESS
 popd

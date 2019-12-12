@@ -308,16 +308,16 @@ int main(int argc, char** argv)
 	}
 
     if (!server::configfile)
-		server::configfile = g_strconcat (DHSM2_CONF_PATH,"/testserver.ini", NULL);
+		server::configfile = g_strconcat (SKC_CONF_PATH,"/testserver.ini", NULL);
 
     if (!server::certfile)
-        server::certfile = g_strconcat (DHSM2_INSTALL_DIR,"/store/testserver/ssl/server/server_certificate.pem", NULL);
+        server::certfile = g_strconcat (SKC_INSTALL_DIR,"/store/testserver/ssl/server/server_certificate.pem", NULL);
 
     if (!server::dhparam)
-        server::dhparam = g_strconcat (DHSM2_INSTALL_DIR,"/store/testserver/ssl/client/dhparam.pem", NULL);
+        server::dhparam = g_strconcat (SKC_INSTALL_DIR,"/store/testserver/ssl/client/dhparam.pem", NULL);
 
     if (!server::cert_pool)
-        server::cert_pool = g_strconcat (DHSM2_INSTALL_DIR,"/store/testserver/ssl/CA", NULL);
+        server::cert_pool = g_strconcat (SKC_INSTALL_DIR,"/store/testserver/ssl/CA", NULL);
 
     g_string_append(server::abs_cert_path, realpath(server::certfile, NULL));
     g_string_append(server::abs_dhparam_path, realpath(server::dhparam, NULL));
@@ -411,7 +411,7 @@ int main(int argc, char** argv)
 
 	if( server::generate_cert_with_key == TRUE)
 	{
-		server::cert_key_path = g_string_new(key_config_get_string_optional(config, "core", "key_cert_path", DHSM2_INSTALL_DIR));
+		server::cert_key_path = g_string_new(key_config_get_string_optional(config, "core", "key_cert_path", SKC_INSTALL_DIR));
         g_string_append(server::cert_key_path, "/store/testserver/ssl/client");
 
         k_info_msg("Creating cert folder:%s", server::cert_key_path->str);

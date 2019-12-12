@@ -3,7 +3,7 @@
 #include <glib.h>
 
 
-#if (( __GNUC__ >= 4 ) && (!DHSM2_KEYAGENT_DLL_API_VISIBLITY))
+#if (( __GNUC__ >= 4 ) && (!SKC_KEYAGENT_DLL_API_VISIBLITY))
     #define DLL_PUBLIC __attribute__ ((visibility ("default")))
     #define DLL_LOCAL  __attribute__ ((visibility ("hidden")))
 #else

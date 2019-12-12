@@ -170,8 +170,8 @@ check_linux_version()
         local OS=$(cat /etc/*release | grep ^NAME | cut -d'"' -f2)
         local VER=$(cat /etc/*release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
 				
-		local os_arr_size=`expr ${#DHSM2_COMPONENT_INSTALL_OS[*]} - 1`;
-        local ver_arr_size=`expr ${#DHSM2_COMPONENT_INSTALL_OS_VER[*]} - 1`;
+		local os_arr_size=`expr ${#SKC_COMPONENT_INSTALL_OS[*]} - 1`;
+        local ver_arr_size=`expr ${#SKC_COMPONENT_INSTALL_OS_VER[*]} - 1`;
 
         log_msg $LOG_DEBUG "OS Array Size:${os_arr_size}, Ver Array Size:${ver_arr_size}"
 
@@ -181,8 +181,8 @@ check_linux_version()
         fi
 
         for i in $(seq 0 ${os_arr_size}); do
-                PARAM_OS="${DHSM2_COMPONENT_INSTALL_OS[$i]}";
-                PARAM_VER="${DHSM2_COMPONENT_INSTALL_OS_VER[$i]}";
+                PARAM_OS="${SKC_COMPONENT_INSTALL_OS[$i]}";
+                PARAM_VER="${SKC_COMPONENT_INSTALL_OS_VER[$i]}";
 				#log_msg $LOG_DEBUG "Input OS distribution ${OS}:${PARAM_OS} version ${VER}:${PARAM_VER}"
 		
         if [[ "${OS}" = "${PARAM_OS}" ]]; then
@@ -247,9 +247,9 @@ download_external_components()
     $(exec_linux_cmd "mkdir -p $EXT_DIR" $EXEC_RULE_ABORT "Creating directory $1" $CODE_EXEC_SUCCESS)
     download_external_openssl $EXT_DIR
     download_external_libcurl $EXT_DIR
-    if [[ "$DHSM2_SGX_SUPPORT" = "$TRUE" ]]; then
-        download_external_DHSM2_SGXSDK $EXT_DIR
-        download_external_DHSM2_SGXSSL $EXT_DIR
+    if [[ "$SKC_SGX_SUPPORT" = "$TRUE" ]]; then
+        download_external_SKC_SGXSDK $EXT_DIR
+        download_external_SKC_SGXSSL $EXT_DIR
     fi
 }
 
@@ -257,8 +257,8 @@ download_external_openssl()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "wget https://www.openssl.org/source/$DHSM2_COMPONENT_EXT_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Downloading openssl version $DHSM2_COMPONENT_EXT_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "tar xvzf $DHSM2_COMPONENT_EXT_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Untar openssl version $DHSM2_COMPONENT_EXT_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "wget https://www.openssl.org/source/$SKC_COMPONENT_EXT_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Downloading openssl version $SKC_COMPONENT_EXT_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "tar xvzf $SKC_COMPONENT_EXT_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Untar openssl version $SKC_COMPONENT_EXT_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
     popd
 }
 
@@ -266,43 +266,43 @@ download_external_libcurl()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "git clone -b $DHSM2_COMPONENT_EXT_LIBCURL_VERSION https://github.com/curl/curl.git" $EXEC_RULE_ABORT "Cloning libcurl version $DHSM2_COMPONENT_EXT_LIBCURL_VERSION to $1" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "git clone -b $SKC_COMPONENT_EXT_LIBCURL_VERSION https://github.com/curl/curl.git" $EXEC_RULE_ABORT "Cloning libcurl version $SKC_COMPONENT_EXT_LIBCURL_VERSION to $1" $CODE_EXEC_SUCCESS)
     popd
 }
 
-download_external_DHSM2_SGXSDK()
+download_external_SKC_SGXSDK()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "wget https://download.01.org/intel-sgx/linux-2.4/rhel7.4-server/$DHSM2_SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Downloading $DHSM2_SGX_SDK_BIN_VERSION to $1" $CODE_EXEC_SUCCESS)
-    chmod 755 $DHSM2_SGX_SDK_BIN_VERSION
+    $(exec_linux_cmd "wget https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/rhel8.0-server/$SKC_SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Downloading $SKC_SGX_SDK_BIN_VERSION to $1" $CODE_EXEC_SUCCESS)
+    chmod 755 $SKC_SGX_SDK_BIN_VERSION
     popd
 }
 
-download_external_DHSM2_SGXSSL()
+download_external_SKC_SGXSSL()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "git clone -b $DHSM2_SGX_SSL_VERSION https://github.com/intel/intel-sgx-ssl.git sgx-ssl" $EXEC_RULE_ABORT 'Cloning intel-sgx-ssl' $CODE_EXEC_SUCCESS)
-    cp $DHSM2_COMPONENT_EXT_OPENSSL_VERSION.tar.gz sgx-ssl/openssl_source/
+    $(exec_linux_cmd "git clone -b $SKC_SGX_SSL_VERSION https://github.com/intel/intel-sgx-ssl.git sgx-ssl" $EXEC_RULE_ABORT 'Cloning intel-sgx-ssl' $CODE_EXEC_SUCCESS)
+    cp $SKC_COMPONENT_EXT_OPENSSL_VERSION.tar.gz sgx-ssl/openssl_source/
     popd
 }
 
-install_external_components()
+SKC_COMPONENT_OS_PAC_INSTALLERtall_external_components()
 {
     install_external_openssl $1
     install_external_libcurl $1
-    if [[ "$DHSM2_SGX_SUPPORT" = "$TRUE" ]]; then
-        install_external_DHSM2_SGXSDK  $1
-        install_external_DHSM2_SGXSSL  $1
+    if [[ "$SKC_SGX_SUPPORT" = "$TRUE" ]]; then
+        install_external_SKC_SGXSDK  $1
+        install_external_SKC_SGXSSL  $1
     fi
 }
 
 install_external_openssl()
 {
     pushd "$PWD"
-    cd "$1/$DHSM2_COMPONENT_EXT_OPENSSL_VERSION/"
-    $(exec_linux_cmd "./config -d --prefix=$DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring OpenSSL into $DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $CODE_EXEC_SUCCESS)
+    cd "$1/$SKC_COMPONENT_EXT_OPENSSL_VERSION/"
+    $(exec_linux_cmd "./config -d --prefix=$SKC_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring OpenSSL into $SKC_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $CODE_EXEC_SUCCESS)
     $(exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
     $(exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing OpenSSL" $CODE_EXEC_SUCCESS)
     popd
@@ -313,27 +313,27 @@ install_external_libcurl()
     pushd "$PWD"
     cd "$1/curl"
     $(exec_linux_cmd "./buildconf" $EXEC_RULE_ABORT "Building configuration files" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "./configure --prefix=$DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR --with-ssl=$DHSM2_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring libcurl into $(DHSM2_COMPONENT_EXT_LIBCURL_INSTALL_DIR)" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "./configure --prefix=$SKC_COMPONENT_EXT_LIBCURL_INSTALL_DIR --with-ssl=$SKC_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring libcurl into $(SKC_COMPONENT_EXT_LIBCURL_INSTALL_DIR)" $CODE_EXEC_SUCCESS)
     $(exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
     $(exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing libcurl" $CODE_EXEC_SUCCESS)
     popd
 }
 
-install_external_DHSM2_SGXSDK()
+install_external_SKC_SGXSDK()
 {
     pushd "$PWD"
     cd "$1"
-    $(exec_linux_cmd "printf 'no\n$DHSM2_SGX_SDK_INSTALL_PATH\n' | ./$DHSM2_SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Installing DHSM2_SGX SDK" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "printf 'no\n$SKC_SGX_SDK_INSTALL_PATH\n' | ./$SKC_SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Installing SKC_SGX SDK" $CODE_EXEC_SUCCESS)
     popd
 }
 
-install_external_DHSM2_SGXSSL()
+install_external_SKC_SGXSSL()
 {
     pushd "$PWD"
     cd "$1/sgx-ssl/Linux"
     source /opt/intel/sgxsdk/environment
-    $(exec_linux_cmd "make all" "Building DHSM2_SGX SSL" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "make install" "Installing DHSM2_SGX SSL" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make all" "Building SKC_SGX SSL" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "make install" "Installing SKC_SGX SSL" $CODE_EXEC_SUCCESS)
     popd
 }
 
@@ -357,8 +357,6 @@ check_pre_condition()
     fi
 }
 
-
-
 install_pre_requisites()
 {
 	local PRE_REQUISITES="none"
@@ -376,12 +374,18 @@ install_pre_requisites()
 		fi
 	fi
 
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-5.2.8-4.fc30.x86_64.rpm
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-devel-5.2.8-4.fc30.x86_64.rpm
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.8-4.fc30.x86_64.rpm
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall  -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/o/openssl-pkcs11-0.4.10-1.fc30.x86_64.rpm
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libp11-devel-0.4.10-1.fc30.x86_64.rpm
+
 	if [ "${PRE_REQUISITES}" = "dev" ]; then
-	   $DHSM2_COMPONENT_OS_PAC_INSTALLER update -y && $DHSM2_COMPONENT_OS_PAC_INSTALLER install ${DHSM2_COMPONENT_DEV_PRE_REQUISITES} -y
+	   $SKC_COMPONENT_OS_PAC_INSTALLER update -y && $SKC_COMPONENT_OS_PAC_INSTALLER install ${SKC_COMPONENT_DEV_PRE_REQUISITES} -y
 	elif  [ "${PRE_REQUISITES}" = "devOps" ]; then 
-	   $DHSM2_COMPONENT_OS_PAC_INSTALLER install $DHSM2_COMPONENT_DEVOPS_PRE_REQUISITES -y
+	   $SKC_COMPONENT_OS_PAC_INSTALLER groupinstall -y "Development Tools"
 	elif [ "${PRE_REQUISITES}" = "all" ]; then
-	   $DHSM2_COMPONENT_OS_PAC_INSTALLER update -y && $DHSM2_COMPONENT_OS_PAC_INSTALLER install $DHSM2_COMPONENT_DEVOPS_PRE_REQUISITES -y && $DHSM2_COMPONENT_OS_PAC_INSTALLER install ${DHSM2_COMPONENT_DEV_PRE_REQUISITES} -y
+	   $SKC_COMPONENT_OS_PAC_INSTALLER update -y && $SKC_COMPONENT_OS_PAC_INSTALLER groupinstall "Development Tools" -y && $SKC_COMPONENT_OS_PAC_INSTALLER install ${SKC_COMPONENT_DEV_PRE_REQUISITES} -y
 	fi
 
 	if [ $? -ne 0 ]; then
@@ -393,17 +397,17 @@ install_pre_requisites()
 
 set_permission_and_grp()
 {
-	groupadd ${DHSM2_COMPONENT_GRP}
+	groupadd ${SKC_COMPONENT_GRP}
 	if [ $? -eq 0 ] || [ $? -eq 9 ]; then
-		exit_script $LOG_ERROR "Group ${DHSM2_COMPONENT_GRP} add" $CODE_EXEC_ERROR
+		exit_script $LOG_ERROR "Group ${SKC_COMPONENT_GRP} add" $CODE_EXEC_ERROR
 	fi 
 
-	if [ ! -d ${DHSM2_COMPONENT_INSTALL_DIR} ]; then
-		exit_script $LOG_ERROR "Group ${DHSM2_COMPONENT_GRP} add configuration failed" $CODE_EXEC_ERROR
+	if [ ! -d ${SKC_COMPONENT_INSTALL_DIR} ]; then
+		exit_script $LOG_ERROR "Group ${SKC_COMPONENT_GRP} add configuration failed" $CODE_EXEC_ERROR
 	fi
-	chgrp -hR ${DHSM2_COMPONENT_GRP} ${DHSM2_COMPONENT_INSTALL_DIR} 
-	chmod ${DHSM2_COMPONENT_GRP_PERMISSION} ${DHSM2_COMPONENT_INSTALL_DIR}
-	chmod +t ${DHSM2_COMPONENT_INSTALL_DIR}
+	chgrp -hR ${SKC_COMPONENT_GRP} ${SKC_COMPONENT_INSTALL_DIR} 
+	chmod ${SKC_COMPONENT_GRP_PERMISSION} ${SKC_COMPONENT_INSTALL_DIR}
+	chmod +t ${SKC_COMPONENT_INSTALL_DIR}
 }
 
 get_file_count()

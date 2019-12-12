@@ -13,7 +13,7 @@
 #include "key-agent/stm/stm.h"
 #include "utils/utils.h"
 
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 #include <glib.h>
 #include <glib/gi18n.h>

@@ -2,7 +2,7 @@
 #define  __KEYSERVER_H__
 
 #include "k_types.h"
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <memory>
 #include <glib.h>
 #include "key-agent/types.h"

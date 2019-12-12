@@ -12,8 +12,8 @@ fi
 remove_existing_workload_code()
 {
     $(exec_linux_cmd "crontab -l | grep -v 'credential_agent.ini' | crontab - " $EXEC_RULE_WARN "Removing credential agent crontab" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "rm -rf ${DHSM2_CRED_AGENT_LOG_PATH}" $EXEC_RULE_WARN "Removing log dir" ${CODE_EXEC_ERROR})
-    $(exec_linux_cmd "rm -rf ${DHSM2_COMPONENT_INSTALL_DIR}" $EXEC_RULE_WARN "Removing Workload Installed code" $CODE_EXEC_SUCCESS)
+    $(exec_linux_cmd "rm -rf ${SKC_CRED_AGENT_LOG_PATH}" $EXEC_RULE_WARN "Removing log dir" ${CODE_EXEC_ERROR})
+    $(exec_linux_cmd "rm -rf ${SKC_COMPONENT_INSTALL_DIR}" $EXEC_RULE_WARN "Removing Workload Installed code" $CODE_EXEC_SUCCESS)
 }
 
 run_workload_devops()

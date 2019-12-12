@@ -46,18 +46,6 @@ static CK_BBOOL bTrue = CK_TRUE;
     } \
 } while(0)
 
-struct ck_gcm_params {
-  unsigned char *iv_ptr;
-  unsigned long iv_len;
-  unsigned long iv_bits;
-  unsigned char *aad_ptr;
-  unsigned long aad_len;
-  unsigned long tag_bits;
-};  
-    
-typedef struct ck_gcm_params CK_GCM_PARAMS;
-typedef struct ck_gcm_params *CK_GCM_PARAMS_PTR;
-
 #define DEFAULT_SPID_LEN 	32    
 #define CKM_AES_KEY_WRAP        (0x2109UL)
 #define CKM_AES_KEY_WRAP_PAD    (0x210aUL)

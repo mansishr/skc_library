@@ -340,7 +340,7 @@ int main(int argc, char* argv[])
     if( getenv("INSTALLDIR") != NULL )
     	     module_path = g_string_new(getenv("INSTALLDIR"));
     else
-    	     module_path = g_string_new(DHSM2_INSTALL_DIR);
+    	     module_path = g_string_new(SKC_INSTALL_DIR);
 
     g_string_append(module_path, "/lib/libpkcs11-api.so");
     if (load_module(module_path->str, &func_list) != CKR_OK) {
