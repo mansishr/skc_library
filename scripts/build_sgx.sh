@@ -46,12 +46,12 @@ uninstall_sgx()
 		rm /etc/sgx_default_qcnl.conf
 	fi
 
-	find $SYSLIB_PATH -name 'libsgx_*' -exec rm -f {} \;
-	find $SYSLIB_PATH -name 'libdcap_*' -exec rm -f {} \;
+	find $SYSLIB_PATH -name 'libsgx*' -exec rm -f {} \;
+	find $SYSLIB_PATH -name 'libdcap*' -exec rm -f {} \;
 	rm -rf $GIT_CLONE_PATH
 }
 
-download_and_install_pccs_server()
+install_pccs()
 {
 	pushd $GIT_CLONE_PATH/QuoteGeneration
         cp -p qcnl/linux/sgx_default_qcnl.conf /etc
@@ -74,7 +74,7 @@ download_and_install_pccs_server()
         popd #GIT_CLONE_PATH
 }
 
-compile_linux_sgx_ssl()
+install_sgxssl()
 {
 	mkdir -p $GIT_CLONE_PATH
 	pushd $GIT_CLONE_PATH
@@ -88,7 +88,7 @@ compile_linux_sgx_ssl()
 	popd
 }
 
-download_and_install_sgx_components()
+install_sgx_components()
 {
 	mkdir -p $GIT_CLONE_PATH
 	pushd  $GIT_CLONE_PATH
@@ -128,7 +128,7 @@ download_and_install_sgx_components()
 	popd
 }
 
-setup_sgx_toolkit()
+install_sgxtoolkit()
 {
 	mkdir -p $SGX_TOOLKIT_INSTALL_PREFIX
 	rm -rf $GIT_CLONE_PATH/distributed_hsm-sgxtoolkit
@@ -155,7 +155,7 @@ install_prerequisites()
 
 install_prerequisites
 uninstall_sgx
-download_and_install_sgx_components
-compile_linux_sgx_ssl
-download_and_install_pccs_server
-setup_sgx_toolkit
+install_sgx_components
+install_sgxssl
+install_pccs
+install_sgxtoolkit

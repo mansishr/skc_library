@@ -10,13 +10,11 @@ else
     echo -e "Utils Script not found Error, Exit." && exit 1
 fi
 
-
 set_log $FLAG_ENABLE "SKC_WORKLOAD"
 
-install_pre_requisites "devOps"
 check_pre_condition $FLAG_ENABLE 
+install_pre_requisites "devOps"
 install_pre_requisites "dev"
-
 
 bash ${script_dir}/pre-req.sh "${script_dir}" "$1" 
 

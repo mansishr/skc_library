@@ -53,7 +53,6 @@ to_stderr(){
 	(>&2 $*)
 }
 
-
 log_msg()
 {
 	local log_level=$1
@@ -374,6 +373,7 @@ install_pre_requisites()
 		fi
 	fi
 
+	rpm -Uvh https://rpmfind.net/linux/epel/7Server/x86_64/Packages/m/makeself-2.2.0-3.el7.noarch.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-5.2.8-4.fc30.x86_64.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-devel-5.2.8-4.fc30.x86_64.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.8-4.fc30.x86_64.rpm
