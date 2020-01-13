@@ -373,11 +373,13 @@ install_pre_requisites()
 		fi
 	fi
 
-	rpm -Uvh https://rpmfind.net/linux/epel/7Server/x86_64/Packages/m/makeself-2.2.0-3.el7.noarch.rpm
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-8.el8.noarch.rpm
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/s/softhsm-2.5.0-3.fc30.1.x86_64.rpm
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/m/makeself-2.4.0-3.fc30.noarch.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-5.2.8-4.fc30.x86_64.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-devel-5.2.8-4.fc30.x86_64.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.8-4.fc30.x86_64.rpm
-	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall  -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/o/openssl-pkcs11-0.4.10-1.fc30.x86_64.rpm
+	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/o/openssl-pkcs11-0.4.10-1.fc30.x86_64.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libp11-devel-0.4.10-1.fc30.x86_64.rpm
 
 	if [ "${PRE_REQUISITES}" = "dev" ]; then
