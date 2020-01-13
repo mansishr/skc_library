@@ -379,8 +379,12 @@ install_pre_requisites()
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-5.2.8-4.fc30.x86_64.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-devel-5.2.8-4.fc30.x86_64.rpm
 	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.8-4.fc30.x86_64.rpm
-	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/o/openssl-pkcs11-0.4.10-1.fc30.x86_64.rpm
-	$SKC_COMPONENT_OS_PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libp11-devel-0.4.10-1.fc30.x86_64.rpm
+	git clone https://github.com/OpenSC/libp11.git && cd libp11
+	./bootstrap
+	./configure --with-enginesdir=/usr/lib64/engines-1.1/
+	make install
+	cd ..
+	rm -rf libp11
 
 	if [ "${PRE_REQUISITES}" = "dev" ]; then
 	   $SKC_COMPONENT_OS_PAC_INSTALLER update -y && $SKC_COMPONENT_OS_PAC_INSTALLER install ${SKC_COMPONENT_DEV_PRE_REQUISITES} -y
