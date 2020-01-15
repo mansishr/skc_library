@@ -113,6 +113,7 @@ install_sgx_components()
 	# install SGX SDK
 	./sgx_linux_x64_sdk*.bin -prefix=/opt/intel || exit 1
 	
+	rm -rf *.bin
 	cd  $GIT_CLONE_PATH/QuoteGeneration
 	# Downlad and install the Intel signed architecture enclaves (QE, PCE)
 	./download_prebuilt.sh
@@ -149,6 +150,8 @@ install_sgxtoolkit()
 
 install_prerequisites()
 {
+	# On a fresh box, this is required for following updates to work
+	yum update -y
 	yum groupinstall -y "Development Tools"
 	# RHEL 8 does not provide epel repo out of the box yet.
 	yum localinstall -y https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-8.el8.noarch.rpm
