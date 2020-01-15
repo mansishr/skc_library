@@ -16,8 +16,6 @@ if [ -z "$1" ]; then
 fi
 ver="$1"
 
-install_pre_requisites "devOps"
-
 build_dir="${script_dir}/build"
 bin_name="${SKC_COMPONENT_BIN_PREFIX}${ver}.bin"
 
@@ -62,13 +60,8 @@ else
 	echo -e \"Utils Script not found Error, Exit.\" && exit 1
 fi
 set_log $FLAG_ENABLE \"SKC_WORKLOAD\"
-install_pre_requisites
-if [ $? -ne $CODE_EXEC_SUCCESS ]; then
-	exit_script $LOG_ERROR "Pre-requisties installation" $CODE_ERROR
-fi
 
 rm -rf $SKC_COMPONENT_INSTALL_DIR
-#sudo mkdir $SKC_COMPONENT_INSTALL_DIR
 sudo tar -xvf workload_bins.tar.gz -C /
 curl -v -X GET \"https://sbx.api.trustedservices.intel.com/sgx/certification/v1/qe/identity\" -o /opt/skc/store/qeIdentity.json
 chmod 777 /opt/skc/store/qeIdentity.json 

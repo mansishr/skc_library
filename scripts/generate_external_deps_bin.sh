@@ -20,7 +20,6 @@ if [ $SKC_PRIVATE_KEY_SUPPORT != $TRUE ]; then
 	exit $CODE_EXEC_SUCCESS
 fi
 
-
 install_pre_requisites "devOps"
 
 build_dir="${script_dir}/build_ext_deps"
@@ -31,7 +30,6 @@ rm -rf $build_dir/
 if [ ! -d $SKC_COMPONENT_EXT_LIBCURL_INSTALL_DIR ]; then
 	exit_script $LOG_ERROR "${SKC_COMPONENT_EXT_LIBCURL_INSTALL_DIR} or ${SKC_COMPONENT_EXT_OPENSSL_INSTALL_DIR} is empty" $CODE_EXEC_ERROR
 fi
-
 
 mkdir -p $build_dir/scripts/
 
@@ -66,7 +64,6 @@ install_pre_requisites
 if [ $? -ne $CODE_EXEC_SUCCESS ]; then
 	exit_script $LOG_ERROR "Pre-requisties installation" $CODE_ERROR
 fi
-
 
 curl_lib_cnt=\$(get_file_count \"libcurl.so.$SKC_COMPONENT_REQ_LIB_CURL_VER*\")
 log_msg $LOG_DEBUG \"Count: curl: \$curl_lib_cnt\"

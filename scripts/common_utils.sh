@@ -10,26 +10,14 @@ readonly EXEC_RULE_ABORT=1
 readonly EXEC_RULE_WARN=2
 
 readonly CODE_EXEC_SUCCESS=0
-readonly CODE_PARSE_ERROR=1
-readonly CODE_INPUT_ERROR=2
-readonly CODE_IO_FAILURE=3
-readonly CODE_EXEC_ERROR=4
-readonly CODE_EXEC_WARN=5
-readonly CODE_OPENSSL_ERROR=6
-readonly CODE_CONCURRENCY_ERROR=7
-readonly CODE_CONFIG_ERROR=8
-readonly CODE_OS_ERROR=9
-readonly CODE_DEPS_ERROR=10
-
-#=====================================================================================================================
-#LOGGING_CONSTANT
-#=====================================================================================================================
+readonly CODE_EXEC_ERROR=1
+readonly CODE_CONFIG_ERROR=2
+readonly CODE_OS_ERROR=3
 
 readonly CODE_ERROR='\033[0;31m' #RED_COLOR
 readonly CODE_OK='\033[0;32m'  #GREEN_COLOR
 readonly CODE_WARNING='\033[0;33m' #BROWN/ORANGE_COLOR   
 readonly CODE_NC='\033[0m' #NO_COLOR`
-
 
 declare -a LOG_PREFIX=("${CODE_OK}INFO:" "${CODE_ERROR}ERROR:" "${CODE_WARNING}WARN:"  "${CODE_OK}DEBUG:")
 declare -a LOG_SUFFIX=(" successful${CODE_NC}" " failed!${CODE_NC}" " not successful !${CODE_NC}"  ".${CODE_NC}")
@@ -42,12 +30,10 @@ readonly LOG_DEBUG=3
 #DEFAULT_LOGGING
 declare FLAG_VERBOSE=$FLAG_DISABLE
 declare LOG_FILE=""
-#=====================================================================================================================
-#VARIABLES
+
 declare SELF_PID=$$
 declare EXIT_STAT_FILE=$(mktemp)
 declare LOG_PREFIX=""
-
 
 to_stderr(){
 	(>&2 $*)
@@ -57,7 +43,6 @@ log_msg()
 {
 	local log_level=$1
 	local log_msg=$2
-	#if [ $FLAG_VERBOSE -eq $FLAG_ENABLE ] || [ $log_level -eq $LOG_ERROR ]; then
 	if [ $FLAG_VERBOSE -eq $FLAG_ENABLE ]; then
 		$(to_stderr echo -e "${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}") 
 		if [ ! -z "$LOG_FILE" ] && [ -f $LOG_FILE ]; then
@@ -66,6 +51,7 @@ log_msg()
 		fi
 	fi
 }
+
 get_log()
 {
 	echo $FLAG_VERBOSE
@@ -76,6 +62,7 @@ set_log()
 	FLAG_VERBOSE=$1
 	LOGGING_PREFIX=$2
 }
+
 set_log_file()
 {
 	if [ ! -z "$1" -a "$1" != " " ]; then
@@ -88,7 +75,6 @@ set_log_file()
 
 send_status()
 {
-  #log_msg $LOG_DEBUG "Caught Signal ..."
   local exit_val=$(cat $EXIT_STAT_FILE)
   rm -rf $EXIT_STAT_FILE
   exit $exit_val
@@ -138,7 +124,7 @@ lock() {
 	local file_name=$2
 
 	eval "exec $lock_fd>/var/lock/.${file_name}_lock"
-    flock -n $lock_fd \
+	flock -n $lock_fd \
         && return 0 \
         || return 1
 }
@@ -185,15 +171,15 @@ check_linux_version()
 				#log_msg $LOG_DEBUG "Input OS distribution ${OS}:${PARAM_OS} version ${VER}:${PARAM_VER}"
 		
         if [[ "${OS}" = "${PARAM_OS}" ]]; then
-			#Compare OS versions: CentOS version should be 7 or later, RHEL version should be 7.5 or later
-			compare_os_version=`echo "$VER >= $PARAM_VER" | bc`
-			if [ $compare_os_version ]; then
-				log_msg $LOG_DEBUG "OS distribution ${OS} version ${VER} matched"
-				return $CODE_EXEC_SUCCESS
-			else
-				log_msg $LOG_WARN "Error: OS distribution ${OS} version ${VER} NOT Correct!\n"
-				continue;
-			fi
+		#Compare OS versions: CentOS version should be 7 or later, RHEL version should be 7.5 or later
+		compare_os_version=`echo "$VER >= $PARAM_VER" | bc`
+		if [ $compare_os_version ]; then
+			log_msg $LOG_DEBUG "OS distribution ${OS} version ${VER} matched"
+			return $CODE_EXEC_SUCCESS
+		else
+			log_msg $LOG_WARN "Error: OS distribution ${OS} version ${VER} NOT Correct!\n"
+			continue;
+		fi
     	else
             log_msg $LOG_WARN "OS distribution -${OS}:${PARAM_OS}- Not Supported\n"
             continue;
@@ -201,7 +187,7 @@ check_linux_version()
 
     	done
 		
-		return $CODE_OS_ERROR
+	return $CODE_OS_ERROR
 }
  
 CheckWhetherProcessRunning()
@@ -214,7 +200,6 @@ CheckWhetherProcessRunning()
 		return $CODE_EXEC_ERROR
 	fi
 }
-
 
 download_deps()
 {
@@ -237,105 +222,6 @@ download_deps()
 	fi
 	popd 
 }
-
-download_external_components()
-{
-    EXT_DIR=$1
-    echo "External DIR=$EXT_DIR"
-    $(exec_linux_cmd "rm -rf $EXT_DIR" $EXEC_RULE_ABORT "Creating directory $1" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "mkdir -p $EXT_DIR" $EXEC_RULE_ABORT "Creating directory $1" $CODE_EXEC_SUCCESS)
-    download_external_openssl $EXT_DIR
-    download_external_libcurl $EXT_DIR
-    if [[ "$SKC_SGX_SUPPORT" = "$TRUE" ]]; then
-        download_external_SKC_SGXSDK $EXT_DIR
-        download_external_SKC_SGXSSL $EXT_DIR
-    fi
-}
-
-download_external_openssl()
-{
-    pushd "$PWD"
-    cd "$1"
-    $(exec_linux_cmd "wget https://www.openssl.org/source/$SKC_COMPONENT_EXT_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Downloading openssl version $SKC_COMPONENT_EXT_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "tar xvzf $SKC_COMPONENT_EXT_OPENSSL_VERSION.tar.gz" $EXEC_RULE_ABORT "Untar openssl version $SKC_COMPONENT_EXT_OPENSSL_VERSION" $CODE_EXEC_SUCCESS)
-    popd
-}
-
-download_external_libcurl()
-{
-    pushd "$PWD"
-    cd "$1"
-    $(exec_linux_cmd "git clone -b $SKC_COMPONENT_EXT_LIBCURL_VERSION https://github.com/curl/curl.git" $EXEC_RULE_ABORT "Cloning libcurl version $SKC_COMPONENT_EXT_LIBCURL_VERSION to $1" $CODE_EXEC_SUCCESS)
-    popd
-}
-
-download_external_SKC_SGXSDK()
-{
-    pushd "$PWD"
-    cd "$1"
-    $(exec_linux_cmd "wget https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/rhel8.0-server/$SKC_SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Downloading $SKC_SGX_SDK_BIN_VERSION to $1" $CODE_EXEC_SUCCESS)
-    chmod 755 $SKC_SGX_SDK_BIN_VERSION
-    popd
-}
-
-download_external_SKC_SGXSSL()
-{
-    pushd "$PWD"
-    cd "$1"
-    $(exec_linux_cmd "git clone -b $SKC_SGX_SSL_VERSION https://github.com/intel/intel-sgx-ssl.git sgx-ssl" $EXEC_RULE_ABORT 'Cloning intel-sgx-ssl' $CODE_EXEC_SUCCESS)
-    cp $SKC_COMPONENT_EXT_OPENSSL_VERSION.tar.gz sgx-ssl/openssl_source/
-    popd
-}
-
-SKC_COMPONENT_OS_PAC_INSTALLERtall_external_components()
-{
-    install_external_openssl $1
-    install_external_libcurl $1
-    if [[ "$SKC_SGX_SUPPORT" = "$TRUE" ]]; then
-        install_external_SKC_SGXSDK  $1
-        install_external_SKC_SGXSSL  $1
-    fi
-}
-
-install_external_openssl()
-{
-    pushd "$PWD"
-    cd "$1/$SKC_COMPONENT_EXT_OPENSSL_VERSION/"
-    $(exec_linux_cmd "./config -d --prefix=$SKC_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring OpenSSL into $SKC_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing OpenSSL" $CODE_EXEC_SUCCESS)
-    popd
-}
-
-install_external_libcurl()
-{
-    pushd "$PWD"
-    cd "$1/curl"
-    $(exec_linux_cmd "./buildconf" $EXEC_RULE_ABORT "Building configuration files" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "./configure --prefix=$SKC_COMPONENT_EXT_LIBCURL_INSTALL_DIR --with-ssl=$SKC_COMPONENT_EXT_OPENSSL_INSTALL_DIR" $EXEC_RULE_ABORT "Configuring libcurl into $(SKC_COMPONENT_EXT_LIBCURL_INSTALL_DIR)" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "make" $EXEC_RULE_ABORT "Compiling OpenSSL" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "make install" $EXEC_RULE_ABORT "Installing libcurl" $CODE_EXEC_SUCCESS)
-    popd
-}
-
-install_external_SKC_SGXSDK()
-{
-    pushd "$PWD"
-    cd "$1"
-    $(exec_linux_cmd "printf 'no\n$SKC_SGX_SDK_INSTALL_PATH\n' | ./$SKC_SGX_SDK_BIN_VERSION" $EXEC_RULE_ABORT "Installing SKC_SGX SDK" $CODE_EXEC_SUCCESS)
-    popd
-}
-
-install_external_SKC_SGXSSL()
-{
-    pushd "$PWD"
-    cd "$1/sgx-ssl/Linux"
-    source /opt/intel/sgxsdk/environment
-    $(exec_linux_cmd "make all" "Building SKC_SGX SSL" $CODE_EXEC_SUCCESS)
-    $(exec_linux_cmd "make install" "Installing SKC_SGX SSL" $CODE_EXEC_SUCCESS)
-    popd
-}
-
 
 check_pre_condition()
 {
@@ -395,13 +281,12 @@ install_pre_requisites()
 	fi
 
 	# required for aes_test
-	ln -s /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
+	ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
 
 	if [ $? -ne 0 ]; then
 		exit_script $LOG_ERROR "Pre-Requisites installation" $CODE_EXEC_ERROR
 	fi
 	log_msg $LOG_DEBUG "Pre-Requisites installation" 
-
 }
 
 set_permission_and_grp()
@@ -428,7 +313,6 @@ get_file_count()
 
 compile_safestring()
 {
-
 	echo $PATH
 	mkdir -p $PWD/safestringlib/obj
 	mkdir -p $PWD/safestringlib/objtest

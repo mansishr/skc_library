@@ -13,8 +13,7 @@ fi
 set_log $FLAG_ENABLE "SKC_WORKLOAD"
 
 check_pre_condition $FLAG_ENABLE 
-install_pre_requisites "devOps"
-install_pre_requisites "dev"
+install_pre_requisites
 
 bash ${script_dir}/pre-req.sh "${script_dir}" "$1" 
 
