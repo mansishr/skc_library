@@ -394,6 +394,9 @@ install_pre_requisites()
 	   $SKC_COMPONENT_OS_PAC_INSTALLER update -y && $SKC_COMPONENT_OS_PAC_INSTALLER groupinstall "Development Tools" -y && $SKC_COMPONENT_OS_PAC_INSTALLER install ${SKC_COMPONENT_DEV_PRE_REQUISITES} -y
 	fi
 
+	# required for aes_test
+	ln -s /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
+
 	if [ $? -ne 0 ]; then
 		exit_script $LOG_ERROR "Pre-Requisites installation" $CODE_EXEC_ERROR
 	fi
