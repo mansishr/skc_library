@@ -1,6 +1,7 @@
 #!/bin/bash
 
 SGX_STACK_VERSION=2.7.1
+SGX_DCAP_TAG=DCAP_1.3.1
 SGX_DRIVER_VERSION=1.3.1
 SGX_URL="https://download.01.org/intel-sgx/sgx-linux/${SGX_STACK_VERSION}/distro/rhel8.0-server"
 SYSLIB_PATH=/usr/lib64
@@ -93,6 +94,7 @@ install_sgx_components()
 	mkdir -p $GIT_CLONE_PATH
 	pushd  $GIT_CLONE_PATH
 	git clone $SGX_DCAP_REPO $GIT_CLONE_PATH/
+	git checkout $SGX_DCAP_TAG
 	pushd driver/linux
 	mkdir -p /usr/src/sgx-$SGX_DRIVER_VERSION/
 	cp -rpf * /usr/src/sgx-$SGX_DRIVER_VERSION/
