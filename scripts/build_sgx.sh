@@ -65,6 +65,7 @@ install_pccs()
         openssl req -new -key private.pem -out csr.pem -subj "/CN=localhost"
         openssl x509 -req -days 365 -in csr.pem -signkey private.pem -out file.crt
 	
+	# These are Sandbox (Preprod Intel PCS Server) API Subscription Ket and Url Values
 	sed -i '/"ApiKey":/ s/"ApiKey":[^,]*/"ApiKey": "9e0153b3f0c948d9ade866635f039e1e"/' config/default.json
 	sed -i '/"proxy":/ s/"proxy":[^,]*/"proxy": "http:\/\/proxy-us.intel.com:911"/' config/default.json
 	sed -i '/"uri":/ s/"uri":[^,]*/"uri": "https:\/\/sbx.api.trustedservices.intel.com\/sgx\/certification\/v2\/"/' config/default.json
@@ -128,6 +129,11 @@ install_sgx_components()
 	ln -fs $SYSLIB_PATH/libsgx_dcap_ql.so $SYSLIB_PATH/libsgx_dcap_ql.so.1
 	ln -sf $SYSLIB_PATH/libsgx_default_qcnl_wrapper.so $SYSLIB_PATH/libsgx_default_qcnl_wrapper.so.1
 	ln -sf $SYSLIB_PATH/libdcap_quoteprov.so $SYSLIB_PATH/libdcap_quoteprov.so.1
+
+	# Build PCKIDRetrieval tool so that SGX Agent can extract platform collaterals
+	cd $GIT_CLONE_PATH/tools/PCKRetrievalTool/
+	make || exit 1
+	cp -prf PCKIDRetrievalTool enclave.signed.so libdcap_quoteprov.so.1 /usr/local/bin
 	popd
 }
 
