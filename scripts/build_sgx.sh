@@ -82,6 +82,7 @@ install_sgxssl()
 	pushd $GIT_CLONE_PATH
 	git clone https://github.com/intel/intel-sgx-ssl.git $GIT_CLONE_PATH/sgxssl
 	cd $GIT_CLONE_PATH/sgxssl
+	git checkout lin_2.5_1.1.1d
 	cd openssl_source
 	wget $OPENSSL_DOWNLOAD_URL || exit 
 	cd ../Linux
