@@ -48,6 +48,8 @@ uninstall_sgx()
 	find $SYSLIB_PATH -name 'libsgx*' -exec rm -f {} \;
 	find $SYSLIB_PATH -name 'libdcap*' -exec rm -f {} \;
 	find $SYSLIB_PATH -name 'libquote*' -exec rm -f {} \;
+	rm -rf /etc/yum.repos.d/tmp_sgxstuff_sgx_rpm_local_repo.repo
+	rm -rf /usr/local/bin/ld /usr/local/bin/as /usr/local/bin/ld.gold /usr/local/bin/objdump /usr/local/bin/PCKIDRetrievalTool /usr/local/bin/enclave.signed.so /usr/local/libdcap_quoteprov.so.1
 	rm -rf $GIT_CLONE_PATH
 }
 
@@ -76,7 +78,6 @@ install_sgx_components()
 	git clone $SGX_DCAP_REPO $GIT_CLONE_PATH/
 	git checkout $SGX_DCAP_TAG
 	pushd driver/linux
-	make
 	mkdir -p /usr/src/sgx-$SGX_DRIVER_VERSION/
 	cp -rpf * /usr/src/sgx-$SGX_DRIVER_VERSION/
 
@@ -94,6 +95,7 @@ install_sgx_components()
 	chmod +x *.bin
 	# install SGX SDK
 	./sgx_linux_x64_sdk*.bin -prefix=$SGX_INSTALL_DIR || exit 1
+	source $SGX_INSTALL_DIR/sgxsdk/environment
 
 	wget -nv $SGX_URL/sgx_rpm_local_repo.tgz
 	tar -xzf sgx_rpm_local_repo.tgz
@@ -137,15 +139,13 @@ install_sgxtoolkit()
 	git apply sgx_measurement.diff
 	
 	bash autogen.sh
-	./configure --enable-p11-kit --prefix=$SGX_TOOLKIT_INSTALL_PREFIX --enable-dcap
+	./configure --enable-p11-kit --prefix=$SGX_TOOLKIT_INSTALL_PREFIX --enable-dcap || exit 1
 	make install || exit 1
-	./src/test/p11test AsymWrapUnwrapTests > /tmp/sgx_info.txt
 	popd
 }
 
 install_prerequisites()
 {
-	# On a fresh box, this is required for following updates to work
 	yum update -y
 	yum groupinstall -y "Development Tools"
 	# RHEL 8 does not provide epel repo out of the box yet.
