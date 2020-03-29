@@ -63,7 +63,7 @@ set_log $FLAG_ENABLE \"SKC_WORKLOAD\"
 
 rm -rf $SKC_COMPONENT_INSTALL_DIR
 sudo tar -xvf workload_bins.tar.gz -C /
-curl -v -X GET \"https://sbx.api.trustedservices.intel.com/sgx/certification/v1/qe/identity\" -o /opt/skc/store/qeIdentity.json
+curl -v -X GET \"https://api.trustedservices.intel.com/sgx/certification/v2/qe/identity\" -o /opt/skc/store/qeIdentity.json
 chmod 777 /opt/skc/store/qeIdentity.json 
 exit_script $LOG_DEBUG \"Workload Binaries Successfully Installaed\" $CODE_EXEC_SUCCESS
 

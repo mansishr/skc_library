@@ -44,7 +44,6 @@ log_msg()
 		$(to_stderr echo -e "${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}") 
 		if [ ! -z "$LOG_FILE" ] && [ -f $LOG_FILE ]; then
 			echo -e "${LOGGING_PREFIX} [$(date +'%Y-%m-%d %H:%M:%S')]\$ ${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}" >> "$LOG_FILE"
-			#echo -e "$LOG_FILE"
 		fi
 	fi
 }
