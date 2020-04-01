@@ -118,7 +118,7 @@ install_sgx_components()
         ln -sf $SYSLIB_PATH/libdcap_quoteprov.so $SYSLIB_PATH/libdcap_quoteprov.so.1
 
         cp -p qcnl/linux/sgx_default_qcnl.conf /etc
-	sed -i "s|PCCS_URL=.*|PCCS_URL=https://localhost:9443/scs/sgx/certification/v1/|g" /etc/sgx_default_qcnl.conf
+	sed -i "s|PCCS_URL=.*|PCCS_URL=https://localhost:9000/scs/sgx/certification/v1/|g" /etc/sgx_default_qcnl.conf
         sed -i "s/USE_SECURE_CERT=.*/USE_SECURE_CERT=FALSE/g" /etc/sgx_default_qcnl.conf
 	popd
 	# Build PCKIDRetrieval tool so that SGX Agent can extract platform collaterals
