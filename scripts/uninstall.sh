@@ -16,27 +16,4 @@ remove_existing_workload_code()
     $(exec_linux_cmd "rm -rf ${SKC_COMPONENT_INSTALL_DIR}" $EXEC_RULE_WARN "Removing Workload Installed code" $CODE_EXEC_SUCCESS)
 }
 
-run_workload_devops()
-{
-	case "$1" in 
-			uninstall)
-				remove_existing_workload_code
-				;;
-			help)
-				log_msg $LOG_DEBUG "please enter\n$0 uninstall_workload\n"
-				;;
-			*)
-				;;
-	esac
-}
-
-
-set_log ${FLAG_ENABLE}
-
-run_workload_devops "$1"
-if [ $? -ne $CODE_EXEC_SUCCESS ]; then
-	exit_script $LOG_ERROR "Workload not installed successfully" $CODE_EXEC_ERROR
-fi
-exit_script $LOG_DEBUG "Workload installed successfully" $CODE_EXEC_SUCCESS
-
-
+remove_existing_workload_code

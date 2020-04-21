@@ -1,8 +1,5 @@
 #!/bin/bash
 
-export https_proxy=
-export http_proxy=
-
 cwd=$(dirname "$(readlink -f "$0")")
 set -x
 . ${cwd}/../config
@@ -22,8 +19,6 @@ cmdline="rsautl \
 
 echo "set args $cmdline" > ${cwd}/.gdbinit
 export OPENSSL_CONF=$DATADIR/engines.cnf
-
-#LD_DEBUG=all \
 
 OPENSSL_CONF=$DATADIR/engines.cnf \
 $OPENSSL \

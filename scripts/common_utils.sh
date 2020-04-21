@@ -1,33 +1,25 @@
 #!/bin/bash
-
 readonly FLAG_ENABLE=1
 readonly FLAG_DISABLE=0
-
 readonly EXEC_RULE_ABORT=1
 readonly EXEC_RULE_WARN=2
-
 readonly CODE_EXEC_SUCCESS=0
 readonly CODE_EXEC_ERROR=1
 readonly CODE_CONFIG_ERROR=2
 readonly CODE_OS_ERROR=3
-
 readonly CODE_ERROR='\033[0;31m' #RED_COLOR
 readonly CODE_OK='\033[0;32m'  #GREEN_COLOR
 readonly CODE_WARNING='\033[0;33m' #BROWN/ORANGE_COLOR   
 readonly CODE_NC='\033[0m' #NO_COLOR`
-
-declare -a LOG_PREFIX=("${CODE_OK}INFO:" "${CODE_ERROR}ERROR:" "${CODE_WARNING}WARN:"  "${CODE_OK}DEBUG:")
-declare -a LOG_SUFFIX=(" successful${CODE_NC}" " failed!${CODE_NC}" " not successful !${CODE_NC}"  ".${CODE_NC}")
-
 readonly LOG_OK=0
 readonly LOG_ERROR=1
 readonly LOG_WARN=2
 readonly LOG_DEBUG=3
 
-#DEFAULT_LOGGING
+declare -a LOG_PREFIX=("${CODE_OK}INFO:" "${CODE_ERROR}ERROR:" "${CODE_WARNING}WARN:"  "${CODE_OK}DEBUG:")
+declare -a LOG_SUFFIX=(" successful${CODE_NC}" " failed!${CODE_NC}" " not successful !${CODE_NC}"  ".${CODE_NC}")
 declare FLAG_VERBOSE=$FLAG_DISABLE
 declare LOG_FILE=""
-
 declare SELF_PID=$$
 declare EXIT_STAT_FILE=$(mktemp)
 declare LOG_PREFIX=""

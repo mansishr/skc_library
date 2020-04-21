@@ -1,7 +1,6 @@
 #ifndef _KEY_CONFIGFILE_
 #define _KEY_CONFIGFILE_
 
-#include <errno.h>
 #include <glib.h>
 
 #ifdef  __cplusplus

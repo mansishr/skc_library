@@ -1,68 +1,42 @@
 #!/bin/bash
-##=====================================================================================================================
-##COMMON_CONSTANT
-##=====================================================================================================================
-
 readonly FLAG_ENABLE=1
 readonly FLAG_DISABLE=0
-
 readonly EXEC_RULE_ABORT=1
 readonly EXEC_RULE_WARN=2
-
 readonly CODE_EXEC_SUCCESS=0
-readonly CODE_PARSE_ERROR=1
-readonly CODE_INPUT_ERROR=2
-readonly CODE_IO_FAILURE=3
 readonly CODE_EXEC_ERROR=4
-readonly CODE_EXEC_WARN=5
-readonly CODE_OPENSSL_ERROR=6
-readonly CODE_CONCURRENCY_ERROR=7
-
-#=====================================================================================================================
-#LOGGING_CONSTANT
-#=====================================================================================================================
-
 readonly CODE_ERROR='\033[0;31m' #RED_COLOR
 readonly CODE_OK='\033[0;32m'  #GREEN_COLOR
 readonly CODE_WARNING='\033[0;33m' #BROWN/ORANGE_COLOR   
 readonly CODE_NC='\033[0m' #NO_COLOR`
-
-
-declare -a LOG_PREFIX=("${CODE_OK}INFO:" "${CODE_ERROR}ERROR:" "${CODE_WARNING}WARN:"  "${CODE_OK}DEBUG:")
-declare -a LOG_SUFFIX=(" successful${CODE_NC}" " failed!${CODE_NC}" " not successful !${CODE_NC}"  ".${CODE_NC}")
-
 readonly LOG_OK=0
 readonly LOG_ERROR=1
 readonly LOG_WARN=2
 readonly LOG_DEBUG=3
 
-#DEFAULT_LOGGING
+declare -a LOG_PREFIX=("${CODE_OK}INFO:" "${CODE_ERROR}ERROR:" "${CODE_WARNING}WARN:"  "${CODE_OK}DEBUG:")
+declare -a LOG_SUFFIX=(" successful${CODE_NC}" " failed!${CODE_NC}" " not successful !${CODE_NC}"  ".${CODE_NC}")
 declare FLAG_VERBOSE=$FLAG_DISABLE
 declare LOG_FILE=""
-#=====================================================================================================================
-#VARIABLES
 declare SELF_PID=$$
 declare EXIT_STAT_FILE=$(mktemp)
-
 
 to_stderr(){
 	(>&2 $*)
 }
 
-
 log_msg()
 {
 	local log_level=$1
 	local log_msg=$2
-	#if [ $FLAG_VERBOSE -eq $FLAG_ENABLE ] || [ $log_level -eq $LOG_ERROR ]; then
 	if [ $FLAG_VERBOSE -eq $FLAG_ENABLE ]; then
 		to_stderr echo -e "${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}"
 		if [ ! -z "$LOG_FILE" ] && [ -f $LOG_FILE ]; then
 			echo -e "CREDENTIAL_AGENT [$(date +'%Y-%m-%d %H:%M:%S')]\$ ${LOG_PREFIX[$log_level]} ${log_msg} ${LOG_SUFFIX[$log_level]}" >> "$LOG_FILE"
-			#echo -e "$LOG_FILE"
 		fi
 	fi
 }
+
 get_log()
 {
 	echo $FLAG_VERBOSE
@@ -72,6 +46,7 @@ set_log()
 {
 	FLAG_VERBOSE=$1
 }
+
 set_log_file()
 {
 	if [ ! -z "$1" -a "$1" != " " ]; then
@@ -84,10 +59,9 @@ set_log_file()
 
 send_status()
 {
-  #log_msg $LOG_DEBUG "Caught Signal ..."
-  local exit_val=$(cat $EXIT_STAT_FILE)
-  rm -rf $EXIT_STAT_FILE
-  exit $exit_val
+	local exit_val=$(cat $EXIT_STAT_FILE)
+	rm -rf $EXIT_STAT_FILE
+	exit $exit_val
 }
 
 exit_script()
@@ -96,9 +70,6 @@ exit_script()
 	local log_msg="$2"
 	local exit_code=$3
 	log_msg $log_level "$log_msg"
-	#if [[ $exit_code != $CODE_CONCURRENCY_ERROR ]]; then
-		#sleep 30
-	#fi
 	if [ $log_level -eq $LOG_ERROR ] || [ $log_level -eq $LOG_WARN ]; then
 		$(echo $exit_code > $EXIT_STAT_FILE )
 		$(kill -2 $SELF_PID)
@@ -136,9 +107,9 @@ lock() {
 	local file_name=$2
 
 	eval "exec $lock_fd>/var/lock/.${file_name}_lock"
-    flock -n $lock_fd \
-        && return 0 \
-        || return 1
+	flock -n $lock_fd \
+	&& return 0 \
+	|| return 1
 }
 
 update_agent_config()

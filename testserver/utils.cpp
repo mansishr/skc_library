@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <memory>
 #include <limits.h>
@@ -32,43 +31,6 @@ extern "C" {
 #include <openssl/rsa.h>
 #include <openssl/bn.h>
 };
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-
-extern "C" {
-void RSA_get0_key(const RSA *r,
-                  const BIGNUM **n, const BIGNUM **e, const BIGNUM **d)
-{
-    if (n != NULL)
-        *n = r->n;
-    if (e != NULL)
-        *e = r->e;
-    if (d != NULL)
-        *d = r->d;
-}
-
-void RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q)
-{
-    if (p != NULL)
-        *p = r->p;
-    if (q != NULL)
-        *q = r->q;
-}
-
-void RSA_get0_crt_params(const RSA *r,
-                         const BIGNUM **dmp1, const BIGNUM **dmq1,
-                         const BIGNUM **iqmp)
-{
-    if (dmp1 != NULL)
-        *dmp1 = r->dmp1;
-    if (dmq1 != NULL)
-        *dmq1 = r->dmq1;
-    if (iqmp != NULL)
-        *iqmp = r->iqmp;
-}
-};
-
-#endif
 
 void json_print(Json::Value &val)
 {
@@ -108,13 +70,12 @@ std::string json_to_string(Json::Value &input) {
 
 X509_REQ* gen_X509Req(gchar *keyid, EVP_PKEY *pkey)
 {
-    int             ret = 0;
+    int ret = 0;
+    int nVersion = 1;
  
-    int             nVersion = 1;
- 
-    X509_REQ        *x509_req = NULL;
-    X509_NAME       *x509_name = NULL;
-    BIO             *out = NULL, *bio_err = NULL;
+    X509_REQ *x509_req = NULL;
+    X509_NAME *x509_name = NULL;
+    BIO *out = NULL, *bio_err = NULL;
  
     const char      *szCountry = "CA";
     const char      *szProvince = "BC";
@@ -122,19 +83,13 @@ X509_REQ* gen_X509Req(gchar *keyid, EVP_PKEY *pkey)
     const char      *szOrganization = "intel";
     const char      *szCommon = "dhsm2";
  
-	//const char      *szPath = "/tmp/dhsm2_key.csr";
-
 	GString *szPath=NULL;
-
 	
 	szPath = g_string_new(server::cert_key_path->str);
 	g_string_append(szPath, "/");
 	g_string_append(szPath, keyid);
 	g_string_append(szPath, "_key.csr");
-
 	k_debug_msg("Certfile :%s", szPath->str);
- 
-	
  
     // 2. set version of x509 req
     x509_req = X509_REQ_new();
@@ -306,13 +261,11 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 		pfile=fopen(key_file->str, "w");
 		if(!pfile )
 		{
-			//k_critical_msg("File Open Error");	
 			goto out;
 		}
 
 		if(!PEM_write_PrivateKey(pfile,pkey,NULL,NULL, 0,NULL,NULL))
 		{
-			//k_critical_msg("PEM_write_PrivateKey failed");	
 			goto out;
 		}
 		req = gen_X509Req(keyid, pkey);
@@ -468,58 +421,6 @@ int __aes_gcm_encrypt(k_buffer_ptr key, k_buffer_ptr plaintext, k_buffer_ptr iv,
     return ciphertext_len;
 }
 
-void hexDump (char *desc, void *addr, int len) {
-    int i;
-    unsigned char buff[17];
-    unsigned char *pc = (unsigned char*)addr;
-
-    // Output description if given.
-    if (desc != NULL)
-        printf ("%s:\n", desc);
-
-    if (len == 0) {
-        printf("  ZERO LENGTH\n");
-        return;
-    }
-    if (len < 0) {
-        printf("  NEGATIVE LENGTH: %i\n",len);
-        return;
-    }
-
-    // Process every byte in the data.
-    for (i = 0; i < len; i++) {
-        // Multiple of 16 means new line (with line offset).
-
-        if ((i % 16) == 0) {
-            // Just don't print ASCII for the zeroth line.
-            if (i != 0)
-                printf ("  %s\n", buff);
-
-            // Output the offset.
-            printf ("  %04x ", i);
-        }
-
-        // Now the hex code for the specific character.
-        printf (" %02x", pc[i]);
-
-        // And store a printable ASCII character for later.
-        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
-            buff[i % 16] = '.';
-        else
-            buff[i % 16] = pc[i];
-        buff[(i % 16) + 1] = '\0';
-    }
-
-    // Pad out last line if not exactly 16 characters.
-    while ((i % 16) != 0) {
-        printf ("   ");
-        i++;
-    }
-
-    // And print the final ASCII bit.
-    printf ("  %s\n", buff);
-}
-
 extern "C" k_buffer_ptr
 convert_sym_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 {
@@ -534,9 +435,6 @@ convert_sym_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 
     KEYDATA = k_buffer_alloc(NULL, 128/8);
 	RAND_bytes((unsigned char *)k_buffer_data(KEYDATA), k_buffer_length(KEYDATA));
-#ifdef WRAPDEBUG
-	hexDump("key", k_buffer_data(KEYDATA), k_buffer_length(KEYDATA));
-#endif
     STM_TEST_DATA = k_buffer_alloc(NULL, 20);
 	RAND_bytes((unsigned char *)k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA));
     k_debug_generate_checksum("SERVER:STM_TEST_DATA", k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA));
@@ -567,16 +465,16 @@ keyagent_keytype convert_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs, 
 {
 	switch (server::keytype) {
 	case KEYAGENT_RSAKEY:
-			*keydata = convert_rsa_key_to_attr_hash(keyid, attrs);
-			break;
+		*keydata = convert_rsa_key_to_attr_hash(keyid, attrs);
+		break;
 	case KEYAGENT_ECKEY:
-			*keydata = convert_ecc_key_to_attr_hash(keyid, attrs);
-			break;
+		*keydata = convert_ecc_key_to_attr_hash(keyid, attrs);
+		break;
 	case KEYAGENT_AESKEY:
-			*keydata = convert_sym_key_to_attr_hash(keyid, attrs);
-			break;
+		*keydata = convert_sym_key_to_attr_hash(keyid, attrs);
+		break;
 	}
-    return server::keytype;
+	return server::keytype;
 }
 
 typedef struct {

@@ -27,7 +27,7 @@ fi
 
 # Create temperory directroy and copy the necessary scripts for packaging to self-installable binary
 mkdir -p $SKC_DEVOPS_SCRIPTS_PATH
-cp ${script_dir}/*common*.sh* ${script_dir}/*workload* ${script_dir}/*.ini $SKC_DEVOPS_SCRIPTS_PATH
+cp ${script_dir}/*common*.sh* ${script_dir}/*uninstall* ${script_dir}/*.ini $SKC_DEVOPS_SCRIPTS_PATH
 
 mkdir -p $build_dir/scripts/
 
