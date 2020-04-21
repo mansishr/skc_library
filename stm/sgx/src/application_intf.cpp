@@ -71,13 +71,14 @@ application_stm_activate(GError **err)
 	if(sgx_status == SGX_SUCCESS) {
 		switch(sgx_device_status) {
 			case SGX_DISABLED_REBOOT_REQUIRED:
-				k_debug_msg("SGX will be enabled on next reboot");
+				k_info_msg("SGX will be enabled on next reboot");
 				k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "reboot to enable sgx");
 				break;
 			case SGX_DISABLED_UNSUPPORTED_CPU:
 			case SGX_DISABLED:
 			case SGX_DISABLED_LEGACY_OS:
-				k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "sgx not avilable");
+				k_critical_msg("SGX is not available");
+				k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "sgx not available");
 				break;
 			case SGX_ENABLED:
 				ret = TRUE;
@@ -85,8 +86,8 @@ application_stm_activate(GError **err)
 			}
 	}
 	else {
-		k_critical_msg("SGX is not avilable or cannot be enabled");
-		k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "sgx not avilable");
+		k_critical_msg("SGX is not available or cannot be enabled");
+		k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "sgx not available");
 	}
 	return ret;
 }
@@ -109,6 +110,7 @@ stm_create_challenge(keyagent_stm_create_challenge_details *details, GError **er
 		sgx_challenge_request.launch_policy = SGX_QL_EPHEMERAL;
 	} else {
 		sgx_challenge_request.launch_policy = SGX_QL_DEFAULT;
+		k_critical_msg("invalid launch poilcy provided in config");
 		k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "invalid launch policy");
 		return FALSE;
 	}

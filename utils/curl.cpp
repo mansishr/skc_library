@@ -25,7 +25,7 @@ __get_response_header(void *header_buffer, size_t size, size_t nmemb, void *user
         if(curl_easy_setopt((C), (OPT), (VAL)) != CURLE_OK) { \
 		g_error("can't set  %s", #OPT); \
         } \
-} while (0)
+}while(0)
 
 void DLL_LOCAL
 __build_header_list(gpointer data, gpointer user_data)

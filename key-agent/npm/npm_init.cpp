@@ -21,7 +21,7 @@ __initialize_npm(gpointer data, gpointer user_data)
 	{
 		g_set_error(&tmp_error, KEYAGENT_ERROR, KEYAGENT_ERROR_NPMLOAD,
 			"%s", g_module_error ());
-		k_debug_msg(tmp_error);
+		k_critical_msg(tmp_error);
 		goto errexit;
 	}
 	LOOKUP_NPM_INTERFACES(npm, KEYAGENT_ERROR_NPMLOAD);
@@ -40,7 +40,7 @@ errexit:
 			g_warning ("%s: %s", filename, g_module_error ());
 	}
 	npm->module = NULL;
-	k_info_msg ("Error loading npm - %s: %s", filename, tmp_error->message);
+	k_critical_msg ("Error loading npm - %s: %s", filename, tmp_error->message);
 	return;
 }
 

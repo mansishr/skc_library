@@ -42,7 +42,7 @@ errexit:
 			g_warning("%s: %s", filename, g_module_error());
 	}
 	stm->module = NULL;
-	k_info_msg("Error loading stm - %s: %s", filename, tmp_error->message);
+	k_critical_msg("Error loading stm - %s: %s", filename, tmp_error->message);
 	return;
 }
 

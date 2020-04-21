@@ -112,7 +112,7 @@ apimodule_load_module(const char *module_name, CK_FUNCTION_LIST_PTR_PTR funcs)
 		else {
 			k_critical_msg("C_GetFunctionList failed %lx, %s", rv, module_name);
 		}
-	}while (FALSE);
+	}while(FALSE);
 
 	if(mod)
 		apimodule_unload_module((void *) mod);

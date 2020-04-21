@@ -385,7 +385,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 		k_buffer_append(atoken->challenge, k_buffer_data(quote_details) + sizeof(CK_RSA_PUBLIC_KEY_PARAMS),
 				quote_len - sizeof(CK_RSA_PUBLIC_KEY_PARAMS));
 		result = TRUE;
-	}while (FALSE);
+	}while(FALSE);
 
 end:
 	k_buffer_unref(quote_details);

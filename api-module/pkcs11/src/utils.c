@@ -142,20 +142,20 @@ apimodule_findtoken(apimodule_uri_data *data, gboolean *is_token_present)
 
 	rv = func_list->C_GetSlotList(FALSE, NULL_PTR, &nslots);
 	if((rv != CKR_OK) || !nslots) {
-		k_info_msg("C_GetSlotList failed to get no.of.slots %d", nslots);
+		k_critical_msg("C_GetSlotList failed to get no.of.slots %d", nslots);
 		goto end;
 	}
 
 	// Allocate slot memory
 	slots = (CK_SLOT_ID*) calloc(nslots, sizeof(CK_SLOT_ID));
 	if(!slots) {
-		k_info_msg("Couldn't allocate memory for Slot Info details");
+		k_critical_msg("Couldn't allocate memory for Slot Info details");
 		goto end;
 	}
 
 	rv = func_list->C_GetSlotList(FALSE, slots, &nslots);
 	if((rv != CKR_OK) || !nslots) {
-		k_info_msg("C_GetSlotList failed to get no.of.slots %d", nslots);
+		k_critical_msg("C_GetSlotList failed to get no.of.slots %d", nslots);
 		goto end;
 	}
 
@@ -203,7 +203,7 @@ apimodule_createtoken(apimodule_uri_data *uri_data, CK_SESSION_HANDLE_PTR phSess
 	// Find available token, Last token is uninitialized.. use it
 	rv = func_list->C_GetSlotList(FALSE, NULL_PTR, &nslots);
 	if((rv != CKR_OK) || !nslots) {
-		k_info_msg("C_GetSlotList failed to get no.of.slots %d", nslots);
+		k_critical_msg("C_GetSlotList failed to get no.of.slots %d", nslots);
 		goto end;
 	}
 
@@ -414,7 +414,7 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 		k_debug_msg("find-token after token create");
 		if(((rv = apimodule_findtoken(uri_data, &is_present)) != CKR_OK) || !is_present) {
 			k_set_error(err, -1, "Error query token");
-			k_info_msg("Error query token");
+			k_critical_msg("Error query token");
 			break;
 		}
 		if((rv = func_list->C_OpenSession(uri_data->slot_id, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession)) != CKR_OK) {
@@ -432,7 +432,7 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 			break;
 		}
 		atoken->session = hSession;
-	}while (FALSE);
+	}while(FALSE);
 
 	if(rv != CKR_OK) {
 		free_apimodule_token(atoken);

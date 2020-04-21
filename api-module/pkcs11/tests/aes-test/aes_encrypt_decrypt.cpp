@@ -182,7 +182,7 @@ load_module(const char *module_name, CK_FUNCTION_LIST_PTR_PTR funcs)
            return CKR_OK;
         } else
             k_critical_msg("C_GetFunctionList failed %lx", rv);
-    } while (FALSE);
+    }while(FALSE);
     return rv; 
 }
 

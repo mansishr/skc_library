@@ -69,7 +69,7 @@ k_buffer_alloc(void *data, int size)
 	if(!data) {
 		g_byte_array_set_size(buf->bytes, size);
 	} else {
-		k_buffer_append (buf, data, size);
+		k_buffer_append(buf, data, size);
 	}
 	return buf;
 }
@@ -78,7 +78,7 @@ static inline k_buffer_ptr
 k_buffer_ref(k_buffer_ptr buf)
 {
 	g_byte_array_ref(buf->bytes);
-	g_atomic_int_inc (&buf->ref_count);
+	g_atomic_int_inc(&buf->ref_count);
 	return buf;
 }
 

@@ -3,10 +3,11 @@
 
 #ifdef  __cplusplus
 #include <sstream>
+
 static inline gchar *
 __k_debug_generate_checksum(gchar *data, int size)
 {
-	return g_compute_checksum_for_data (G_CHECKSUM_SHA256, (const guchar *)data, (gsize) size);
+	return g_compute_checksum_for_data(G_CHECKSUM_SHA256, (const guchar *)data, (gsize) size);
 }
 
 static inline void

@@ -243,7 +243,7 @@ cleanup:
 	k_buffer_ptr NAME = decode64_json_attr(DATA, JSON_KEY); \
 	KEYAGENT_KEY_ADD_BYTEARRAY_ATTR((ATTRS), NAME); \
 	k_buffer_unref(NAME); \
-} while (0)
+}while(0)
 
 static gboolean
 __npm_loadkey(loadkey_info *info, GError **err)
