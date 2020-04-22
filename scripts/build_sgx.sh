@@ -150,7 +150,7 @@ install_prerequisites()
 	yum groupinstall -y "Development Tools"
 	# RHEL 8 does not provide epel repo out of the box yet.
 	yum localinstall -y https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-8.el8.noarch.rpm
-	yum install -y yum-utils python2 dkms elfutils-libelf-devel wget npm openssl-devel libcurl-devel ocaml protobuf cppunit-devel || exit 1
+	yum install -y yum-utils python3 dkms elfutils-libelf-devel wget npm openssl-devel libcurl-devel ocaml protobuf cppunit-devel || exit 1
 }
 
 install_prerequisites

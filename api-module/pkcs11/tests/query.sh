@@ -13,7 +13,6 @@ if [ $TOKEN_CNT -eq 1 ]; then
 		TOKEN_SLOT=`pkcs11-tool --module $MODULE -L |  tr '\n' '@' | sed -e "s/.*SoftHSM slot \(.*\)@\s\+token label\s\+: $TOKENNAME@.*/\1/"`
 	elif [ -d "$TOOLKIT_INSTALLDIR" ] && [ "x$SGX" == "x1" ]; then
  		TOKEN_SLOT=`pkcs11-tool --module $MODULE -L |  tr '\n' '@' | sed -e "s/.*Crypto API Toolkit Slot ID:\(.*\)@\s\+token label\s\+: $TOKENNAME@.*/\1/"`
-
 	fi
 
 	echo "Token:$TOKENNAME found in module:$MODULE, below are objects in the token"

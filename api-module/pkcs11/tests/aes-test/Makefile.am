@@ -6,4 +6,4 @@ noinst_PROGRAMS = \
 aes_encrypt_decrypt_SOURCES = \
    aes_encrypt_decrypt.cpp
 
-aes_encrypt_decrypt_LDFLAGS =  -ljsoncpp $(GLIB_LIBS) $(GMODULE_LIBS)
+aes_encrypt_decrypt_LDFLAGS =  $(GLIB_LIBS) $(GMODULE_LIBS)

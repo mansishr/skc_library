@@ -8,13 +8,13 @@ libkey_agent_la_SOURCES = \
     intf.cpp \
     request.cpp \
     cert.cpp \
-	../npm/npm_init.cpp \
-	../stm/stm_init.cpp \
-	cache-init.cpp \
-	cache-session.cpp \
-	session.cpp \
-	key.cpp \
-	cache-key.cpp
+    ../npm/npm_init.cpp \
+    ../stm/stm_init.cpp \
+    cache-init.cpp \
+    cache-session.cpp \
+    session.cpp \
+    key.cpp \
+    cache-key.cpp
 
 libkey_agent_la_LDFLAGS = -version-info @VERSION_INFO@ \
 	$(OPENSSL_LIBS) \

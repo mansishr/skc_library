@@ -1,8 +1,5 @@
 #!/bin/bash
 
-unset http_proxy
-unset https_proxy
-
 set -x
 current_dir=$(dirname "$(readlink -f "$0")")
 . ${current_dir}/../config

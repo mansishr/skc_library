@@ -1,24 +1,15 @@
 #define G_LOG_DOMAIN "pkcs11-apimodule"
+#include <gmodule.h>
 #include "config.h"
-#include "k_errors.h"
 #include "k_debug.h"
 #include "internal.h"
-#include <stdio.h>
-#include <gmodule.h>
-#include <glib.h>
-
-
 #include "config-file/key_configfile.h"
-#include "key-agent/key_agent.h"
-#include "key-agent/types.h"
-
-gboolean use_token_objects = FALSE;
 
 static gboolean apimodule_get_challenge(keyagent_apimodule_get_challenge_details *, void *, GError **err);
 static gboolean apimodule_set_wrapping_key(keyagent_apimodule_session_details *, void *, GError **err);
 static gboolean apimodule_load_key(keyagent_apimodule_loadkey_details *, void *, GError **err);
 extern "C" CK_RV apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
-extern "C" gboolean  apimodule_initialize(keyagent_apimodule_ops *ops, GError **err);
+extern "C" gboolean apimodule_initialize(keyagent_apimodule_ops *ops, GError **err);
 static gboolean apimodule_load_uri(const char *uri);
 static gboolean apimodule_preload_keys(GError **err);
 static char* pre_load_keyfile = NULL;
@@ -37,41 +28,41 @@ static char *mode=NULL;
 void
 apimodule_prepare_child(void)
 {
-    C_Finalize(NULL);
-    C_Initialize(NULL);
-    return;
+	C_Finalize(NULL);
+	C_Initialize(NULL);
+	return;
 }
 
 CK_RV
 C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 {
-    static CK_RV rv = CKR_GENERAL_ERROR;
-    static gsize init = 0;
-    if (g_once_init_enter (&init)) {
-        rv = apimodule_init(ppFunctionList);
-	if( g_strcmp0(mode, "SGX") == 0 )
-		pthread_atfork(NULL,NULL, apimodule_prepare_child);
-        g_once_init_leave (&init, 1);
-    }
-    *ppFunctionList = func_list;
-    return rv;
+	static CK_RV rv = CKR_GENERAL_ERROR;
+	static gsize init = 0;
+	if(g_once_init_enter (&init)) {
+		rv = apimodule_init(ppFunctionList);
+		if(g_strcmp0(mode, "SGX") == 0)
+			pthread_atfork(NULL,NULL, apimodule_prepare_child);
+		g_once_init_leave (&init, 1);
+	}
+	*ppFunctionList = func_list;
+	return rv;
 }
 
 CK_RV
 C_Initialize(CK_VOID_PTR pInitArgs)
 {
-    CK_RV ret = -1;
-    GError *error = NULL;
-    static volatile gint preload_keys_flag = 0;
+	CK_RV ret = -1;
+	GError *error = NULL;
+	static volatile gint preload_keys_flag = 0;
 
-    ret = c_initialize(pInitArgs);
-    if ((ret == CKR_OK) || (ret == CKR_CRYPTOKI_ALREADY_INITIALIZED)) {
-	if (!g_atomic_int_add(&preload_keys_flag, 1)) {
-		    if (!apimodule_preload_keys(&error))
-		k_info_error(error);
-	    }
-    }
-    return ret;
+	ret = c_initialize(pInitArgs);
+	if((ret == CKR_OK) || (ret == CKR_CRYPTOKI_ALREADY_INITIALIZED)) {
+		if(!g_atomic_int_add(&preload_keys_flag, 1)) {
+			if(!apimodule_preload_keys(&error))
+				k_info_error(error);
+		}
+	}
+	return ret;
 }
 
 CK_RV
@@ -79,127 +70,126 @@ C_Finalize(CK_VOID_PTR pDummy)
 {
 	return c_finalize(pDummy);
 }
+
 CK_RV
 apimodule_unload_module(void *module)
 {
-    GModule *mod = (GModule *)g_hash_table_lookup(module_hash, (gpointer)module);
-    g_return_val_if_fail(mod, CKR_ARGUMENTS_BAD);
+	GModule *mod = (GModule *)g_hash_table_lookup(module_hash, (gpointer)module);
+	g_return_val_if_fail(mod, CKR_ARGUMENTS_BAD);
 
-    if (g_module_close(mod) < 0)
-	return CKR_FUNCTION_FAILED;
+	if(g_module_close(mod) < 0)
+		return CKR_FUNCTION_FAILED;
 
-    return CKR_OK;
+	return CKR_OK;
 }
 
 CK_RV
 apimodule_load_module(const char *module_name, CK_FUNCTION_LIST_PTR_PTR funcs)
 {
-    GModule *mod = NULL;
+	GModule *mod = NULL;
 	CK_RV rv, (*c_get_function_list)(CK_FUNCTION_LIST_PTR_PTR);
 
-    rv = CKR_GENERAL_ERROR;
-    g_return_val_if_fail(module_name, CKR_GENERAL_ERROR );
-    do {
-	    
-	mod = g_module_open(module_name, G_MODULE_BIND_LOCAL);
-	if (!mod) {
-            k_critical_msg("%s: %s", module_name, g_module_error ());
-            break;
-        }
-        g_hash_table_insert(module_hash, (gpointer)mod, (gpointer)mod);
-        if (!g_module_symbol(mod, "C_GetFunctionList", (gpointer *)&c_get_function_list)) {
-            k_critical_msg("%s: invalid pkcs11 module", module_name);
-            break;
-        }
-	if ((rv = c_get_function_list(funcs)) == CKR_OK) {
-		if (g_module_symbol(mod, "C_Initialize", (gpointer *)&c_initialize))
-		   (*funcs)->C_Initialize = C_Initialize;
-		if (g_module_symbol(mod, "C_Finalize", (gpointer *)&c_finalize))
-		   (*funcs)->C_Finalize = C_Finalize;
-		return CKR_OK;
-	} else{
-		k_critical_msg("C_GetFunctionList failed %lx, %s", rv, module_name);
-	}
-    } while (FALSE);
+	rv = CKR_GENERAL_ERROR;
+	g_return_val_if_fail(module_name, CKR_GENERAL_ERROR);
+	do {
+		mod = g_module_open(module_name, G_MODULE_BIND_LOCAL);
+		if(!mod) {
+			k_critical_msg("%s: %s", module_name, g_module_error());
+			break;
+		}
+		g_hash_table_insert(module_hash, (gpointer)mod, (gpointer)mod);
+		if(!g_module_symbol(mod, "C_GetFunctionList", (gpointer *)&c_get_function_list)) {
+			k_critical_msg("%s: invalid pkcs11 module", module_name);
+			break;
+		}
+		if((rv = c_get_function_list(funcs)) == CKR_OK) {
+			if(g_module_symbol(mod, "C_Initialize", (gpointer *)&c_initialize))
+				(*funcs)->C_Initialize = C_Initialize;
+			if(g_module_symbol(mod, "C_Finalize", (gpointer *)&c_finalize))
+				(*funcs)->C_Finalize = C_Finalize;
+			return CKR_OK;
+		}
+		else {
+			k_critical_msg("C_GetFunctionList failed %lx, %s", rv, module_name);
+		}
+	}while(FALSE);
 
-    if (mod)
-	    apimodule_unload_module((void *) mod);
+	if(mod)
+		apimodule_unload_module((void *) mod);
 	return rv;
 }
-
 
 extern "C"
 CK_RV __attribute__((visibility("default")))
 apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 {
-    int rv = CKR_OK;
-    const char *config_filename = NULL;
+	int rv = CKR_OK;
+	const char *config_filename = NULL;
 
-    apimodule_token_hash = g_hash_table_new(g_str_hash, g_str_equal);
-    apimodule_api_hash = g_hash_table_new(g_str_hash, g_str_equal);
-    module_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
-    g_hash_table_insert(apimodule_api_hash, (gpointer)"SW", sw_apimodule_ops);
+	apimodule_token_hash = g_hash_table_new(g_str_hash, g_str_equal);
+	apimodule_api_hash = g_hash_table_new(g_str_hash, g_str_equal);
+	module_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
+	g_hash_table_insert(apimodule_api_hash, (gpointer)"SW", sw_apimodule_ops);
 #ifdef SGXTOOLKIT
-    g_hash_table_insert(apimodule_api_hash, (gpointer)"SGX", sgx_apimodule_ops);
+	g_hash_table_insert(apimodule_api_hash, (gpointer)"SGX", sgx_apimodule_ops);
 #endif
-    memset(&apimodule_ops, 0, sizeof(apimodule_ops));
-    apimodule_ops.load_key = apimodule_load_key;
-    apimodule_ops.get_challenge = apimodule_get_challenge;
-    apimodule_ops.set_wrapping_key = apimodule_set_wrapping_key;
-    apimodule_ops.init = apimodule_initialize;
-    apimodule_ops.load_uri = apimodule_load_uri;
+	memset(&apimodule_ops, 0, sizeof(apimodule_ops));
+	apimodule_ops.load_key = apimodule_load_key;
+	apimodule_ops.get_challenge = apimodule_get_challenge;
+	apimodule_ops.set_wrapping_key = apimodule_set_wrapping_key;
+	apimodule_ops.init = apimodule_initialize;
+	apimodule_ops.load_uri = apimodule_load_uri;
 
-    if ((config_filename = g_getenv("SKC_PKCS11_APIMODULE_CONF")) == NULL)
-        config_filename = SKC_CONF_PATH "/pkcs11-apimodule.ini"; 
+	if((config_filename = g_getenv("SKC_PKCS11_APIMODULE_CONF")) == NULL)
+		config_filename = SKC_CONF_PATH "/pkcs11-apimodule.ini";
 
-    GError *error = NULL;
-    void *config = key_config_openfile(config_filename, &error);
-    if (!config) {
-        k_critical_error(error);
-        return CKR_GENERAL_ERROR;
-    }
-
-    gboolean debug = key_config_get_boolean_optional(config, "core", "debug", FALSE);
-    if (debug)
-        setenv("G_MESSAGES_DEBUG", "all", 1);
-
-    const char *keyagent_config_filename =  key_config_get_string(config, "core", "keyagent_conf", &error);
-    if (!keyagent_config_filename) {
-        k_critical_error(error);
-        return CKR_GENERAL_ERROR;
-    }
-
-    mode =  key_config_get_string(config, "core", "mode", &error);
-    if (!keyagent_config_filename) {
-        k_critical_error(error);
-        return CKR_GENERAL_ERROR;
-    }
-
-    loadable_module =  key_config_get_string(config, mode, "module", &error);
-    if (!loadable_module) {
-        k_critical_error(error);
-        return CKR_GENERAL_ERROR;
-    }
-
-    use_token_objects = key_config_get_boolean_optional(config, mode, "use_token_objects", FALSE);
-    pre_load_keyfile =  key_config_get_string_optional(config, "core", "preload_keys", "NIL");
-    
-    if ((rv = apimodule_load_module(loadable_module, ppFunctionList)) != CKR_OK)
-        return rv;
-    func_list = *ppFunctionList;
-    k_debug_msg("Loaded: \"%s\"\n", loadable_module);
-    if (!keyagent_init(keyagent_config_filename, &error)) {
+	GError *error = NULL;
+	void *config = key_config_openfile(config_filename, &error);
+	if(!config) {
 		k_critical_error(error);
 		return CKR_GENERAL_ERROR;
-    }
-    k_debug_msg("keyagent_init is successful !!!");
+	}
 
-    if (!keyagent_apimodule_register(mode, &apimodule_ops, &error)) {
-        k_critical_msg(error->message);
-        return FALSE;
-    }
+	gboolean debug = key_config_get_boolean_optional(config, "core", "debug", FALSE);
+	if(debug)
+		setenv("G_MESSAGES_DEBUG", "all", 1);
 
-    k_debug_msg("keyagent_apimodule_register is successful !!!");
+	const char *keyagent_config_filename = key_config_get_string(config, "core", "keyagent_conf", &error);
+	if(!keyagent_config_filename) {
+		k_critical_error(error);
+		return CKR_GENERAL_ERROR;
+	}
+
+	mode = key_config_get_string(config, "core", "mode", &error);
+	if(!keyagent_config_filename) {
+		k_critical_error(error);
+		return CKR_GENERAL_ERROR;
+	}
+
+	loadable_module = key_config_get_string(config, mode, "module", &error);
+	if(!loadable_module) {
+		k_critical_error(error);
+		return CKR_GENERAL_ERROR;
+	}
+
+	pre_load_keyfile = key_config_get_string_optional(config, "core", "preload_keys", "NIL");
+
+	if((rv = apimodule_load_module(loadable_module, ppFunctionList)) != CKR_OK)
+		return rv;
+	func_list = *ppFunctionList;
+	k_debug_msg("Loaded: \"%s\"\n", loadable_module);
+	if(!keyagent_init(keyagent_config_filename, &error)) {
+		k_critical_error(error);
+		return CKR_GENERAL_ERROR;
+	}
+	k_debug_msg("keyagent_init is successful !!!");
+
+	if(!keyagent_apimodule_register(mode, &apimodule_ops, &error)) {
+		k_critical_msg(error->message);
+		return FALSE;
+	}
+
+	k_debug_msg("keyagent_apimodule_register is successful !!!");
 	return rv;
 }
 
@@ -207,266 +197,260 @@ extern "C"
 CK_RV __attribute__((visibility("default")))
 C_OnDemand_KeyLoad (const char *uri_string)
 {
-    CK_RV rv = CKR_OK;
-    GError *err = NULL;
-    gboolean is_present = FALSE;
-    gchar* url = NULL;
-    apimodule_token *atoken = NULL;
-    apimodule_uri_data uri_data;
+	CK_RV rv = CKR_OK;
+	GError *err = NULL;
+	gboolean is_present = FALSE;
+	gchar* url = NULL;
+	apimodule_token *atoken = NULL;
+	apimodule_uri_data uri_data;
 
-    if (!apimodule_uri_to_uri_data(uri_string, &uri_data)) {
-    	rv = CKR_ARGUMENTS_BAD;
-	    goto end;
-    }
+	if(!apimodule_uri_to_uri_data(uri_string, &uri_data)) {
+		rv = CKR_ARGUMENTS_BAD;
+		goto end;
+	}
 
-    atoken = lookup_apimodule_token(uri_data.token_label->str);
-    if (!atoken)
-        atoken = init_apimodule_token(&uri_data, FALSE, &err);
+	atoken = lookup_apimodule_token(uri_data.token_label->str);
+	if(!atoken)
+		atoken = init_apimodule_token(&uri_data, FALSE, &err);
 
-    if (atoken) {
-
-		if( g_strcmp0(atoken->pin->str, uri_data.pin->str) != 0 )
+	if(atoken) {
+		if(g_strcmp0(atoken->pin->str, uri_data.pin->str) != 0)
 		{
 			k_critical_msg("Pin value mismatch for token:%s and ignoring url:%s", uri_data.token_label->str, uri_string);
 			rv = CKR_GENERAL_ERROR;
 			goto end;
 		}
-        rv = apimodule_findobject(atoken->session, &uri_data, &is_present);
-        // If Object/Key label found in Token, return
-        if ((rv != CKR_OK) || is_present)
-            goto end;
-    }
+	rv = apimodule_findobject(atoken->session, &uri_data, &is_present);
+	// If Object/Key label found in Token, return
+	if((rv != CKR_OK) || is_present)
+		goto end;
+	}
 
 	rv = CKR_ARGUMENTS_BAD;
-    if ((url = g_strjoin(":", uri_data.token_label->str, uri_data.key_id->str, uri_data.key_label->str, uri_string, NULL)) != NULL) {
+	if((url = g_strjoin(":", uri_data.token_label->str, uri_data.key_id->str, uri_data.key_label->str, uri_string, NULL)) != NULL) {
 		k_debug_msg("concat url: %s",  url);
-		// Call the Key Agent API to get key details 
-	if (keyagent_loadkey_with_moduledata(url, (void*)&uri_data, &err)) {
-		rv = CKR_OK;
-	} else
-		k_debug_msg("key not loaded");
-		
-        g_free(url);
-	url = NULL;
-     }
+		// Call the Key Agent API to get key details
+		if(keyagent_loadkey_with_moduledata(url, (void*)&uri_data, &err)) {
+			rv = CKR_OK;
+		} else
+			k_critical_msg("key not loaded");
 
+		k_info_msg("C_OnDemand_KeyLoad: %x", rv);
+		g_free(url);
+		url = NULL;
+	}
 end:
-    apimodule_uri_data_cleanup(&uri_data);
-    return rv;
+	apimodule_uri_data_cleanup(&uri_data);
+	return rv;
 }
 
 static gboolean 
 apimodule_get_challenge(keyagent_apimodule_get_challenge_details *details, void *request, GError **err)
 {
-    gboolean result					= FALSE;
-    keyagent_apimodule_ops *ops				= NULL;
-    apimodule_uri_data *data 				= NULL;
-    apimodule_token *atoken 				= NULL;
+	gboolean result = FALSE;
+	keyagent_apimodule_ops *ops = NULL;
+	apimodule_uri_data *data = NULL;
+	apimodule_token *atoken = NULL;
 
-    do {
-    	if (!details || !err || !details->label || !details->module_data) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
+	do {
+		if(!details || !err || !details->label || !details->module_data) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
 		data = (apimodule_uri_data *)details->module_data;
 
-    	if (!data->token_label) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
+		if(!data->token_label) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
 		k_debug_msg("%s for %s", __func__, details->label);
 
-    	atoken = lookup_apimodule_token(data->token_label->str);
-    	if (!atoken)
-        	atoken = init_apimodule_token(data, TRUE, err);
+		atoken = lookup_apimodule_token(data->token_label->str);
+		if(!atoken)
+			atoken = init_apimodule_token(data, TRUE, err);
 
-    	ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
+		ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
 
-    	if (!atoken || !ops) { 
-        	k_set_error(err, -1, "Input parameters are invalid!");
+		if(!atoken || !ops) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
-        if (ops->get_challenge(details, request, err)) {
-		    details->challenge = k_buffer_ref(atoken->challenge);	
-            result = TRUE;
-        }
+		if(ops->get_challenge(details, request, err)) {
+			details->challenge = k_buffer_ref(atoken->challenge);
+			result = TRUE;
+		}
+	}while(FALSE);
 
-    } while(FALSE);
-
-    return result;
+	return result;
 }
 
 static gboolean
 apimodule_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, GError **err)
 {
-    gboolean result							= FALSE;
-    keyagent_apimodule_ops *ops				= NULL;
-    apimodule_uri_data *data 				= NULL;
-    apimodule_token *atoken 				= NULL;
+	gboolean result = FALSE;
+	keyagent_apimodule_ops *ops = NULL;
+	apimodule_uri_data *data = NULL;
+	apimodule_token *atoken = NULL;
 
-    do {
-    	if (!details || !err || !details->module_data) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
+	do {
+		if(!details || !err || !details->module_data) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
 		data = (apimodule_uri_data *)details->module_data;
 
-    	if (!data->token_label) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
+		if(!data->token_label) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
-    	atoken = lookup_apimodule_token(data->token_label->str);
-    	ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
+		atoken = lookup_apimodule_token(data->token_label->str);
+		ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
 
-    	if (!atoken || !ops) { 
-        	k_set_error(err, -1, "Input parameters are invalid!");
+		if(!atoken || !ops) {
+			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
 
-        if (ops->set_wrapping_key(details, extra, err))
-            result = TRUE;
+		if(ops->set_wrapping_key(details, extra, err))
+			result = TRUE;
+	}while(FALSE);
 
-    } while(FALSE);
-
-    return result;
+	return result;
 }
 
 extern "C"
 gboolean __attribute__((visibility("default")))
 apimodule_initialize(keyagent_apimodule_ops *ops, GError **err)
-{ 
-    gboolean ret=FALSE;	
-    if( !ops )
-    {
-        g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_INPUT, "keyagent_apimodule_ops ptr is null");
-	return ret;
-    }
+{
+	gboolean ret = FALSE;
+	if(!ops)
+	{
+		g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_INPUT, "keyagent_apimodule_ops ptr is null");
+		return ret;
+	}
 
-    CK_RV rv;
-    CK_FUNCTION_LIST_PTR func_list;
-    do {
-	rv = C_GetFunctionList(&func_list);
-	if ( rv != CKR_OK )
-	{
-        	g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_API_RETURN_ERROR,  "C_GetFunctionList failed !, rv:%0x\n", rv);
-		break;
-	}
-	rv = C_Initialize(NULL);
-	if (   rv != CKR_OK  && rv != CKR_CRYPTOKI_ALREADY_INITIALIZED )
-	{
-        	g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_API_RETURN_ERROR,  "C_Initialize failed !, rv:%0x\n", rv);
-		break;
-	}
-	memcpy(ops, &apimodule_ops, sizeof(keyagent_apimodule_ops));
-	ret=TRUE;
-	
-    } while(FALSE);
-    return ret;
+	CK_RV rv;
+	CK_FUNCTION_LIST_PTR func_list;
+	do {
+		rv = C_GetFunctionList(&func_list);
+		if(rv != CKR_OK)
+		{
+			g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_API_RETURN_ERROR,  "C_GetFunctionList failed !, rv:%0x\n", rv);
+			break;
+		}
+		rv = C_Initialize(NULL);
+		if(rv != CKR_OK  && rv != CKR_CRYPTOKI_ALREADY_INITIALIZED)
+		{
+			g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_API_RETURN_ERROR,  "C_Initialize failed !, rv:%0x\n", rv);
+			break;
+		}
+		memcpy(ops, &apimodule_ops, sizeof(keyagent_apimodule_ops));
+		ret=TRUE;
+	}while(FALSE);
+	return ret;
 }
-static gboolean 
+
+static gboolean
 apimodule_load_uri(const char *uri)
 {
-    gboolean result				        = FALSE;
-    do {
-	if( uri == NULL || g_strcmp0(uri, "") == 0)
-	{
-		k_critical_msg("Invalid uri:%s\n", uri);
-		break;
-        }
+	gboolean result = FALSE;
+	do {
+		if(uri == NULL || g_strcmp0(uri, "") == 0)
+		{
+			k_critical_msg("Invalid uri:%s\n", uri);
+			break;
+		}
 
-	if (C_OnDemand_KeyLoad ((const char *)uri) != CKR_OK) {
-		 k_critical_msg("C_OnDemand_KeyLoad failed for uri:%s\n", uri);
-		 break;
-	}
-	result = TRUE;
-    }while(FALSE);
-    return result;
+		if(C_OnDemand_KeyLoad((const char *)uri) != CKR_OK) {
+			 k_critical_msg("C_OnDemand_KeyLoad failed for uri:%s\n", uri);
+			 break;
+		}
+		result = TRUE;
+	}while(FALSE);
+	return result;
 }
 
-static gboolean 
+static gboolean
 apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GError **err)
 {
-    gboolean result				        = FALSE;
-    keyagent_apimodule_ops *ops				= NULL;
-    apimodule_uri_data *data 				= NULL;
-    apimodule_token *atoken 				= NULL;
-    do {
-    	if (!details || !err || !details->module_data) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
-		break;
-	}
+	gboolean result = FALSE;
+	keyagent_apimodule_ops *ops = NULL;
+	apimodule_uri_data *data = NULL;
+	apimodule_token *atoken = NULL;
+	do {
+		if(!details || !err || !details->module_data) {
+			k_set_error(err, -1, "Input parameters are invalid!");
+			break;
+		}
 
-	data = (apimodule_uri_data *)details->module_data;
+		data = (apimodule_uri_data *)details->module_data;
 
-    	if (!data->token_label) {
-        	k_set_error(err, -1, "Input parameters are invalid!");
-		break;
-	}
-    	atoken = lookup_apimodule_token(data->token_label->str);
-    	ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
+		if(!data->token_label) {
+			k_set_error(err, -1, "Input parameters are invalid!");
+			break;
+		}
+		atoken = lookup_apimodule_token(data->token_label->str);
+		ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
 
-    	if (!atoken || !ops) { 
-        	k_set_error(err, -1, "Input parameters are invalid!");
-		break;
-	}
-	CK_ULONG type = (details->type == KEYAGENT_AESKEY ? CKO_SECRET_KEY : CKO_PRIVATE_KEY);
+		if(!atoken || !ops) {
+			k_set_error(err, -1, "Input parameters are invalid!");
+			break;
+		}
+		CK_ULONG type = (details->type == KEYAGENT_AESKEY ? CKO_SECRET_KEY : CKO_PRIVATE_KEY);
 
-	if (data->type == CKO_DATA){
-		data->type = type;
-    		k_debug_msg("type is NULL !!!");
-	}
-	if (data->type != type) {
-		k_critical_msg("Incompatible type in uri for key-id:%s", data->key_id->str);
-		k_set_error(err, -1, "Incompatible type in uri for key-id:%s", data->key_id->str);
-		break;
-	}
-        if (ops->load_key(details, extra, err))
-            result = TRUE;
-	
-    } while(FALSE);
+		if(data->type == CKO_DATA) {
+			data->type = type;
+			k_debug_msg("type is NULL !!!");
+		}
+		if(data->type != type) {
+			k_critical_msg("Incompatible type in uri for key-id:%s", data->key_id->str);
+			k_set_error(err, -1, "Incompatible type in uri for key-id:%s", data->key_id->str);
+			break;
+		}
+		if(ops->load_key(details, extra, err))
+			result = TRUE;
+	}while(FALSE);
 
-    return result;
+	return result;
 }
-
 
 gboolean
 apimodule_preload_keys(GError **err)
 {
-    FILE *fp = NULL;
-    char *uri = NULL;
-    size_t len = 0;
-    ssize_t read;
-    gboolean ret = FALSE;
+	FILE *fp = NULL;
+	char *uri = NULL;
+	size_t len = 0;
+	ssize_t read;
+	gboolean ret = FALSE;
 
-    if (g_strcmp0(pre_load_keyfile, "NIL") == 0)
-        return TRUE;
+	if(g_strcmp0(pre_load_keyfile, "NIL") == 0)
+		return TRUE;
 
-    do {
-	if ((fp = fopen(pre_load_keyfile, "r")) == NULL) {
-	        g_set_error (err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE,"Invalid File :%s", __func__);
-            	break;
-        }
+	do {
+		if((fp = fopen(pre_load_keyfile, "r")) == NULL) {
+			g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE,"Invalid File :%s", __func__);
+			break;
+	}
     
-        ret = TRUE;
-        while ((read = getline(&uri, &len, fp)) != -1) {
-            k_debug_msg("Retrieved line of length %zu:\n", read);
-            k_debug_msg("%s", uri);
-		    if (C_OnDemand_KeyLoad ((const char *)uri) != CKR_OK) {
-                ret = FALSE;
-			    if (!*err) g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE, "Error in loading keys:%s", uri);
-            }
-        }
-    } while(FALSE);
+		ret = TRUE;
+		while((read = getline(&uri, &len, fp)) != -1) {
+			k_debug_msg("%s", uri);
+			if(C_OnDemand_KeyLoad((const char *)uri) != CKR_OK) {
+				ret = FALSE;
+			if(!*err)
+				g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE, "Error in loading keys:%s", uri);
+			}
+		}
+	}while(FALSE);
 
-
-    if(fp)
-        fclose(fp);
-    if (uri)
-        free(uri);
-    return ret;
+	if(fp)
+		fclose(fp);
+	if(uri)
+		free(uri);
+	return ret;
 }

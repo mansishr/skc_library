@@ -200,8 +200,6 @@ verify_challenge_and_encode_session(Json::Value &jsondata, const shared_ptr< Ses
         guint length;
         int i;
         k_attribute_ptr attr = NULL;
-        //const char **tmp = (const char **)g_hash_table_get_keys_as_array (challenge_attrs->hash, &length);
-        //k_info_msg("challenge_attrs %p %d", tmp, length);
         for (i = 0, attr = challenge_attrs->attrs; i < challenge_attrs->count; ++i, ++attr) 
             k_info_msg("%d is %s", i, (attr->name ? attr->name : "NULL"));
 
@@ -733,7 +731,7 @@ validate_and_pick_session(gchar *client_ip, std::string session_ids)
     next:
         g_strfreev(stm_session);
         ++i;
-    } while (1);
+    }while(1);
     g_strfreev(ids);
 
 	session_cnt = g_list_length(l);

@@ -1,3 +1,3 @@
 if SGXSDKDIR
-SUBDIRS = src tests
+SUBDIRS = src
 endif

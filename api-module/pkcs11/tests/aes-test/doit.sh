@@ -1,7 +1,4 @@
 #!/bin/bash
-
-export https_proxy=
-export http_proxy=
 set -x
 current_dir=$(dirname "$(readlink -f "$0")")
 . ${current_dir}/../config
