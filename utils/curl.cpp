@@ -23,7 +23,8 @@ __get_response_header(void *header_buffer, size_t size, size_t nmemb, void *user
 
 #define SETOPT(C,OPT,VAL) do { \
         if(curl_easy_setopt((C), (OPT), (VAL)) != CURLE_OK) { \
-		g_error("can't set  %s", #OPT); \
+		g_critical("can't set  %s", #OPT); \
+		return -1; \
         } \
 }while(0)
 
@@ -48,7 +49,7 @@ skc_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *r
 	curl = curl_easy_init();
 	if(!curl)
 	{
-		g_error("curl_easy_init failed!");
+		g_critical("curl_easy_init failed!");
 		return -1;
 	}
 
