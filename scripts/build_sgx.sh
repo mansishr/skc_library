@@ -7,13 +7,14 @@ SGX_RPM_VERSION=2.9.100.2-1
 SGX_URL="https://download.01.org/intel-sgx/sgx-linux/${SGX_STACK_VERSION}/distro/rhel8.0-server"
 SYSLIB_PATH=/usr/lib64
 SGX_DCAP_REPO="https://github.com/intel/SGXDataCenterAttestationPrimitives.git"
-SGX_TOOLKIT_URL="ssh://git@gitlab.devtools.intel.com:29418/psd-pse/crypto-api-toolkit-v2.git"
-SGX_TOOLKIT_BRANCH="external/integration"
+SGX_TOOLKIT_URL="ssh://git@gitlab.devtools.intel.com:29418/sst/isecl/crypto-api-toolkit.git"
+SGX_TOOLKIT_BRANCH="v10+next-major"
 OPENSSL_DOWNLOAD_URL="https://www.openssl.org/source/old/1.1.1/openssl-1.1.1d.tar.gz"
 SGXSSL_CVE_URL="https://download.01.org/intel-sgx/sgx-linux/2.9/as.ld.objdump.gold.r1.tar.gz"
 SGX_INSTALL_DIR=/opt/intel
 SGX_TOOLKIT_INSTALL_PREFIX=$SGX_INSTALL_DIR/sgxtoolkit
 GIT_CLONE_PATH=/tmp/sgxstuff
+P11_KIT_PATH=/usr/include/p11-kit-1/p11-kit/
 
 uninstall_sgx()
 {
@@ -139,7 +140,7 @@ install_sgxtoolkit()
 	git apply sgx_measurement.diff
 	
 	bash autogen.sh
-	./configure --enable-p11-kit --prefix=$SGX_TOOLKIT_INSTALL_PREFIX --enable-dcap || exit 1
+	./configure --with-p11-kit-path=$P11_KIT_PATH --prefix=$SGX_TOOLKIT_INSTALL_PREFIX --enable-dcap || exit 1
 	make install || exit 1
 	popd
 }
