@@ -54,7 +54,6 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 	CK_ATTRIBUTE_PTR id_attr;
 	const char* upin;
 	CK_ATTRIBUTE_PTR priv_class;
-	CK_ULONG typeval;
 	gchar* typestr = NULL;
 	int rv = CKR_OK;
 

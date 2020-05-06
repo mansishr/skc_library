@@ -4,7 +4,9 @@
 #include "key-agent/stm/stm.h"
 #include "include/k_debug.h"
 #include "QuoteGeneration.h"
-
+extern "C" {
+#include "safe_lib.h"
+}
 using namespace std;
 #define SGX_ECDSA_QUOTE_VERIFIABLE 5
 #define REF_ECDSDA_AUTHENTICATION_DATA_SIZE 32
@@ -329,7 +331,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 			}
 			uint32_t certSize = cert_buffer->size;
 			cert_information = k_buffer_alloc(NULL, certSize);
-			memcpy(k_buffer_data(cert_information), (unsigned char*)(cert_buffer->certification_data), certSize);
+			memcpy_s(k_buffer_data(cert_information), k_buffer_length(cert_information), (unsigned char*)(cert_buffer->certification_data), certSize);
 			// Fetch PCK Certificate from PCK Cert chain. PCK is the 1st certificate in the chain.
 			// Hence we will fetch it by getting the position of the ending of PCK and copying it.
 			std::string pckCert;

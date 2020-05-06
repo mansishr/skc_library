@@ -100,6 +100,5 @@ skc_https_send(GString *url, GPtrArray *headers, GString *postdata, GPtrArray *r
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &res_status);
 	curl_easy_cleanup(curl);
 
-out:
 	return res_status;
 }

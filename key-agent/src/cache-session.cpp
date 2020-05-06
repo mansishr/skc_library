@@ -2,7 +2,9 @@
 #include <libgda/gda-blob-op.h>
 #include <sql-parser/gda-sql-parser.h>
 #include "internal.h"
-
+extern "C" {
+#include "safe_lib.h"
+}
 typedef struct {
 	k_buffer_ptr swk;
 	gint id;
@@ -57,7 +59,7 @@ __get_session_from_model(GdaDataModel *model, int row, GError **error) {
 	size = gda_blob_op_get_length(blob->op);
 	gda_blob_op_read_all(blob->op, (GdaBlob *) blob);
 	data->swk = k_buffer_alloc(NULL, size);
-	memcpy(k_buffer_data(data->swk), blob->data.data, size);
+	memcpy_s(k_buffer_data(data->swk), k_buffer_length(data->swk), blob->data.data, size);
 	goto out;
 err:
 	g_free(data);
@@ -72,8 +74,6 @@ __keyagent_cache_loadsessions(GError **error)
 	GdaSqlParser *parser;
 	GdaStatement *stmt;
 	GdaDataModel *model;
-	const GValue *value;
-	GdaBlob *blob;
 	parser = gda_sql_parser_new();
 	gboolean ret = FALSE;
 
@@ -101,7 +101,6 @@ __keyagent_cache_loadsessions(GError **error)
 		__session_data_free(data);
 	}
 	g_object_unref (model);
-out:
 	return ret;
 }
 
@@ -141,9 +140,6 @@ out:
 extern "C" gboolean DLL_LOCAL
 __keyagent_cache_session(keyagent_session *_session, GError **error)
 {
-	GdaStatement *stmt;
-	GdaSet *params;
-	GdaSqlParser *parser;
 	session_data *session_data = NULL;
 	GValue *v_stmlabel, *v_swk, *v_session_id, *v_swk_type;
 	keyagent_session_real *session = (keyagent_session_real *)_session;

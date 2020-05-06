@@ -7,7 +7,6 @@ using namespace keyagent;
 extern "C" void DLL_LOCAL
 __initialize_npm(gpointer data, gpointer user_data)
 {
-	GError **err = (GError **)user_data;
 	const char *filename = (const char *)data;
 	keyagent_npm_real *npm = g_new0(keyagent_npm_real, 1);
 	npm->key_queue = g_queue_new();

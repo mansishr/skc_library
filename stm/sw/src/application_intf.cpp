@@ -51,6 +51,5 @@ stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
 		return FALSE;
 	}
 	ret = (*details->apimodule_load_key_cb)(&details->apimodule_details, NULL, error);
-out:
 	return ret;
 }

@@ -4,6 +4,9 @@
 #include "k_debug.h"
 #include "internal.h"
 #include "config-file/key_configfile.h"
+extern "C" {
+#include "safe_lib.h"
+}
 
 static gboolean apimodule_get_challenge(keyagent_apimodule_get_challenge_details *, void *, GError **err);
 static gboolean apimodule_set_wrapping_key(keyagent_apimodule_session_details *, void *, GError **err);
@@ -349,7 +352,7 @@ apimodule_initialize(keyagent_apimodule_ops *ops, GError **err)
 			g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_API_RETURN_ERROR,  "C_Initialize failed !, rv:%0x\n", rv);
 			break;
 		}
-		memcpy(ops, &apimodule_ops, sizeof(keyagent_apimodule_ops));
+		memcpy_s(ops, sizeof(*ops), &apimodule_ops, sizeof(keyagent_apimodule_ops));
 		ret=TRUE;
 	}while(FALSE);
 	return ret;

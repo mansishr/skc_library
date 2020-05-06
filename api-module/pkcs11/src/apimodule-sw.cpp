@@ -23,7 +23,6 @@ sw_unwrap_symmeric_key(keyagent_apimodule_loadkey_details *details, apimodule_to
 	CK_MECHANISM mechanism = { mechanismType, NULL_PTR, 0 };
 	CK_RV rv;
 	CK_OBJECT_HANDLE hPrivateKey;
-	gboolean ret = FALSE;
 	apimodule_uri_data *uri_data = (apimodule_uri_data *)details->module_data;
 	CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
 	CK_KEY_TYPE keyType = CKK_AES;
@@ -160,7 +159,6 @@ generate_rsa_keypair(apimodule_token *atoken, const char *label, const char *id)
 	CK_BBOOL bPrivatePrk = CK_TRUE;
 	CK_MECHANISM mechanism = { CKM_RSA_PKCS_KEY_PAIR_GEN, NULL_PTR, 0 };
 	CK_ULONG bits = 2048;
-	CK_BYTE pubExp[] = {0x01, 0x00, 0x01};
 	CK_OBJECT_CLASS pubkey_class = CKO_PUBLIC_KEY;
 	CK_OBJECT_CLASS privkey_class = CKO_PRIVATE_KEY;
 	CK_KEY_TYPE rsaKeyType = CKK_RSA;

@@ -166,7 +166,6 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	GString *session_id = NULL;
 	GString *status = NULL;
 
-	GQuark swk_quark = 0;
 	gsize len = 0;
 	long res_status	= -1;
 	gboolean ret_status = FALSE;
@@ -274,8 +273,6 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	GPtrArray *headers = NULL;
 	GPtrArray *policy_headers = NULL;
 	GPtrArray *res_headers = NULL;
-
-	keyagent_session *session = NULL;
 
 	k_buffer_ptr return_data = NULL;
 	k_buffer_ptr policy_ret_data = NULL;
@@ -464,9 +461,7 @@ npm_init(const char *config_directory, GError **err)
 	g_return_val_if_fail(((err || (err?*err:NULL)) && config_directory), NULL);
 	void *config = NULL;
 	gchar *server = NULL;
-	gboolean ret = TRUE;
 	int err_flag = FALSE;
-	const char *retval;
 
 	kms_npm::configfile = g_string_new(g_build_filename(config_directory, "kms_npm.ini", NULL));
 	config = key_config_openfile(kms_npm::configfile->str, err);

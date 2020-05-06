@@ -3,7 +3,9 @@
 #include <unistd.h>
 #include "internal.h"
 #include "config-file/key_configfile.h"
-
+extern "C" {
+#include "safe_lib.h"
+}
 using namespace std;
 
 namespace keyagent {
@@ -274,7 +276,7 @@ keyagent_apimodule_register(const char *label, keyagent_apimodule_ops *ops, GErr
 {
 	gboolean ret = TRUE;
 	g_return_val_if_fail((err || (err?*err:NULL)) && ops, FALSE);
-	memcpy(&keyagent::apimodule_ops,ops, sizeof(keyagent_apimodule_ops));
+	memcpy_s(&keyagent::apimodule_ops, sizeof(keyagent::apimodule_ops), ops, sizeof(keyagent_apimodule_ops));
 	if(label)
 		ret = __keyagent_stm_apimodule_enable(label);
 	return ret;
