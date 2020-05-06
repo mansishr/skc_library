@@ -8,7 +8,6 @@ using namespace keyagent;
 extern "C" void DLL_LOCAL 
 __initialize_stm(gpointer data, gpointer user_data)
 {
-	GError **err = (GError **)user_data;
 	const char *filename = (const char *)data;
 	keyagent_stm_real *stm = g_new0(keyagent_stm_real, 1);
 	stm->module_name = g_string_new(filename);

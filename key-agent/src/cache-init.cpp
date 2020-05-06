@@ -31,7 +31,6 @@ __keyagent_cache_generate_fake_id()
 gboolean DLL_LOCAL
 __open_cache_connection(GError **error)
 {
-	GdaConnection *cnc;
 	GdaSqlParser *parser;
 
 	/* open connection */

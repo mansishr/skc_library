@@ -59,7 +59,6 @@ static void init_npm(module_info *fixture, gconstpointer user_data)
 	g_autoptr(GError) tmp_error = NULL;
 	g_autoptr(GError) tmp_error1 = NULL;
 	g_autoptr(GError) tmp_error2 = NULL;
-	g_autoptr(GError) error = NULL;
 	module_info *minfo = (module_info *)user_data;
 	keyagent_npm_real *npm = (keyagent_npm_real *)&minfo->npm;
 	void *init_func = NPM_MODULE_OP(npm, init);
@@ -106,9 +105,6 @@ static void register_npm(module_info *fixture, gconstpointer user_data)
 static void npm_load_key(module_info *fixture, gconstpointer user_data)
 {
 	g_autoptr(GError) tmp_error = NULL;
-	g_autoptr(GError) tmp_error1 = NULL;
-	g_autoptr(GError) tmp_error2 = NULL;
-	g_autoptr(GError) tmp_error3 = NULL;
 	module_info *minfo = (module_info *)user_data;
 	keyagent_npm_real *npm = (keyagent_npm_real *)&minfo->npm;
 
@@ -138,7 +134,6 @@ static void fsetup (module_info *fixture, gconstpointer user_data)
 	g_test_log_set_fatal_handler (fatal_handler, NULL);
 	g_test_set_nonfatal_assertions ();
 	module_info *module_data = (module_info *)user_data;
-	g_autoptr(GError) error                                 = NULL;
 	load_npm_module(module_data);
 }
 

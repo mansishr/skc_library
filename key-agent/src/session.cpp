@@ -11,7 +11,6 @@ __get_session_ids(gpointer key, gpointer data, gpointer user_data)
 {
 	keyagent_session_real *session_data = (keyagent_session_real*)data;
 	GString *session_ids = (GString *)user_data;
-	char *session = NULL;
 
 	if(session_ids->len)
 		g_string_append_c(session_ids,',');

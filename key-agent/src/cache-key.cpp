@@ -3,6 +3,9 @@
 #include <sql-parser/gda-sql-parser.h>
 #include "internal.h"
 #include "k_debug.h"
+extern "C" {
+#include "safe_lib.h"
+}
 
 static GdaDataModel *global_model = NULL;
 static GList *global_delete_list = NULL;
@@ -53,7 +56,7 @@ __get_key_from_model(GdaDataModel *model, int row, GError **error) {
 	gsize size = gda_blob_op_get_length(blob->op);
 	gda_blob_op_read_all(blob->op, (GdaBlob *) blob);
 	data->sealed_data = k_buffer_alloc(NULL, size);
-	memcpy(k_buffer_data(data->sealed_data), blob->data.data, size);
+	memcpy_s(k_buffer_data(data->sealed_data), k_buffer_length(data->sealed_data), blob->data.data, size);
 
 	value = gda_data_model_get_value_at(model, 4, row, error);
 	data->url = g_strdup(g_value_get_string(value));
@@ -102,7 +105,7 @@ __keyagent_cache_loadkey_attr(gint key_id, const char *attr_name, GError **error
 	gsize size = gda_blob_op_get_length(blob->op);
 	gda_blob_op_read_all(blob->op, (GdaBlob *) blob);
 	k_buffer_ptr attr_value = k_buffer_alloc(NULL, size);
-	memcpy(k_buffer_data(attr_value), blob->data.data, size);
+	memcpy_s(k_buffer_data(attr_value), k_buffer_length(attr_value), blob->data.data, size);
 	g_object_unref(model);
 	return attr_value;
 }
@@ -270,8 +273,6 @@ __keyagent_cache_loadkeys_policy_attr(GError **error)
 {
 	GdaSqlParser *parser;
 	GdaStatement *stmt;
-	const GValue *value;
-	GdaBlob *blob;
 	gboolean ret = FALSE;
 	gint cache_id;
 	parser = gda_sql_parser_new ();
@@ -293,7 +294,6 @@ __keyagent_cache_loadkeys_policy_attr(GError **error)
 	}
 	gint i;
 	for(i = 0; i < rows; ++i) {
-		g_autoptr(GError) tmp_error = NULL;
 		key_data *data = __get_key_from_model(global_model, i, error);
 		if(!data)
 			continue;
@@ -321,8 +321,6 @@ __keyagent_cache_loadkeys(GError **error)
 {
 	GdaSqlParser *parser;
 	GdaStatement *stmt;
-	const GValue *value;
-	GdaBlob *blob;
 	gboolean ret = FALSE;
 	gint cache_id;
 	parser = gda_sql_parser_new ();
@@ -405,10 +403,6 @@ out:
 extern "C" gboolean DLL_LOCAL
 __cache_key_policy_attr(keyagent_key_real *key, const char *attr_name, k_policy_buffer_ptr attr_value, gint key_id, GError **error)
 {
-	GdaStatement *stmt;
-	GdaSet *params;
-
-	GdaSqlParser *parser;
 	GValue *v_attrname, *v_attrvalue;
 	GValue v_keyid = G_VALUE_INIT;
 
@@ -428,10 +422,7 @@ __cache_key_policy_attr(keyagent_key_real *key, const char *attr_name, k_policy_
 
 extern "C" gboolean DLL_LOCAL
 __cache_key_attr(keyagent_key_real *key, const char *attr_name, k_buffer_ptr attr_value, gint key_id, GError **error)
-{	GdaStatement *stmt;
-	GdaSet *params;
-
-	GdaSqlParser *parser;
+{
 	GValue *v_attrname, *v_attrvalue;
 	GValue v_keyid = G_VALUE_INIT;
 
@@ -527,9 +518,6 @@ out:
 extern "C" gboolean DLL_LOCAL
 __keyagent_cache_key(keyagent_key *_key, GError **error)
 {
-	GdaStatement *stmt;
-	GdaSet *params;
-	GdaSqlParser *parser;
 	key_data *key_data = NULL;
 	GValue *v_url, *v_sealeddata, *v_session_id;
 	GValue v_keytype;

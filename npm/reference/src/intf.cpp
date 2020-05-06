@@ -148,7 +148,6 @@ static gboolean
 start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 {
 	gboolean ret = FALSE;
-	GQuark swk_quark = 0;
 	const char *swk_type = NULL;
 
 	GString *post_data = NULL;
@@ -259,8 +258,6 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 	gboolean ret = FALSE;
 	long res_status =-1;
-
-	keyagent_session *session = NULL;
 
 	GString *session_ids_header = NULL;
 	GString *session_ids = NULL;
