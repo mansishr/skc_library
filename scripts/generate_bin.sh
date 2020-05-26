@@ -12,7 +12,7 @@ fi
 set_log $FLAG_ENABLE "SKC_WORKLOAD"
 
 if [ -z "$1" ]; then
-	exit_script $LOG_ERROR "Please give $0 <version>" $CODE_EXEC_ERROR
+	exit_script $LOG_ERROR "Please provide $0 <version>" $CODE_EXEC_ERROR
 fi
 ver="$1"
 
@@ -25,7 +25,7 @@ if [ ! -d $SKC_COMPONENT_INSTALL_DIR ]; then
 	exit_script $LOG_ERROR "${SKC_COMPONENT_INSTALL_DIR} is empty" $CODE_EXEC_ERROR
 fi
 
-# Create temperory directroy and copy the necessary scripts for packaging to self-installable binary
+# Create temp directory and copy the necessary scripts for packaging to self-installable binary
 mkdir -p $SKC_DEVOPS_SCRIPTS_PATH
 cp ${script_dir}/*common*.sh* ${script_dir}/*uninstall* ${script_dir}/*.ini $SKC_DEVOPS_SCRIPTS_PATH
 
@@ -33,17 +33,17 @@ mkdir -p $build_dir/scripts/
 
 tar -cvf $build_dir/workload_bins.tar.gz $SKC_COMPONENT_INSTALL_DIR/
 if [ $? -ne 0 ]; then
-	exit_script $LOG_ERROR "Error in copy binaries from ${SKC_COMPONENT_INSTALL_DIR}" $CODE_EXEC_ERROR
+	exit_script $LOG_ERROR "Error while copying binaries from ${SKC_COMPONENT_INSTALL_DIR}" $CODE_EXEC_ERROR
 fi 
 
-# Remove the created temperory directory
+# Remove the created temp directory
 rm -rf $SKC_COMPONENT_DEVOPS_DIR
 
 log_msg $LOG_DEBUG "$script_dir"
 cp ${script_dir}/*.sh ${script_dir}/*.ini $build_dir/scripts/
 if [ $? -ne 0 ]; then
 	ls ${script_dir}/*.sh
-	exit_script $LOG_ERROR "Error in copy scripts" $CODE_EXEC_ERROR
+	exit_script $LOG_ERROR "Error while copying scripts" $CODE_EXEC_ERROR
 fi 
 sed -i 's/\(PROXY_REQUIRED=\)\(.*\)/\1"$FALSE"/' $build_dir/scripts/config.ini
 
@@ -51,7 +51,7 @@ cd $build_dir
 SKC_COMPONENT_DEPLOY_SCRIPT="workload_install.sh"
 
 echo "#!/bin/bash
-echo \"DHSM 2.0 Workload Installation\"
+echo \"skc_library Installation\"
 source scripts/config.ini
 
 if [ -f scripts/$UTILS_SOURCE ]; then
@@ -64,8 +64,8 @@ set_log $FLAG_ENABLE \"SKC_WORKLOAD\"
 rm -rf $SKC_COMPONENT_INSTALL_DIR
 sudo tar -xvf workload_bins.tar.gz -C /
 curl -v -X GET \"https://api.trustedservices.intel.com/sgx/certification/v2/qe/identity\" -o /opt/skc/store/qeIdentity.json
-chmod 777 /opt/skc/store/qeIdentity.json 
-exit_script $LOG_DEBUG \"Workload Binaries Successfully Installaed\" $CODE_EXEC_SUCCESS
+chmod 644 /opt/skc/store/qeIdentity.json
+exit_script $LOG_DEBUG \"skc_library successfully installed\" $CODE_EXEC_SUCCESS
 
 sudo mkdir -p $SKC_COMPONENT_DEVOPS_DIR
 
@@ -82,7 +82,7 @@ cd -
 if [ -f $bin_name ]; then
 	rm $bin_name
 fi
-makeself $build_dir $bin_name "WORKLOAD Self-Installer" ./${SKC_COMPONENT_DEPLOY_SCRIPT}
+makeself $build_dir $bin_name "skc_library self installer" ./${SKC_COMPONENT_DEPLOY_SCRIPT}
 if [ $? -ne 0 ]; then
 	log_msg $LOG_ERROR "Error in binary generation"
 fi

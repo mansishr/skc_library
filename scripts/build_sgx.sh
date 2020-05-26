@@ -16,6 +16,8 @@ SGX_TOOLKIT_INSTALL_PREFIX=$SGX_INSTALL_DIR/sgxtoolkit
 SGXSSL_TAG=lin_2.9.1_1.1.1d
 GIT_CLONE_PATH=/tmp/sgxstuff
 P11_KIT_PATH=/usr/include/p11-kit-1/p11-kit/
+KDIR=/lib/modules/$(uname -r)/build
+INKERNEL_SGX=$(cat $KDIR/.config | grep "CONFIG_INTEL_SGX=y")
 
 uninstall_sgx()
 {
@@ -74,8 +76,13 @@ install_sgx_components()
 	git checkout $SGX_DCAP_TAG
 	wget -nd -nv -rNc -e robots=off -l1 --no-parent --reject "index.html*" -A "*.bin" $SGX_URL
 	chmod +x *.bin
-	# install SGX DCAP Driver
-	./sgx_linux_x64_driver_${SGX_DRIVER_VERSION}.bin -prefix=$SGX_INSTALL_DIR || exit 1
+	# install SGX DCAP Driver if SGX Support is not enabled in kernel
+	if [ -z "$INKERNEL_SGX" ]; then
+		echo "Installing dcap driver"
+		./sgx_linux_x64_driver_${SGX_DRIVER_VERSION}.bin -prefix=$SGX_INSTALL_DIR || exit 1
+	else
+		echo "Found inbuilt sgx driver, skipping dcap driver installation"
+	fi
 	# install SGX SDK
 	./sgx_linux_x64_sdk*.bin -prefix=$SGX_INSTALL_DIR || exit 1
 	source $SGX_INSTALL_DIR/sgxsdk/environment
