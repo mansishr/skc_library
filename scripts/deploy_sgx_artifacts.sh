@@ -1,9 +1,6 @@
 #!/bin/bash
 
-SGX_STACK_VERSION=2.9
-SGX_DCAP_TAG=DCAP_1.5
 SGX_DRIVER_VERSION=1.22
-SGX_RPM_VERSION=2.9.100.2-1
 SYSLIB_PATH=/usr/lib64
 SGX_INSTALL_DIR=/opt/intel
 SGX_TOOLKIT_INSTALL_PREFIX=$SGX_INSTALL_DIR/sgxtoolkit
@@ -16,11 +13,6 @@ uninstall_sgx()
 {
 	if [[ -d $SGX_INSTALL_DIR/sgxsdk ]]; then
 		$SGX_INSTALL_DIR/sgxsdk/uninstall.sh
-	fi
-
-	if [[ -d $SGX_INSTALL_DIR/sgxpsw ]]; then
-		service aesmd stop
-		$SGX_INSTALL_DIR/sgxpsw/uninstall.sh
 	fi
 
 	modprobe -r intel_sgx
@@ -69,7 +61,7 @@ install_DCAP()
 
         modprobe intel_sgx
 
-        cp $CENTRAL_REPO/DCAP/10-sgx.rules /etc/udev/rules.d
+        cp $CENTRL_REPO/DCAP/10-sgx.rules /etc/udev/rules.d
         groupadd sgx_prv
         usermod -a -G sgx_prv root
         udevadm trigger
@@ -102,11 +94,6 @@ install_QGL()
         sed -i "s/USE_SECURE_CERT=.*/USE_SECURE_CERT=FALSE/g" /etc/sgx_default_qcnl.conf
 }
 
-#install_PCK()
-#{
-#	cp -prf $CENTRL_REPO/PCKID/* /usr/local/bin/
-#}
-
 install_sgxtoolkit()
 {
 	mkdir $SGX_TOOLKIT_INSTALL_PREFIX/
@@ -121,13 +108,8 @@ install_sgxtoolkit()
 
 check_for_prerequisites()
 {
-	#yum update -y
-	#yum groupinstall -y "Development Tools"
-	# RHEL 8 does not provide epel repo out of the box yet.
-	#yum localinstall -y https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-8.el8.noarch.rpm
-	#yum install -y yum-utils python3 dkms elfutils-libelf-devel wget npm openssl-devel libcurl-devel ocaml protobuf cppunit-devel || exit 1
 	echo "CHECKING IF DEPENDENT PACKAGES ARE INSTALLED"
- 	pkg_list='yum-utils dkms wget npm ocaml protobuf'
+ 	pkg_list='yum-utils dkms ocaml protobuf'
 	deps_installed='y'
 	for pkg in $pkg_list
 	do
@@ -152,19 +134,19 @@ uninstall_sgx
 check_for_prerequisites
 echo "DCAP install started"
 install_DCAP
-echo "DCAP install successfull"
+echo "DCAP install completed"
 echo "SDK install started"
 install_SDK
-echo "DCAP install successfull"
+echo "DCAP install completed"
 echo "QGL install started"
 install_QGL
-echo "DCAP install successfull"
+echo "DCAP install completed"
 echo "PCK install started"
 install_PCK
-echo "PCK install successfull"
+echo "PCK install completed"
 echo "SGXSSL INSTALL started"
 install_sgxssl
-echo "SGXSSL install successfull"
+echo "SGXSSL install completed"
 echo "SGX toolkit install started"
 install_sgxtoolkit
-echo "SGX toolkit install successfull"
+echo "SGX toolkit install completed"
