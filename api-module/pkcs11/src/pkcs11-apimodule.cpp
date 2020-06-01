@@ -11,8 +11,8 @@ extern "C" {
 static gboolean apimodule_get_challenge(keyagent_apimodule_get_challenge_details *, void *, GError **err);
 static gboolean apimodule_set_wrapping_key(keyagent_apimodule_session_details *, void *, GError **err);
 static gboolean apimodule_load_key(keyagent_apimodule_loadkey_details *, void *, GError **err);
-extern "C" CK_RV apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
-extern "C" gboolean apimodule_initialize(keyagent_apimodule_ops *ops, GError **err);
+CK_RV apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
+gboolean apimodule_initialize(keyagent_apimodule_ops *ops, GError **err);
 static gboolean apimodule_load_uri(const char *uri);
 static gboolean apimodule_preload_keys(GError **err);
 static char* pre_load_keyfile = NULL;
@@ -28,14 +28,6 @@ CK_FUNCTION_LIST_PTR func_list = NULL;
 keyagent_apimodule_ops apimodule_ops;
 static char *mode=NULL;
 
-void
-apimodule_prepare_child(void)
-{
-	C_Finalize(NULL);
-	C_Initialize(NULL);
-	return;
-}
-
 CK_RV
 C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 {
@@ -43,8 +35,6 @@ C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 	static gsize init = 0;
 	if(g_once_init_enter (&init)) {
 		rv = apimodule_init(ppFunctionList);
-		if(g_strcmp0(mode, "SGX") == 0)
-			pthread_atfork(NULL,NULL, apimodule_prepare_child);
 		g_once_init_leave (&init, 1);
 	}
 	*ppFunctionList = func_list;
@@ -122,7 +112,6 @@ apimodule_load_module(const char *module_name, CK_FUNCTION_LIST_PTR_PTR funcs)
 	return rv;
 }
 
-extern "C"
 CK_RV __attribute__((visibility("default")))
 apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 {
@@ -326,7 +315,6 @@ apimodule_set_wrapping_key(keyagent_apimodule_session_details *details, void *ex
 	return result;
 }
 
-extern "C"
 gboolean __attribute__((visibility("default")))
 apimodule_initialize(keyagent_apimodule_ops *ops, GError **err)
 {
