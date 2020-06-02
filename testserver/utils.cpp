@@ -81,7 +81,7 @@ X509_REQ* gen_X509Req(gchar *keyid, EVP_PKEY *pkey)
     const char      *szProvince = "BC";
     const char      *szCity = "Vancouver";
     const char      *szOrganization = "intel";
-    const char      *szCommon = "dhsm2";
+    const char      *szCommon = "skc";
  
 	GString *szPath=NULL;
 	
@@ -153,12 +153,11 @@ free_all:
 
 int gen_X509(gchar *keyid, X509_REQ *req, EVP_PKEY *pkey)
 {
-    int ret = 0;
-    EVP_PKEY *tmppkey;
-    X509V3_CTX ext_ctx;
+	int ret = 0;
+	EVP_PKEY *tmppkey;
+	X509V3_CTX ext_ctx;
 	X509 *x509ss = NULL;
-    STACK_OF(X509_EXTENSION) *exts = NULL;
-	//const char      *certpath = "/tmp/dhsm2_key.cert";
+	STACK_OF(X509_EXTENSION) *exts = NULL;
 	GString *certpath=NULL;
 
 	certpath = g_string_new(server::cert_key_path->str);
@@ -168,45 +167,39 @@ int gen_X509(gchar *keyid, X509_REQ *req, EVP_PKEY *pkey)
 
 	k_debug_msg("Certfile :%s", certpath->str);
 
-
 	BIO *out= NULL;
 
-    if ((x509ss = X509_new()) == NULL)
-        goto end;
+	if((x509ss = X509_new()) == NULL)
+		goto end;
 
 	if(!X509_set_version(x509ss, 2))
 		goto end;
 
 	ASN1_INTEGER_set(X509_get_serialNumber(x509ss), 1);
 
-    if (!X509_set_issuer_name(x509ss, X509_REQ_get_subject_name(req)))
-        goto end;
+	if (!X509_set_issuer_name(x509ss, X509_REQ_get_subject_name(req)))
+		goto end;
 	X509_gmtime_adj(X509_get_notBefore(x509ss), 0);
 	X509_gmtime_adj(X509_get_notAfter(x509ss), 31536000L);
 
-    if (!X509_set_subject_name(x509ss, X509_REQ_get_subject_name(req)))
-        goto end;
+	if (!X509_set_subject_name(x509ss, X509_REQ_get_subject_name(req)))
+		goto end;
 
-    tmppkey = X509_REQ_get_pubkey(req);
-    if (!tmppkey || !X509_set_pubkey(x509ss, tmppkey))
-        goto end;
+	tmppkey = X509_REQ_get_pubkey(req);
+	if (!tmppkey || !X509_set_pubkey(x509ss, tmppkey))
+		goto end;
 
-
-	//X509V3_CTX                   ctx;
-	//X509V3_set_ctx(&ctx, cacert, newcert, NULL, NULL, 0);
-	   //X509_EXTENSION *ext;
-	
 	if (!X509_sign(x509ss,pkey,EVP_md5()))
         goto end;
 
-    out = BIO_new_file(certpath->str,"w");
+	out = BIO_new_file(certpath->str,"w");
 	PEM_write_bio_X509(out, x509ss);
-    ret = 1;
+	ret = 1;
 end:
-   BIO_free_all(out);
-   X509_free(x509ss);
-   if(certpath) g_string_free(certpath, TRUE);
-   return ret;
+	BIO_free_all(out);
+	X509_free(x509ss);
+	if(certpath) g_string_free(certpath, TRUE);
+	return ret;
 }
 
 extern "C" k_buffer_ptr

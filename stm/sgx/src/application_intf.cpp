@@ -1,6 +1,5 @@
 #define G_LOG_DOMAIN "stm-sgx"
 #include <unistd.h>
-#include <sgx_capable.h>
 #include <sgx_pce.h>
 #include "config-file/key_configfile.h"
 #include "internal.h"
@@ -53,43 +52,6 @@ application_stm_init(const char *config_directory, GError **err)
 		k_critical_msg("invalid attestaion type");
 		return;
 	}
-
-	init_delay = key_config_get_integer_optional(config, "testing", "initdelay", 0);
-	if(init_delay)
-		sleep(init_delay);
-}
-
-extern "C" gboolean
-application_stm_activate(GError **err)
-{
-	gboolean ret = FALSE;
-	sgx_status_t sgx_status;
-	sgx_device_status_t sgx_device_status;
-
-	sgx_status = sgx_cap_enable_device(&sgx_device_status);
-
-	if(sgx_status == SGX_SUCCESS) {
-		switch(sgx_device_status) {
-			case SGX_DISABLED_REBOOT_REQUIRED:
-				k_info_msg("SGX will be enabled on next reboot");
-				k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "reboot to enable sgx");
-				break;
-			case SGX_DISABLED_UNSUPPORTED_CPU:
-			case SGX_DISABLED:
-			case SGX_DISABLED_LEGACY_OS:
-				k_critical_msg("SGX is not available");
-				k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "sgx not available");
-				break;
-			case SGX_ENABLED:
-				ret = TRUE;
-				break;
-			}
-	}
-	else {
-		k_critical_msg("SGX is not available or cannot be enabled");
-		k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "sgx not available");
-	}
-	return ret;
 }
 
 __attribute__ ((visibility("default")))
@@ -100,6 +62,7 @@ stm_create_challenge(keyagent_stm_create_challenge_details *details, GError **er
 	struct keyagent_sgx_challenge_request sgx_challenge_request;
 
 	if(!details->apimodule_get_challenge_cb) {
+		k_critical_msg("apimodule get_challenge cb not set");
 		k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "invalid apimodule");
 		return FALSE;
 	}
@@ -121,6 +84,7 @@ stm_create_challenge(keyagent_stm_create_challenge_details *details, GError **er
 	free((void *)sgx_challenge_request.attestationType);
 	
 	if(!details->apimodule_details.challenge && !*err) {
+		k_critical_msg("no challenge reurned from apimodule");
 		k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "no challenge returned from api-module");
 		ret = FALSE;
 	}
@@ -133,6 +97,7 @@ stm_set_session(keyagent_stm_session_details *details, GError **err)
 {
 	gboolean ret = FALSE;
 	if(!details->set_wrapping_key_cb) {
+		k_critical_msg("apimodule set_wrapping__key cb not set");
 		k_set_error(err, STM_ERROR_API_MODULE_LOADKEY, "invalid apimodule");
 		return FALSE;
 	}
@@ -146,6 +111,7 @@ stm_load_key(keyagent_stm_loadkey_details *details, GError **error)
 {
 	gboolean ret = FALSE;
 	if(!details->apimodule_load_key_cb) {
+		k_critical_msg("apimodule load_key cb not set");
 		k_set_error(error, STM_ERROR_API_MODULE_LOADKEY, "invalid apimodule");
 		return FALSE;
 	}

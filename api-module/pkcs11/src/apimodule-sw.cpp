@@ -109,7 +109,7 @@ sw_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GError **e
 	apimodule_uri_data *data = NULL;
 
 	if(!details || !details->key || !err || !details->module_data) {
-		k_critical_msg("invalid input parameters");
+		k_critical_msg("sw_load_key: invalid input parameters");
 		k_set_error(err, -1, "Input parameters are invalid!");
 		goto end;
 	}
@@ -117,14 +117,14 @@ sw_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GError **e
 	data = (apimodule_uri_data *)details->module_data;
 
 	if(!data->token_label) {
-		k_critical_msg("no token label provided");
+		k_critical_msg("sw_load_key: no token label provided");
 		k_set_error(err, -1, "Input parameters are invalid!");
 		goto end;
 	}
 
 	atoken = lookup_apimodule_token(data->token_label->str);
 	if(!atoken) {
-		k_critical_msg("cannot find token object for token label");
+		k_critical_msg("sw_load_key: cannot find token object for token label");
 		k_set_error(err, -1, "Input parameters are invalid!");
 		goto end;
 	}
@@ -143,7 +143,7 @@ sw_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GError **e
 	if(rv == CKR_OK)
 		status = TRUE;
 	else {
-		k_critical_msg("unwrap key failed: rv %lx", rv);
+		k_critical_msg("sw_load_key: unwrap key failed: rv %lx", rv);
 		k_set_error(err, -1, "unwrap key failed!");
 	}
 end:
@@ -213,7 +213,7 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 	u_int32_t minor_no = 0;
 
 	if(!details || !err || !details->module_data) {
-		k_critical_msg("Invalid Input Parameters");
+		k_critical_msg("sw_get_challenge: Invalid Input Parameters");
 		k_set_error(err, -1, "Input parameters are invalid!");
 		goto end;
 	}
@@ -221,7 +221,7 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 	data = (apimodule_uri_data *)details->module_data;
 
 	if(!data->token_label) {
-		k_critical_msg("no token label provided");
+		k_critical_msg("sw_get_challenge: no token label provided");
 		k_set_error(err, -1, "Input parameters are invalid!");
 		goto end;
 	}
@@ -229,7 +229,7 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 	atoken = lookup_apimodule_token(data->token_label->str);
 
 	if(!atoken) {
-		k_critical_msg("cannot find token object for token label");
+		k_critical_msg("sw_get_challenge: cannot find token object for token label");
 		k_set_error(err, -1, "Input parameters are invalid!");
 		goto end;
 	}
@@ -240,7 +240,7 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 	do {
 		rv = generate_rsa_keypair(atoken, PKCS11_APIMODULE_QUOTELABEL, PKCS11_APIMODULE_QUOTEID);
 		if(rv != CKR_OK) {
-			k_critical_msg("generate rsa key pair failed: rv %lx", rv);
+			k_critical_msg("sw_get_challenge: generate rsa key pair failed: rv 0x%lx", rv);
 			k_set_error(err, -1, "failed to login on token");
 			break;
 		}
@@ -254,7 +254,7 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 
 		rv = func_list->C_GetAttributeValue(atoken->session, atoken->publickey_challenge_handle, &attribs[0], 2);
 		if(rv != CKR_OK) {
-			k_critical_msg("Failed to get attrib value: rv %lx", rv);
+			k_critical_msg("sw_get_challenge: Failed to get attrib value: rv 0x%lx", rv);
 			k_set_error(err, -1, "failed to login on token");
 			break;
 		}
@@ -263,7 +263,8 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 
 		rv = func_list->C_GetAttributeValue(atoken->session, atoken->publickey_challenge_handle, &attribs[0], 3);
 		if(rv != CKR_OK) {
-			k_set_error(err, -1, "failed to login on token: rv %lx", rv);
+			k_critical_msg("sw_get_challenge: Failed to get attrib value: rv 0x%lx", rv);
+			k_set_error(err, -1, "failed to login on token: rv 0x%lx", rv);
 			free(attribs[MODULUS_INDEX].pValue);
 			free(attribs[EXPONENT_INDEX].pValue);
 			break;
@@ -313,7 +314,7 @@ sw_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, GE
 
 	do {
 		if(!details || !details->session || !err || !details->module_data) {
-			k_critical_msg("Invalid input provided");
+			k_critical_msg("sw_set_wrapping_key: Invalid input provided");
 			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
@@ -321,7 +322,7 @@ sw_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, GE
 		data = (apimodule_uri_data *)details->module_data;
 
 		if(!data->token_label) {
-			k_critical_msg("no token label provided");
+			k_critical_msg("sw_set_wrapping_key: no token label provided");
 			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
@@ -329,7 +330,7 @@ sw_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, GE
 		atoken = lookup_apimodule_token(data->token_label->str);
 
 		if(!atoken) {
-			k_critical_msg("Cannot find token object for token label");
+			k_critical_msg("sw_set_wrapping_key: Cannot find token object for token label");
 			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
@@ -361,7 +362,7 @@ sw_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, GE
 			nPrkAttribs, sizeof(nPrkAttribs)/sizeof(CK_ATTRIBUTE), &hPrk);
 
 		if(rv != CKR_OK) {
-			k_critical_msg("Failed to unwrap rsa key: rv %lx", rv);
+			k_critical_msg("sw_set_wrapping_key: Failed to unwrap rsa key: rv 0x%lx", rv);
 			k_set_error(err, -1, "Failed to unwrap rsa key");
 			break;
 		}

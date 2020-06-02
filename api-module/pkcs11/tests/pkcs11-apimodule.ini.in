@@ -1,7 +1,7 @@
 [core]
 preload_keys=/tmp/keys.txt
-keyagent_conf=__DHSM_INSTALL__/etc/key-agent.ini
-mode=__DHSM_MODE__
+keyagent_conf=__SKC_INSTALL__/etc/key-agent.ini
+mode=__SKC_MODE__
 debug=true
 preload_keys=/tmp/keys.txt
 [SW]

@@ -37,7 +37,7 @@ AC_PROG_CC
 AC_PROG_CXX
 
 SKC_LIBCURL_CHECK_CONF
-DHSM_SETUP(.)
+SKC_SETUP(.)
 SGX_MODE_CHECK
 
 # Define some variables for the code

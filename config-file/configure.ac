@@ -36,7 +36,7 @@ AM_INIT_AUTOMAKE(foreign)
 AC_PROG_CC
 AC_PROG_CXX
 
-DHSM_SETUP(..)
+SKC_SETUP(..)
 
 # Define some variables for the code
 AC_DEFINE_UNQUOTED(

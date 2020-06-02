@@ -38,7 +38,7 @@ AC_PROG_CXX
 
 ACX_OPENSSL(1,0,0)
 
-DHSM_SETUP(../..)
+SKC_SETUP(../..)
 
 # Define some variables for the code
 AC_DEFINE_UNQUOTED(

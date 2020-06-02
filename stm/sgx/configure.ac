@@ -38,7 +38,7 @@ AC_PROG_CC
 AC_PROG_CXX
 
 ACX_OPENSSL(1,0,0)
-DHSM_SETUP(../..)
+SKC_SETUP(../..)
 SGX_SDK_CHECK(SGX_SDK_MANDATE)
 
 # Define some variables for the code

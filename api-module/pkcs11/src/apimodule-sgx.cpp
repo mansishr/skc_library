@@ -7,6 +7,7 @@
 extern "C" {
 #include "safe_lib.h"
 }
+
 using namespace std;
 #define SGX_ECDSA_QUOTE_VERIFIABLE 5
 #define REF_ECDSDA_AUTHENTICATION_DATA_SIZE 32
@@ -33,7 +34,7 @@ sgx_unwrap_rsa_key(keyagent_apimodule_loadkey_details *details, apimodule_token 
 	CK_MECHANISM_TYPE mechanismType = CKM_AES_GCM;
 	CK_OBJECT_HANDLE hPrk = CK_INVALID_HANDLE;
 	apimodule_uri_data *uri_data = (apimodule_uri_data *)details->module_data;
-	CK_RV rv;
+	CK_RV rv = CKR_OK;
 	CK_MECHANISM mechanism = { mechanismType, NULL_PTR, 0 };
 
 	CK_OBJECT_CLASS privateClass = CKO_PRIVATE_KEY;
@@ -80,7 +81,7 @@ sgx_unwrap_symmeric_key(keyagent_apimodule_loadkey_details *details, apimodule_t
 {
 	CK_MECHANISM_TYPE mechanismType = CKM_AES_GCM;
 	CK_MECHANISM mechanism = { mechanismType, NULL_PTR, 0 };
-	CK_RV rv;
+	CK_RV rv = CKR_OK;
 	CK_OBJECT_HANDLE hPrivateKey;
 	gboolean ret = FALSE;
 	apimodule_uri_data *uri_data = (apimodule_uri_data *)details->module_data;
@@ -167,7 +168,7 @@ sgx_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GError **
 	if(rv == CKR_OK)
 		status = TRUE;
 	else {
-		k_critical_msg("error unwrapping key: rv %lx", rv);
+		k_critical_msg("error unwrapping key: rv 0x%lx", rv);
 		k_set_error(err, -1, "cannot load key");
 	}
 end:
@@ -291,7 +292,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 		rv = generate_rsa_keypair(atoken, PKCS11_APIMODULE_QUOTELABEL,
 					PKCS11_APIMODULE_QUOTEID);
 		if(rv != CKR_OK) {
-			k_critical_msg("Generate RSA Key Pair failed: rv %lx", rv);
+			k_critical_msg("Generate RSA Key Pair failed: rv 0x%lx", rv);
 			k_set_error(err, -1, "failed to login on token");
 			break;
 		}
@@ -299,7 +300,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 		rv = func_list->C_WrapKey(atoken->session, pMechanism, (CK_OBJECT_HANDLE)NULL,
 				atoken->publickey_challenge_handle,NULL,&quote_len);
 		if(CKR_OK != rv) {
-			k_critical_msg("FAILED : C_WrapKey : failed to get quote size from enclave!: rv %lx", rv);
+			k_critical_msg("FAILED : C_WrapKey : failed to get quote size from enclave!: rv 0x%lx", rv);
 			k_set_error(err, -1, "failed to get quote size");
 			break;
 		}
@@ -309,7 +310,7 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 					k_buffer_data(quote_details), &quote_len);
 
 		if(CKR_OK != rv) {
-			k_critical_msg("FAILED : C_WrapKey : failed to get ECDSA quote from enclave!: rv %lx", rv);
+			k_critical_msg("FAILED : C_WrapKey : failed to get ECDSA quote from enclave!: rv 0x%lx", rv);
 			k_set_error(err, -1, "failed to get quote");
 			break;
 		}
@@ -345,8 +346,6 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 				if(pckPos2 != std::string::npos) {
 					pckCert = certificate_str.substr(pckPos1, pckPos2);
 				} else {
-					k_critical_msg("pck certficate could not be fetched");
-					k_set_error(err, -1, "pck certificate couldn't be fetched");
 					break;
 				}
 			} else {
@@ -455,7 +454,7 @@ sgx_set_wrapping_key(keyagent_apimodule_session_details *details, void *extra, G
 				nPrkAttribs, sizeof(nPrkAttribs)/sizeof(CK_ATTRIBUTE), &hPrk);
 
 		if(rv != CKR_OK) {
-			k_critical_msg("error unwrapping wrapping key : rv : %lx ", rv);
+			k_critical_msg("error unwrapping wrapping key : rv : 0x%lx ", rv);
 			k_set_error(err, -1, "cannot add wrapping key");
 			break;
 		}

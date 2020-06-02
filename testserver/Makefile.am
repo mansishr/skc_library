@@ -1,7 +1,5 @@
-
-
-RESTBED_PREFIX	=	$(HOME)/dhsm/distributed_hsm-restbed
-MYLDFLAGS	= -L/usr/local/lib64 -Wl,-rpath=/usr/local/lib64  -Wl,-rpath=$(RESTBED_PREFIX)/distribution/library -L$(RESTBED_PREFIX)/distribution/library $(OPENSSL_LIBS) -lssl -lrestbed -ljsoncpp -lcrypto
+RESTBED_PREFIX = $(HOME)/skc/distributed_hsm-restbed
+MYLDFLAGS = -L/usr/local/lib64 -Wl,-rpath=/usr/local/lib64  -Wl,-rpath=$(RESTBED_PREFIX)/distribution/library -L$(RESTBED_PREFIX)/distribution/library $(OPENSSL_LIBS) -lssl -lrestbed -ljsoncpp -lcrypto
 
 AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(GMODULE_CFLAGS) -std=c++11  -I$(RESTBED_PREFIX)/distribution/include -I$(RESTBED_PREFIX)/dependency/openssl/include
 
@@ -12,8 +10,6 @@ testserver_SOURCES = \
 
 testserver_LDFLAGS = -version-info @VERSION_INFO@ $(GLIB_LIBS) $(GMODULE_LIBS) \
 	$(top_srcdir)/config-file/src/libkey_configfile.la $(MYLDFLAGS) -I$(RESTBED_PREFIX)/dependency/openssl/include 
-
-
 
 scripts_dir:=./certs
 datadir=$(prefix)/store/testserver

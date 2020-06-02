@@ -66,7 +66,7 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 
 	/* Parse the PKCS11 URI */
 	if((rv = p11_kit_uri_parse(uri, P11_KIT_URI_FOR_ANY, key_uri)) != P11_KIT_URI_OK) {
-		k_critical_msg("p11_kit_uri_parse failed with error code: %d",  rv);
+		k_critical_msg("p11_kit_uri_parse failed with error code: 0x%lx",  rv);
 		goto out;
 	}
 
@@ -173,10 +173,15 @@ apimodule_findtoken(apimodule_uri_data *data, gboolean *is_token_present)
 
 		k_debug_msg("checking: %s:%d %s:%d", token_label->str, token_label->len, data->token_label->str, data->token_label->len);
 		if(g_string_equal(token_label, data->token_label)) {
+            k_critical_msg("Token: %s already present!", data->token_label->str);
 			data->slot_id = slots[n];
 			*is_token_present = TRUE;
-			k_debug_msg("Token: %s already present!", data->token_label->str);
+			k_critical_msg("Token: %s already present!", data->token_label->str);
 		}
+        else
+        {
+            k_critical_msg("Token: present!");
+        }
 		g_string_free(token_label, TRUE);
 		if(*is_token_present)
 		break;
@@ -236,7 +241,7 @@ apimodule_createtoken(apimodule_uri_data *uri_data, CK_SESSION_HANDLE_PTR phSess
 	// Don't initialize user pin if it is initialized already
 	// Initialize the user pin
 	if((rv = func_list->C_InitPIN(*phSession, (unsigned char*) uri_data->pin->str, uri_data->pin->len)) != CKR_OK) {
-		k_critical_msg("Unable to set user pin ! rv: %lu \n", rv);
+		k_critical_msg("Unable to set user pin ! rv: 0x%lx \n", rv);
 		goto end;
 	}
 
@@ -390,6 +395,7 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 	do {
 		// Find slot_id for the token, if present
 		if((rv = apimodule_findtoken(uri_data, &is_present)) != CKR_OK) {
+			k_critical_msg("init_apimodule_token: failed to find token: 0x%lx",rv);
 			k_set_error(err, -1, "Error query token");
 			break;
 		}
@@ -402,6 +408,7 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 			}
 			// Create Token, Open Session, SO login and Init user pin
 			if((rv = apimodule_createtoken(uri_data, &hSession)) != CKR_OK) {
+				k_critical_msg("failed to create token object: 0x%lx", rv);
 				k_set_error(err, -1, "failed to create token");
 				break;
 			}
@@ -410,23 +417,23 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 			func_list->C_CloseSession(hSession);
 		}
 
-		k_debug_msg("find-token after token create");
 		if(((rv = apimodule_findtoken(uri_data, &is_present)) != CKR_OK) || !is_present) {
 			k_set_error(err, -1, "Error query token");
-			k_critical_msg("Error query token");
+			k_critical_msg("Failed to find token after creation: 0x%lx", rv);
 			break;
 		}
 		if((rv = func_list->C_OpenSession(uri_data->slot_id, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession)) != CKR_OK) {
+			k_critical_msg("Failed to Open Session with provided slot_id: 0x%lx", rv);
 			k_set_error(err, -1, "failed to open session on  token");
 			break;
 		}
-		rv = func_list->C_Login(hSession, CKU_USER, (unsigned char*)uri_data->pin->str, uri_data->pin->len);
 		func_list->C_Logout(hSession);
 		rv = func_list->C_Login(hSession, CKU_USER, (unsigned char*)uri_data->pin->str, uri_data->pin->len);
 		if(rv == CKR_USER_ALREADY_LOGGED_IN)
 			rv = CKR_OK;
 
 		if(rv != CKR_OK) {
+			k_critical_msg("failed to login into the session: 0x%lx",rv);
 			k_set_error(err, -1, "failed to login on token");
 			break;
 		}

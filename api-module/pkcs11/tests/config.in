@@ -48,8 +48,8 @@ else
 fi
 
 cp ${CURRENT_DIR}/pkcs11-apimodule.ini.in $DATADIR/pkcs11-apimodule.ini
-sed -i -e "s|__DHSM_MODE__|${MODE}|g" \
-    -e "s|__DHSM_INSTALL__|${INSTALLDIR}|g" \
+sed -i -e "s|__SKC_MODE__|${MODE}|g" \
+    -e "s|__SKC_INSTALL__|${INSTALLDIR}|g" \
     -e "s|__SOFTWARE_MODULE__|${SOFTWARE_MODULE}|g" \
     -e "s|__TOOLKIT_MODULE__|${TOOLKIT_MODULE}|g" \
     "$DATADIR/pkcs11-apimodule.ini"

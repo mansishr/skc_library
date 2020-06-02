@@ -1,10 +1,10 @@
 # Increment this whenever this file is changed.
 #serial 1
 
-dnl DHSM_SETUP
+dnl SKC_SETUP
 dnl
 
-AC_DEFUN([DHSM_SETUP],
+AC_DEFUN([SKC_SETUP],
 [
     PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.49.1])
     PKG_CHECK_MODULES([GMODULE], [gmodule-2.0 >= 2.49.1])

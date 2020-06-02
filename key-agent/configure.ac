@@ -39,7 +39,7 @@ AC_PROG_CXX
 ACX_OPENSSL(1,0,0)
 LIBCURL_CHECK_CONFIG
 
-DHSM_SETUP(..)
+SKC_SETUP(..)
 
 PKG_CHECK_MODULES([GDA], [libgda-5.0 libgda-sqlite-5.0])
 AC_SEARCH_LIBS(pthread_create, [pthread], ,AC_MSG_ERROR([ERROR: can't find pthreds]))

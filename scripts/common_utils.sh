@@ -40,32 +40,10 @@ log_msg()
 	fi
 }
 
-get_log()
-{
-	echo $FLAG_VERBOSE
-}
-
 set_log()
 {
 	FLAG_VERBOSE=$1
 	LOGGING_PREFIX=$2
-}
-
-set_log_file()
-{
-	if [ ! -z "$1" -a "$1" != " " ]; then
-		LOG_FILE=$1
-		touch $LOG_FILE
-		chmod 755 $LOG_FILE
-		log_msg $LOG_DEBUG "LOG_FILE:$LOG_FILE"
-	fi
-}
-
-send_status()
-{
-	local exit_val=$(cat $EXIT_STAT_FILE)
-	rm -rf $EXIT_STAT_FILE
-	exit $exit_val
 }
 
 exit_script()
@@ -107,43 +85,13 @@ exec_linux_cmd()
 	fi
 }
 
-lock() {
-	local lock_fd=$1
-	local file_name=$2
-
-	eval "exec $lock_fd>/var/lock/.${file_name}_lock"
-	flock -n $lock_fd \
-        && return 0 \
-        || return 1
-}
-
-update_agent_config()
-{
-	local cs_ip=$1
-	local token=$2
-	local agent_conf=$3
-	sed -i "s/\(server\=\"\)\(.*\)\(\"\)/\1$cs_ip\3/g" $agent_conf
-	sed -i "s/\(token\=\"\)\(.*\)\(\"\)/\1$token\3/g" $agent_conf
-}
-
-check_proxy()
-{
-	if [[ (-z "${http_proxy}")||(-z "${https_proxy}") ]]; then
-		log_msg $LOG_ERROR "HTTP Proxy not set. If you are running this installer behind a proxy, please set http_proxy and https_proxy before installation"
-		return $CODE_CONFIG_ERROR
-	else
-		log_msg $LOG_DEBUG "HTTP Proxies for http and https set. Continuing installation..."
-		return $CODE_EXEC_SUCCESS
-	fi
-}
-
 check_linux_version()
 {
 	local OS=$(cat /etc/*release | grep ^NAME | cut -d'"' -f2)
 	local VER=$(cat /etc/*release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
 				
-	local os_arr_size=`expr ${#SKC_COMPONENT_INSTALL_OS[*]} - 1`;
-	local ver_arr_size=`expr ${#SKC_COMPONENT_INSTALL_OS_VER[*]} - 1`;
+	local os_arr_size=`expr ${#SKCLIB_INSTALL_OS[*]} - 1`;
+	local ver_arr_size=`expr ${#SKCLIB_INSTALL_OS_VER[*]} - 1`;
 
 	log_msg $LOG_DEBUG "OS Array Size:${os_arr_size}, Ver Array Size:${ver_arr_size}"
 
@@ -153,8 +101,8 @@ check_linux_version()
 	fi
 
 	for i in $(seq 0 ${os_arr_size}); do
-		PARAM_OS="${SKC_COMPONENT_INSTALL_OS[$i]}";
-		PARAM_VER="${SKC_COMPONENT_INSTALL_OS_VER[$i]}";
+		PARAM_OS="${SKCLIB_INSTALL_OS[$i]}";
+		PARAM_VER="${SKCLIB_INSTALL_OS_VER[$i]}";
 		
 		if [[ "${OS}" = "${PARAM_OS}" ]]; then
 			compare_os_version=`echo "$VER >= $PARAM_VER" | bc`
@@ -176,15 +124,6 @@ check_linux_version()
  
 check_pre_condition()
 {
-	PROXY_REQUIRED=$1
-	if [ $PROXY_REQUIRED -eq $FLAG_ENABLE ]; then
-		$(check_proxy)
-		if [ $? -ne $CODE_EXEC_SUCCESS ]; then
-			log_msg $LOG_ERROR "Proxy"
-			return $CODE_EXEC_ERROR
-		fi
-	fi
-
 	$(check_linux_version)
 	if [ $? -ne $CODE_EXEC_SUCCESS ]; then
 		log_msg $LOG_ERROR "Invalid Enviromnent"
@@ -194,20 +133,8 @@ check_pre_condition()
 
 install_pre_requisites()
 {
+	check_pre_condition
 	local PRE_REQUISITES="none"
-
-	if [ -z "$1" ]; then
-		PRE_REQUISITES="all"
-	else
-		PRE_REQUISITES="$1"
-	fi
-
-	if [ $PROXY_REQUIRED -eq $TRUE ]; then 
-		check_proxy
-		if [ $? -ne 0 ]; then 
-			exit_script $LOG_ERROR "Invalid Proxy" $CODE_EXEC_ERROR
-		fi
-	fi
 
 	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-8.el8.noarch.rpm
 	$PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/s/softhsm-2.5.0-3.fc30.1.x86_64.rpm
@@ -215,13 +142,7 @@ install_pre_requisites()
 	$PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-5.2.8-4.fc30.x86_64.rpm
 	$PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-devel-5.2.8-4.fc30.x86_64.rpm
 	$PAC_INSTALLER localinstall -y https://rpmfind.net/linux/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.8-4.fc30.x86_64.rpm
-	if [ "${PRE_REQUISITES}" = "dev" ]; then
-		$PAC_INSTALLER update -y && $PAC_INSTALLER install ${SKC_COMPONENT_DEV_PRE_REQUISITES} -y
-	elif [ "${PRE_REQUISITES}" = "devOps" ]; then
-		$PAC_INSTALLER groupinstall -y "Development Tools"
-	elif [ "${PRE_REQUISITES}" = "all" ]; then
-		$PAC_INSTALLER update -y && $PAC_INSTALLER groupinstall "Development Tools" -y && $PAC_INSTALLER install ${SKC_COMPONENT_DEV_PRE_REQUISITES} -y
-	fi
+	$PAC_INSTALLER update -y && $PAC_INSTALLER groupinstall "Development Tools" -y && $PAC_INSTALLER install ${SKCLIB_PRE_REQUISITES} -y
 
 	# download and build latest libp11
 	git clone https://github.com/OpenSC/libp11.git && cd libp11
@@ -233,18 +154,6 @@ install_pre_requisites()
 
 	# required for aes_test
 	ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
-
-	if [ $? -ne 0 ]; then
-		exit_script $LOG_ERROR "Pre-Requisites installation" $CODE_EXEC_ERROR
-	fi
-	log_msg $LOG_DEBUG "Pre-Requisites installation" 
-}
-
-get_file_count()
-{
-	local cnt=$(find / -name "$1" | wc -l)
-	log_msg $LOG_DEBUG "File: $1 total $file count: $cnt" 
-	echo $cnt
 }
 
 # Extract version of the dependency packages installed

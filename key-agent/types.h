@@ -273,14 +273,14 @@ GQuark KEYAGENT_ATTR_POLICY_CREATED_AT;
 #define AES_256_KEY_SIZE 	32
 
 #ifdef  __cplusplus
-#define DHSM_EXTERN extern "C"
+#define SKC_EXTERN extern "C"
 #else
-#define DHSM_EXTERN extern
+#define SKC_EXTERN extern
 #endif
 
 #define DECLARE_KEYAGENT_INTERFACE(SUBTYPE, NAME, RETURNTYPE, ARGS) \
     typedef RETURNTYPE (* SUBTYPE##_##NAME##_func) ARGS; \
-    DHSM_EXTERN RETURNTYPE SUBTYPE##_##NAME ARGS
+    SKC_EXTERN RETURNTYPE SUBTYPE##_##NAME ARGS
 
 #define DECLARE_KEYAGENT_OP(SUBTYPE,NAME) \
     SUBTYPE##_##NAME##_func SUBTYPE##_func_##NAME
@@ -354,7 +354,7 @@ typedef enum {
 
 #define DECLARE_KEYAGENT_INTERNAL_OP(SUBTYPE, NAME, RETURNTYPE, ARGS) \
 	typedef RETURNTYPE (* SUBTYPE##_##NAME##_func) ARGS; \
-	DHSM_EXTERN RETURNTYPE __##SUBTYPE##_##NAME ARGS
+	SKC_EXTERN RETURNTYPE __##SUBTYPE##_##NAME ARGS
 
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_set_session, gboolean,(const char *request_id, keyagent_session *, GError **));
 DECLARE_KEYAGENT_INTERNAL_OP(keyagent,stm_get_challenge, gboolean, (const char *request_id, const char *name, k_buffer_ptr *challenge, GError **));

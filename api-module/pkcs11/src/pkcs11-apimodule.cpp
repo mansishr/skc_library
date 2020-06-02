@@ -8,25 +8,26 @@ extern "C" {
 #include "safe_lib.h"
 }
 
+CK_RV apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
+gboolean apimodule_initialize(keyagent_apimodule_ops *ops, GError **err);
+
 static gboolean apimodule_get_challenge(keyagent_apimodule_get_challenge_details *, void *, GError **err);
 static gboolean apimodule_set_wrapping_key(keyagent_apimodule_session_details *, void *, GError **err);
 static gboolean apimodule_load_key(keyagent_apimodule_loadkey_details *, void *, GError **err);
-CK_RV apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
-gboolean apimodule_initialize(keyagent_apimodule_ops *ops, GError **err);
 static gboolean apimodule_load_uri(const char *uri);
 static gboolean apimodule_preload_keys(GError **err);
-static char* pre_load_keyfile = NULL;
-
 static CK_RV (*c_initialize)(CK_VOID_PTR pInitArgs);
 static CK_RV (*c_finalize)(CK_VOID_PTR pInitArgs);
+
+static char* pre_load_keyfile = NULL;
+static const char *loadable_module = NULL;
+static char *mode=NULL;
 
 GHashTable *apimodule_token_hash = NULL;
 GHashTable *apimodule_api_hash = NULL;
 GHashTable *module_hash = NULL;
-static const char *loadable_module = NULL;
 CK_FUNCTION_LIST_PTR func_list = NULL;
 keyagent_apimodule_ops apimodule_ops;
-static char *mode=NULL;
 
 CK_RV
 C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
@@ -103,7 +104,7 @@ apimodule_load_module(const char *module_name, CK_FUNCTION_LIST_PTR_PTR funcs)
 			return CKR_OK;
 		}
 		else {
-			k_critical_msg("C_GetFunctionList failed %lx, %s", rv, module_name);
+			k_critical_msg("C_GetFunctionList failed %0xlx, %s", rv, module_name);
 		}
 	}while(FALSE);
 
@@ -227,7 +228,7 @@ C_OnDemand_KeyLoad (const char *uri_string)
 		} else
 			k_critical_msg("key not loaded");
 
-		k_info_msg("C_OnDemand_KeyLoad: %x", rv);
+		k_info_msg("C_OnDemand_KeyLoad: 0x%lx", rv);
 		g_free(url);
 		url = NULL;
 	}
@@ -246,6 +247,7 @@ apimodule_get_challenge(keyagent_apimodule_get_challenge_details *details, void 
 
 	do {
 		if(!details || !err || !details->label || !details->module_data) {
+			k_critical_msg("apimodule_get_challenge: input parameters are invalid");
 			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
@@ -253,7 +255,8 @@ apimodule_get_challenge(keyagent_apimodule_get_challenge_details *details, void 
 		data = (apimodule_uri_data *)details->module_data;
 
 		if(!data->token_label) {
-			k_set_error(err, -1, "Input parameters are invalid!");
+			k_critical_msg("apimodule_get_challenge: token label not found");
+			k_set_error(err, -1, "token label not found");
 			break;
 		}
 
@@ -266,7 +269,8 @@ apimodule_get_challenge(keyagent_apimodule_get_challenge_details *details, void 
 		ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
 
 		if(!atoken || !ops) {
-			k_set_error(err, -1, "Input parameters are invalid!");
+			k_critical_msg("apimodule_get_challenge: token object not found");
+			k_set_error(err, -1, "Token Object not found");
 			break;
 		}
 
@@ -289,6 +293,7 @@ apimodule_set_wrapping_key(keyagent_apimodule_session_details *details, void *ex
 
 	do {
 		if(!details || !err || !details->module_data) {
+			k_critical_msg("apimodule_set_wrapping_key: input parameters are invalid");
 			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
@@ -296,7 +301,8 @@ apimodule_set_wrapping_key(keyagent_apimodule_session_details *details, void *ex
 		data = (apimodule_uri_data *)details->module_data;
 
 		if(!data->token_label) {
-			k_set_error(err, -1, "Input parameters are invalid!");
+			k_critical_msg("apimodule_set_wrapping_key: token label not found");
+			k_set_error(err, -1, "Token label not found");
 			break;
 		}
 
@@ -304,7 +310,8 @@ apimodule_set_wrapping_key(keyagent_apimodule_session_details *details, void *ex
 		ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
 
 		if(!atoken || !ops) {
-			k_set_error(err, -1, "Input parameters are invalid!");
+			k_critical_msg("apimodule_set_wrapping_key: token obj not found");
+			k_set_error(err, -1, "Token object not found");
 			break;
 		}
 
@@ -375,6 +382,7 @@ apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GEr
 	apimodule_token *atoken = NULL;
 	do {
 		if(!details || !err || !details->module_data) {
+			k_critical_msg("apimodule_load_key: input parameters are invalid");
 			k_set_error(err, -1, "Input parameters are invalid!");
 			break;
 		}
@@ -382,14 +390,16 @@ apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GEr
 		data = (apimodule_uri_data *)details->module_data;
 
 		if(!data->token_label) {
-			k_set_error(err, -1, "Input parameters are invalid!");
+			k_critical_msg("apimodule_load_key: token label not found");
+			k_set_error(err, -1, "Token Label not found");
 			break;
 		}
 		atoken = lookup_apimodule_token(data->token_label->str);
 		ops = (keyagent_apimodule_ops *)g_hash_table_lookup(apimodule_api_hash, details->label);
 
 		if(!atoken || !ops) {
-			k_set_error(err, -1, "Input parameters are invalid!");
+			k_critical_msg("apimodule_load_key: token obj info not found");
+			k_set_error(err, -1, "token onj info not found");
 			break;
 		}
 		CK_ULONG type = (details->type == KEYAGENT_AESKEY ? CKO_SECRET_KEY : CKO_PRIVATE_KEY);
@@ -433,8 +443,8 @@ apimodule_preload_keys(GError **err)
 			k_debug_msg("%s", uri);
 			if(C_OnDemand_KeyLoad((const char *)uri) != CKR_OK) {
 				ret = FALSE;
-			if(!*err)
-				g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE, "Error in loading keys:%s", uri);
+				if(!*err)
+					g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE, "Error in loading keys:%s", uri);
 			}
 		}
 	}while(FALSE);

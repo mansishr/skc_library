@@ -6,10 +6,10 @@ source ${script_dir}/config.ini
 if [ -f ${script_dir}/$UTILS_SOURCE ]; then
     source ${script_dir}/$UTILS_SOURCE
 else
-    echo -e "Utils Script not found Error, Exit." && exit 1
+    echo -e "common-utils.sh not found." && exit 1
 fi
 
-set_log $FLAG_ENABLE "SKC_WORKLOAD"
+set_log $FLAG_ENABLE "skc_library"
 
 if [ -z "$1" ]; then
 	exit_script $LOG_ERROR "Please provide $0 <version>" $CODE_EXEC_ERROR
@@ -17,12 +17,12 @@ fi
 ver="$1"
 
 build_dir="${script_dir}/build"
-bin_name="${SKC_COMPONENT_BIN_PREFIX}${ver}.bin"
+bin_name="${SKCLIB_BIN_PREFIX}${ver}.bin"
 
 rm -rf $build_dir/
 
-if [ ! -d $SKC_COMPONENT_INSTALL_DIR ]; then
-	exit_script $LOG_ERROR "${SKC_COMPONENT_INSTALL_DIR} is empty" $CODE_EXEC_ERROR
+if [ ! -d $SKCLIB_INSTALL_DIR ]; then
+	exit_script $LOG_ERROR "${SKCLIB_INSTALL_DIR} is empty" $CODE_EXEC_ERROR
 fi
 
 # Create temp directory and copy the necessary scripts for packaging to self-installable binary
@@ -31,13 +31,13 @@ cp ${script_dir}/*common*.sh* ${script_dir}/*uninstall* ${script_dir}/*.ini $SKC
 
 mkdir -p $build_dir/scripts/
 
-tar -cvf $build_dir/workload_bins.tar.gz $SKC_COMPONENT_INSTALL_DIR/
+tar -cvf $build_dir/skc_library.tar.gz $SKCLIB_INSTALL_DIR/
 if [ $? -ne 0 ]; then
-	exit_script $LOG_ERROR "Error while copying binaries from ${SKC_COMPONENT_INSTALL_DIR}" $CODE_EXEC_ERROR
+	exit_script $LOG_ERROR "Error while copying binaries from ${SKCLIB_INSTALL_DIR}" $CODE_EXEC_ERROR
 fi 
 
 # Remove the created temp directory
-rm -rf $SKC_COMPONENT_DEVOPS_DIR
+rm -rf $SKCLIB_DEVOPS_DIR
 
 log_msg $LOG_DEBUG "$script_dir"
 cp ${script_dir}/*.sh ${script_dir}/*.ini $build_dir/scripts/
@@ -45,46 +45,43 @@ if [ $? -ne 0 ]; then
 	ls ${script_dir}/*.sh
 	exit_script $LOG_ERROR "Error while copying scripts" $CODE_EXEC_ERROR
 fi 
-sed -i 's/\(PROXY_REQUIRED=\)\(.*\)/\1"$FALSE"/' $build_dir/scripts/config.ini
 
 cd $build_dir
-SKC_COMPONENT_DEPLOY_SCRIPT="workload_install.sh"
+SKCLIB_DEPLOY_SCRIPT="skc_library_install.sh"
 
 echo "#!/bin/bash
-echo \"skc_library Installation\"
+echo \"skc_library installation\"
 source scripts/config.ini
 
 if [ -f scripts/$UTILS_SOURCE ]; then
 	source scripts/$UTILS_SOURCE
 else
-	echo -e \"Utils Script not found Error, Exit.\" && exit 1
+	echo -e \"common-utils.sh not found.\" && exit 1
 fi
-set_log $FLAG_ENABLE \"SKC_WORKLOAD\"
+set_log $FLAG_ENABLE \"skc_library\"
 
-rm -rf $SKC_COMPONENT_INSTALL_DIR
-sudo tar -xvf workload_bins.tar.gz -C /
-curl -v -X GET \"https://api.trustedservices.intel.com/sgx/certification/v2/qe/identity\" -o /opt/skc/store/qeIdentity.json
-chmod 644 /opt/skc/store/qeIdentity.json
-exit_script $LOG_DEBUG \"skc_library successfully installed\" $CODE_EXEC_SUCCESS
+rm -rf $SKCLIB_INSTALL_DIR
+sudo tar -xvf skc_library.tar.gz -C /
+exit_script $LOG_DEBUG \"skc_library installed\" $CODE_EXEC_SUCCESS
 
-sudo mkdir -p $SKC_COMPONENT_DEVOPS_DIR
+sudo mkdir -p $SKCLIB_DEVOPS_DIR
 
 #Copy the packages to be installed to dependency_packages.txt file
-echo \$SKC_COMPONENT_DEV_PRE_REQUISITES | tr \" \" \"\\n\" > \/$SKC_COMPONENT_DEVOPS_DIR/$SKC_WL_DEPENDENCY_PACKAGES
+echo \$SKCLIB_PRE_REQUISITES | tr \" \" \"\\n\" > \/$SKCLIB_DEVOPS_DIR/$SKCLIB_DEPS_PACKAGES
 
 #Fetch installed dependency packages version
-fetch_installed_dependency_packages_version \/$SKC_COMPONENT_DEVOPS_DIR/$SKC_WL_DEPENDENCY_PACKAGES \/$SKC_COMPONENT_DEVOPS_DIR/$SKC_WL_INSTALLED_DEPENDENCY_PACKAGES_VERSION
+fetch_installed_dependency_packages_version \/$SKCLIB_DEVOPS_DIR/$SKCLIB_DEPS_PACKAGES \/$SKCLIB_DEVOPS_DIR/$SKCLIB_INSTALLED_DEPS_PACKAGES_VER
 
-exit 0" > ${SKC_COMPONENT_DEPLOY_SCRIPT}
-chmod 777 ${SKC_COMPONENT_DEPLOY_SCRIPT}
+exit 0" > ${SKCLIB_DEPLOY_SCRIPT}
+chmod 755 ${SKCLIB_DEPLOY_SCRIPT}
 cd -
 
 if [ -f $bin_name ]; then
 	rm $bin_name
 fi
-makeself $build_dir $bin_name "skc_library self installer" ./${SKC_COMPONENT_DEPLOY_SCRIPT}
+makeself $build_dir $bin_name "skc_library self installer" ./${SKCLIB_DEPLOY_SCRIPT}
 if [ $? -ne 0 ]; then
-	log_msg $LOG_ERROR "Error in binary generation"
+	log_msg $LOG_ERROR "could not create skc_library install binary"
 fi
-exit_script $LOG_DEBUG "Binary Generation" $CODE_EXEC_SUCCESS
+exit_script $LOG_DEBUG "skc_library install binary generated" $CODE_EXEC_SUCCESS
 rm -rf $build_dir

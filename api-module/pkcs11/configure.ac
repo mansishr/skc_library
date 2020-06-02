@@ -37,7 +37,7 @@ AM_INIT_AUTOMAKE(foreign)
 AC_PROG_CC
 AC_PROG_CXX
 
-DHSM_SETUP(../..)
+SKC_SETUP(../..)
 SGX_MODE_CHECK()
 
 # Define some variables for the code
