@@ -2,6 +2,10 @@
 
 #include "internal.h"
 
+#define MIN_PIN_LEN (4)
+#define MAX_PIN_LEN (255)
+#define MIN_KEYID_LEN (36)
+
 static GString *
 apimodule_utf8_to_char(CK_UTF8CHAR *utf8buf, size_t len)
 {
@@ -15,7 +19,6 @@ apimodule_utf8_to_char(CK_UTF8CHAR *utf8buf, size_t len)
 		return NULL;
 
 	buf = g_string_new(NULL);
-	k_debug_msg("%s:%d", utf8buf, len);
 	if(buf)
 		buf = g_string_append_len(buf, utf8buf, len);
 
@@ -66,44 +69,54 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 
 	/* Parse the PKCS11 URI */
 	if((rv = p11_kit_uri_parse(uri, P11_KIT_URI_FOR_ANY, key_uri)) != P11_KIT_URI_OK) {
-		k_critical_msg("p11_kit_uri_parse failed with error code: 0x%lx",  rv);
+		k_critical_msg("p11_kit_uri_parse failed: 0x%lx",  rv);
 		goto out;
 	}
 
 	/* we expect token label must be present */
 	tokenInfo = p11_kit_uri_get_token_info(key_uri);
 	if(!tokenInfo || (!tokenInfo->label[0])) {
-		k_critical_msg("p11_kit_uri_get_token_info() failed!");
+		k_critical_msg("failed to get token label from pkcs11 uri");
 		goto out;
 	}
 
 	// We expect Key Label and Key ID
-	if((label_attr = p11_kit_uri_get_attribute (key_uri, CKA_LABEL)) == NULL) {
-		k_critical_msg("p11_kit_uri_get_attribute failed for CKA_LABEL (got NULL value)");
+	if((label_attr = p11_kit_uri_get_attribute(key_uri, CKA_LABEL)) == NULL) {
+		k_critical_msg("cannot find proper object tag in pkcs11 uri");
 		goto out;
 	}
 
-	if((id_attr = p11_kit_uri_get_attribute (key_uri, CKA_ID)) == NULL) {
-		k_critical_msg("p11_kit_uri_get_attribute failed for CKA_ID (got NULL value)");
+	if((id_attr = p11_kit_uri_get_attribute(key_uri, CKA_ID)) == NULL) {
+		k_critical_msg("cannot find proper id tag in pkcs11 uri");
+		goto out;
+	}
+
+	if(id_attr->ulValueLen < MIN_KEYID_LEN) {
+		k_critical_msg("proper key id not specified in pkcs11 uri");
 		goto out;
 	}
 
 	typestr = g_strrstr(uri,"type=");
 	if(typestr != NULL)
 	{
-		if((priv_class = p11_kit_uri_get_attribute (key_uri, CKA_CLASS)) == NULL) {
-			k_critical_msg("p11_kit_uri_get_attribute failed for CKA_CLASS (got NULL value)");
+		if((priv_class = p11_kit_uri_get_attribute(key_uri, CKA_CLASS)) == NULL) {
+			k_critical_msg("cannot find proper type tag in pkcs11 uri");
 			goto out;
 		}
 		uri_data->type = *((CK_ULONG *)priv_class->pValue);
 		if(uri_data->type != CKO_SECRET_KEY && uri_data->type != CKO_PRIVATE_KEY )
 		{
-			k_critical_msg("Incompatible type in uri for key-id");
+			k_critical_msg("type tag in pkcs11 uri should be either private/secret");
 			goto out;
 		}
 	}
 	if((upin = (char*) p11_kit_uri_get_pin_value(key_uri)) == NULL) {
-		k_critical_msg("Getting upin from PKCS#11 URI failed");
+		k_critical_msg("cannot read pin value from pkcs11 uri");
+		goto out;
+	}
+
+	if((strlen(upin) < MIN_PIN_LEN) || (strlen(upin) > MAX_PIN_LEN)) {
+		k_critical_msg("invalid pin length specified");
 		goto out;
 	}
 
@@ -173,18 +186,12 @@ apimodule_findtoken(apimodule_uri_data *data, gboolean *is_token_present)
 
 		k_debug_msg("checking: %s:%d %s:%d", token_label->str, token_label->len, data->token_label->str, data->token_label->len);
 		if(g_string_equal(token_label, data->token_label)) {
-            k_critical_msg("Token: %s already present!", data->token_label->str);
 			data->slot_id = slots[n];
 			*is_token_present = TRUE;
-			k_critical_msg("Token: %s already present!", data->token_label->str);
 		}
-        else
-        {
-            k_critical_msg("Token: present!");
-        }
 		g_string_free(token_label, TRUE);
 		if(*is_token_present)
-		break;
+			break;
 	}
 end:
 	if(slots)
@@ -238,7 +245,6 @@ apimodule_createtoken(apimodule_uri_data *uri_data, CK_SESSION_HANDLE_PTR phSess
 		goto end;
 	}
 
-	// Don't initialize user pin if it is initialized already
 	// Initialize the user pin
 	if((rv = func_list->C_InitPIN(*phSession, (unsigned char*) uri_data->pin->str, uri_data->pin->len)) != CKR_OK) {
 		k_critical_msg("Unable to set user pin ! rv: 0x%lx \n", rv);
@@ -285,14 +291,14 @@ apimodule_list_objects(CK_SESSION_HANDLE sess, CK_OBJECT_CLASS  object_class)
 
 	rv = func_list->C_FindObjectsInit(sess, NULL, 0);
 	if(rv != CKR_OK) {
-		k_critical_msg("C_FindObjectsInit", rv);
+		k_critical_msg("C_FindObjectsInit failed: 0x%lx", rv);
 		return;
 	}
 
 	while(1) {
 		rv = func_list->C_FindObjects(sess, &object, 1, &count);
 		if(rv != CKR_OK) {
-			k_critical_msg("C_FindObjects", rv);
+			k_critical_msg("C_FindObjects failed: 0x%lx", rv);
 			return;
 		}
 		if(count == 0)
@@ -418,8 +424,8 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 		}
 
 		if(((rv = apimodule_findtoken(uri_data, &is_present)) != CKR_OK) || !is_present) {
-			k_set_error(err, -1, "Error query token");
 			k_critical_msg("Failed to find token after creation: 0x%lx", rv);
+			k_set_error(err, -1, "Error query token");
 			break;
 		}
 		if((rv = func_list->C_OpenSession(uri_data->slot_id, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession)) != CKR_OK) {

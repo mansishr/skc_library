@@ -149,8 +149,6 @@ __keyagent_stm_set_session(const char *request_id, keyagent_session *session, GE
 		goto errexit;
     
 	lstm->session = (keyagent_session_real *)session;
-	if(!lstm->session)
-		goto errexit;
 
 	details.apimodule_details.module_data = request->module_data;
 	request->stm_name = lstm->stm.label;

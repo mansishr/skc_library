@@ -27,21 +27,6 @@ sw_unwrap_symmeric_key(keyagent_apimodule_loadkey_details *details, apimodule_to
 	CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
 	CK_KEY_TYPE keyType = CKK_AES;
 
-	CK_GCM_PARAMS gcmParams =
-	{
-		k_buffer_data(details->iv),
-		k_buffer_length(details->iv),
-		k_buffer_length(details->iv) * 8,
-		NULL,
-		0,
-		details->tag_size * 8
-	};
-
-	if(mechanismType == CKM_AES_GCM) {
-		mechanism.pParameter = &gcmParams;
-		mechanism.ulParameterLen = sizeof(gcmParams);
-	}
-
 	CK_ATTRIBUTE nPrkAttribs[] = {
 		{ CKA_TOKEN, 	&bFalse, sizeof(bFalse) },
 		{ CKA_CLASS, 	&privClass, sizeof(privClass) },

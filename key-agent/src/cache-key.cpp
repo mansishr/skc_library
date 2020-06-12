@@ -146,7 +146,7 @@ __keyagent_cache_loadkey_policy_attr(gint key_id, const char *attr_name, GError 
 
 	value = gda_data_model_get_value_at(model, 1, 0, error);
 	gchar *policy_attr_str = g_strdup(g_value_get_string(value));
-	if( policy_attr_str == NULL)
+	if(policy_attr_str == NULL)
 		return NULL;
 	k_policy_buffer_ptr attr_value = k_policy_buffer_alloc();
 	k_debug_msg("Cache Key Policy attr:%s-%s\n", attr_name, policy_attr_str);
@@ -166,7 +166,7 @@ __keyagent_cache_loadkey_policy_attr(gint key_id, const char *attr_name, GError 
 
 #define SET_KEY_POLICY_ATTR(KEYID, ATTRS, NAME, ERROR) do { \
 	k_policy_buffer_ptr NAME = __keyagent_cache_loadkey_policy_attr(KEYID, #NAME, (ERROR)); \
-	if( NAME == NULL)\
+	if(NAME == NULL)\
 		return FALSE; \
 	k_debug_msg("SET-CACHE:%s %s\n", #NAME, g_time_val_to_iso8601(k_policy_buffer_data(NAME))); \
 	KEYAGENT_KEY_ADD_POLICY_ATTR((ATTRS), NAME); \
@@ -299,14 +299,13 @@ __keyagent_cache_loadkeys_policy_attr(GError **error)
 			continue;
 		cache_id = data->cache_id;
 		ret = __create_key_policy(data, error);
-		if( ret == FALSE )
+		if(!ret)
 		{
 			k_info_msg("Key usage policy may not be supported for key_id:%d\n", cache_id);
+			global_delete_list = g_list_append(global_delete_list, GINT_TO_POINTER(cache_id));
 			return TRUE;
 		}
 		__key_data_free(data);
-		if(!ret)
-			global_delete_list = g_list_append(global_delete_list, GINT_TO_POINTER(cache_id));
 	}
 	g_object_unref(global_model);
 		global_model = NULL;

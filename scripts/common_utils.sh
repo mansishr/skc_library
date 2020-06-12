@@ -93,8 +93,6 @@ check_linux_version()
 	local os_arr_size=`expr ${#SKCLIB_INSTALL_OS[*]} - 1`;
 	local ver_arr_size=`expr ${#SKCLIB_INSTALL_OS_VER[*]} - 1`;
 
-	log_msg $LOG_DEBUG "OS Array Size:${os_arr_size}, Ver Array Size:${ver_arr_size}"
-
 	if [ ${os_arr_size} -ne ${ver_arr_size} ]; then
 		log_msg $LOG_ERROR "OS distribution ${OS} version ${VER} Array data\n"
 		return $CODE_OS_ERROR

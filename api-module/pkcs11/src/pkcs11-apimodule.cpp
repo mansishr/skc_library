@@ -52,8 +52,10 @@ C_Initialize(CK_VOID_PTR pInitArgs)
 	ret = c_initialize(pInitArgs);
 	if((ret == CKR_OK) || (ret == CKR_CRYPTOKI_ALREADY_INITIALIZED)) {
 		if(!g_atomic_int_add(&preload_keys_flag, 1)) {
-			if(!apimodule_preload_keys(&error))
-				k_info_error(error);
+			if(!apimodule_preload_keys(&error)) {
+				k_critical_msg("apimodule_preload_keys failed");
+				k_critical_error(error);
+			}
 		}
 	}
 	return ret;
@@ -154,7 +156,7 @@ apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 	}
 
 	mode = key_config_get_string(config, "core", "mode", &error);
-	if(!keyagent_config_filename) {
+	if(!mode) {
 		k_critical_error(error);
 		return CKR_GENERAL_ERROR;
 	}
@@ -221,14 +223,13 @@ C_OnDemand_KeyLoad (const char *uri_string)
 
 	rv = CKR_ARGUMENTS_BAD;
 	if((url = g_strjoin(":", uri_data.token_label->str, uri_data.key_id->str, uri_data.key_label->str, uri_string, NULL)) != NULL) {
-		k_debug_msg("concat url: %s",  url);
 		// Call the Key Agent API to get key details
 		if(keyagent_loadkey_with_moduledata(url, (void*)&uri_data, &err)) {
 			rv = CKR_OK;
+			k_debug_msg("key transfer successful");
 		} else
-			k_critical_msg("key not loaded");
+			k_critical_msg("C_OnDemand_KeyLoad: pkcs11 uri values are not correct");
 
-		k_info_msg("C_OnDemand_KeyLoad: 0x%lx", rv);
 		g_free(url);
 		url = NULL;
 	}
@@ -426,7 +427,7 @@ apimodule_preload_keys(GError **err)
 	FILE *fp = NULL;
 	char *uri = NULL;
 	size_t len = 0;
-	ssize_t read;
+	ssize_t read = 0;
 	gboolean ret = FALSE;
 
 	if(g_strcmp0(pre_load_keyfile, "NIL") == 0)
@@ -436,15 +437,18 @@ apimodule_preload_keys(GError **err)
 		if((fp = fopen(pre_load_keyfile, "r")) == NULL) {
 			g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE,"Invalid File :%s", __func__);
 			break;
-	}
+		}
     
-		ret = TRUE;
-		while((read = getline(&uri, &len, fp)) != -1) {
-			k_debug_msg("%s", uri);
+		while((read = getline(&uri, &len, fp)) > 0) {
+			k_debug_msg("loading key: %s", uri);
 			if(C_OnDemand_KeyLoad((const char *)uri) != CKR_OK) {
 				ret = FALSE;
 				if(!*err)
-					g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE, "Error in loading keys:%s", uri);
+					g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE, "Error while pre-loading key:%s", uri);
+				break;
+			}
+			else {
+				ret = TRUE;
 			}
 		}
 	}while(FALSE);

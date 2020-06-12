@@ -320,7 +320,7 @@ int main(int argc, char* argv[])
     }    
     
     GString *module_path=NULL;
-    if( getenv("INSTALLDIR") != NULL )
+    if(getenv("INSTALLDIR") != NULL)
     	     module_path = g_string_new(getenv("INSTALLDIR"));
     else
     	     module_path = g_string_new(SKC_INSTALL_DIR);
@@ -332,7 +332,7 @@ int main(int argc, char* argv[])
     }
     g_string_free(module_path, false);
 
-    if( parse_uri_data(uri, &uri_data) != TRUE ){
+    if(parse_uri_data(uri, &uri_data) != TRUE){
         fprintf(stderr, "Error in parsing pkcs11 uri %s <URI>\n", uri);
         return -1;
     }    
@@ -341,13 +341,13 @@ int main(int argc, char* argv[])
 
 #ifndef FORK_TEST
     if(pthread_create(&thread, NULL, thread_aes_encrypt_decrypt_test, (void *)&uri_data)) {
-		fprintf(stderr, "Error creating thread\n");
-		return -1;
+	fprintf(stderr, "Error creating thread\n");
+	return -1;
     }
 	
     if(pthread_join(thread, NULL)) {
-		fprintf(stderr, "Error joining thread\n");
-		return -1;
+	fprintf(stderr, "Error joining thread\n");
+	return -1;
     }
 
     forkStatus = fork();

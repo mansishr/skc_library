@@ -10,14 +10,14 @@ typedef struct {
 	keyagent_module npm;
 	GString *module_name;
 	GModule *module;
-	gint initialized:1;
+	guint initialized:1;
 	GQueue *key_queue;
 	npm_ops ops;
 }keyagent_npm_real;
 
 typedef struct {
 	gint id;
-	gint cached:1;
+	guint cached:1;
 }keyagent_cache_state;
 
 typedef struct {
@@ -32,7 +32,7 @@ typedef struct {
 	keyagent_module stm;
 	GString *module_name;
 	GModule *module;
-	gint initialized:1;
+	guint initialized:1;
 	stm_ops ops;
 	keyagent_session_real *session;
 	gboolean apimodule;

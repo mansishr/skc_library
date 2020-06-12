@@ -52,7 +52,7 @@ Json::Value parse_data(std::string httpData)
     Json::Value jsonData;
     Json::Reader jsonReader;
 
-    if (jsonReader.parse(httpData, jsonData))
+    if(jsonReader.parse(httpData, jsonData))
     {
         k_debug_msg("Successfully parsed JSON data");
         k_debug_msg("SON data received:");
@@ -94,7 +94,7 @@ X509_REQ* gen_X509Req(gchar *keyid, EVP_PKEY *pkey)
     // 2. set version of x509 req
     x509_req = X509_REQ_new();
     ret = X509_REQ_set_version(x509_req, nVersion);
-    if (ret != 1){
+    if(ret != 1){
         goto free_all;
     }
  
@@ -102,39 +102,39 @@ X509_REQ* gen_X509Req(gchar *keyid, EVP_PKEY *pkey)
     x509_name = X509_REQ_get_subject_name(x509_req);
  
     ret = X509_NAME_add_entry_by_txt(x509_name,"C", MBSTRING_ASC, (const unsigned char*)szCountry, -1, -1, 0);
-    if (ret != 1){
+    if(ret != 1){
         goto free_all;
     }
  
     ret = X509_NAME_add_entry_by_txt(x509_name,"ST", MBSTRING_ASC, (const unsigned char*)szProvince, -1, -1, 0);
-    if (ret != 1){
+    if(ret != 1){
         goto free_all;
     }
  
     ret = X509_NAME_add_entry_by_txt(x509_name,"L", MBSTRING_ASC, (const unsigned char*)szCity, -1, -1, 0);
-    if (ret != 1){
+    if(ret != 1){
         goto free_all;
     }   
  
     ret = X509_NAME_add_entry_by_txt(x509_name,"O", MBSTRING_ASC, (const unsigned char*)szOrganization, -1, -1, 0);
-    if (ret != 1){
+    if(ret != 1){
         goto free_all;
     }
  
     ret = X509_NAME_add_entry_by_txt(x509_name,"CN", MBSTRING_ASC, (const unsigned char*)szCommon, -1, -1, 0);
-    if (ret != 1){
+    if(ret != 1){
         goto free_all;
     }
  
     // 4. set public key of x509 req
     ret = X509_REQ_set_pubkey(x509_req, pkey);
-    if (ret != 1){
+    if(ret != 1){
         goto free_all;
     }
  
     // 5. set sign key of x509 req
     ret = X509_REQ_sign(x509_req, pkey, EVP_sha1());    // return x509_req->signature->length
-    if (ret <= 0){
+    if(ret <= 0){
         goto free_all;
     }
  
@@ -177,19 +177,19 @@ int gen_X509(gchar *keyid, X509_REQ *req, EVP_PKEY *pkey)
 
 	ASN1_INTEGER_set(X509_get_serialNumber(x509ss), 1);
 
-	if (!X509_set_issuer_name(x509ss, X509_REQ_get_subject_name(req)))
+	if(!X509_set_issuer_name(x509ss, X509_REQ_get_subject_name(req)))
 		goto end;
 	X509_gmtime_adj(X509_get_notBefore(x509ss), 0);
 	X509_gmtime_adj(X509_get_notAfter(x509ss), 31536000L);
 
-	if (!X509_set_subject_name(x509ss, X509_REQ_get_subject_name(req)))
+	if(!X509_set_subject_name(x509ss, X509_REQ_get_subject_name(req)))
 		goto end;
 
 	tmppkey = X509_REQ_get_pubkey(req);
-	if (!tmppkey || !X509_set_pubkey(x509ss, tmppkey))
+	if(!tmppkey || !X509_set_pubkey(x509ss, tmppkey))
 		goto end;
 
-	if (!X509_sign(x509ss,pkey,EVP_md5()))
+	if(!X509_sign(x509ss,pkey,EVP_md5()))
         goto end;
 
 	out = BIO_new_file(certpath->str,"w");
@@ -230,19 +230,19 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     ERR_load_BIO_strings();
 
     bne = BN_new();
-    if (BN_set_word(bne,e) != 1) 
+    if(BN_set_word(bne,e) != 1)
         goto out;
 
 
     rsa = RSA_new();
-    if (RSA_generate_key_ex(rsa, bits, bne, NULL) != 1)
+    if(RSA_generate_key_ex(rsa, bits, bne, NULL) != 1)
         goto out;
 
     pkey = EVP_PKEY_new();
-    if (!EVP_PKEY_set1_RSA(pkey, rsa))
+    if(!EVP_PKEY_set1_RSA(pkey, rsa))
         goto out;
 
-	if( server::generate_cert_with_key == TRUE )
+	if(server::generate_cert_with_key == TRUE)
 	{  
 		key_file = g_string_new(server::cert_key_path->str);
 		g_string_append(key_file, "/");
@@ -277,10 +277,10 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     }
 
     p8inf = EVP_PKEY2PKCS8(pkey);
-    if (!p8inf)
+    if(!p8inf)
         goto out;
 
-    if ((len = i2d_PKCS8_PRIV_KEY_INFO(p8inf, NULL)) < 0)
+    if((len = i2d_PKCS8_PRIV_KEY_INFO(p8inf, NULL)) < 0)
         goto out;
 
     KEYDATA = k_buffer_alloc(NULL, len);
@@ -302,7 +302,7 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     STM_TEST_DATA = k_buffer_alloc(NULL, 20);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
     STM_TEST_SIG = k_buffer_alloc(NULL, RSA_size(rsa));
-    if (!RSA_sign(NID_sha1, k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA), 
+    if(!RSA_sign(NID_sha1, k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA),
         k_buffer_data(STM_TEST_SIG),
         &len,
         rsa)) {
@@ -312,14 +312,14 @@ convert_rsa_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 out:
     k_buffer_unref(STM_TEST_SIG);
     k_buffer_unref(STM_TEST_DATA);
-    if (p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
-    if (pkey) EVP_PKEY_free(pkey);
-    if (rsa) RSA_free(rsa);
-    if (bne) BN_free(bne);
-	if (key_file) g_string_free( key_file, TRUE);
-    if (key_file_der) g_string_free( key_file_der, TRUE);
-	if (pfile) fclose(pfile);
-	if (pfile_der) fclose(pfile_der);
+    if(p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
+    if(pkey) EVP_PKEY_free(pkey);
+    if(rsa) RSA_free(rsa);
+    if(bne) BN_free(bne);
+    if(key_file) g_string_free( key_file, TRUE);
+    if(key_file_der) g_string_free( key_file_der, TRUE);
+    if(pfile) fclose(pfile);
+    if(pfile_der) fclose(pfile_der);
     X509_REQ_free(req);
     return KEYDATA;
 }
@@ -349,20 +349,20 @@ convert_ecc_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     eccgrp = OBJ_txt2nid("secp521r1");
     ec_key = EC_KEY_new_by_curve_name(eccgrp);
     EC_KEY_set_asn1_flag(ec_key, OPENSSL_EC_NAMED_CURVE);
-    if (!(EC_KEY_generate_key(ec_key))) {
+    if(!(EC_KEY_generate_key(ec_key))) {
         k_critical_msg("Error generating the ECC key.");
         goto out;
     }
 
     pkey = EVP_PKEY_new();
-    if (!EVP_PKEY_set1_EC_KEY(pkey, ec_key))
+    if(!EVP_PKEY_set1_EC_KEY(pkey, ec_key))
         goto out;
 
     p8inf = EVP_PKEY2PKCS8(pkey);
-    if (!p8inf)
+    if(!p8inf)
         goto out;
 
-    if ((len = i2d_PKCS8_PRIV_KEY_INFO(p8inf, NULL)) < 0)
+    if((len = i2d_PKCS8_PRIV_KEY_INFO(p8inf, NULL)) < 0)
         goto out;
 
     KEYDATA = k_buffer_alloc(NULL, len);
@@ -371,7 +371,7 @@ convert_ecc_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
 
     STM_TEST_DATA = k_buffer_alloc(NULL, 20);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_DATA);
-    if ((ec_sig = ECDSA_do_sign(k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA), ec_key)) == NULL) {
+    if((ec_sig = ECDSA_do_sign(k_buffer_data(STM_TEST_DATA), k_buffer_length(STM_TEST_DATA), ec_key)) == NULL) {
         k_critical_msg("ECDSA_do_sign failed ! %s \n", ERR_error_string(ERR_get_error(), NULL));
         goto out;
     }
@@ -381,12 +381,12 @@ convert_ecc_key_to_attr_hash(gchar *keyid, k_attributes_ptr attrs)
     i2d_ECDSA_SIG(ec_sig, &data);
     KEYAGENT_KEY_ADD_BYTEARRAY_ATTR(attrs, STM_TEST_SIG);
 out:
-    if (ec_sig) ECDSA_SIG_free(ec_sig);
+    if(ec_sig) ECDSA_SIG_free(ec_sig);
     k_buffer_unref(STM_TEST_SIG);
     k_buffer_unref(STM_TEST_DATA);
-    if (p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
-    if (pkey) EVP_PKEY_free(pkey);
-    if (ec_key) EC_KEY_free(ec_key);
+    if(p8inf) PKCS8_PRIV_KEY_INFO_free(p8inf);
+    if(pkey) EVP_PKEY_free(pkey);
+    if(ec_key) EC_KEY_free(ec_key);
     return KEYDATA;
 }
 
@@ -399,7 +399,7 @@ int __aes_gcm_encrypt(k_buffer_ptr key, k_buffer_ptr plaintext, k_buffer_ptr iv,
     k_debug_msg("AES:GCM-keybit:%d\n", 128);
     k_debug_msg("iv-size %d plaintext,size %d ciphertext %d", k_buffer_length(iv), k_buffer_length(plaintext), k_buffer_length(ciphertext));
 
-    if (!(ctx = EVP_CIPHER_CTX_new())) return -1;
+    if(!(ctx = EVP_CIPHER_CTX_new())) return -1;
 
     assert(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL) == 1);
     assert(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, k_buffer_length(iv), NULL) == 1);
@@ -501,7 +501,7 @@ generate_iv()
 {
     k_buffer_ptr iv = k_buffer_alloc(NULL, AES_BLOCK_SIZE);
 
-    if (!RAND_bytes((unsigned char *)k_buffer_data(iv), k_buffer_length(iv))) {
+    if(!RAND_bytes((unsigned char *)k_buffer_data(iv), k_buffer_length(iv))) {
         k_buffer_unref(iv);
         iv = NULL;
         goto out;
@@ -518,7 +518,7 @@ create_challenge(const char *client_ip)
 	GError *err = NULL;
     keyagent_stm_real *lstm = (keyagent_stm_real *)server::stm;
     const gchar *session_id = NULL;
-    if (STM_MODULE_OP(lstm,challenge_generate_request)(&session_id, &err)) {
+    if(STM_MODULE_OP(lstm,challenge_generate_request)(&session_id, &err)) {
         set_session(client_ip, keyagent_get_module_label(server::stm), session_id, NULL, NULL);
     }
     return session_id;
@@ -538,8 +538,8 @@ void
 key_info_free(gpointer data)
 {
     key_info_t *info = (key_info_t *)data;
-    if (!info) return;
-    if (info->key_attrs) {
+    if(!info) return;
+    if(info->key_attrs) {
         g_hash_table_destroy (info->key_attrs->hash);
         g_free(info->key_attrs);
     }
