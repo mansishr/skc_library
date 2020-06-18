@@ -82,7 +82,6 @@ void json_print(Json::Value &val)
         case Json::booleanValue: k_debug_msg("boolean %d", val.asBool()); break;
         case Json::arrayValue: k_debug_msg("array of length %d", val.size()); break;
         case Json::objectValue: k_debug_msg("object of length %d", val.size()); break;
-        default: k_critical_msg("wrong type"); break;
     }
 }
 
@@ -348,7 +347,6 @@ __npm_loadkey(loadkey_info *info, GError **err)
 		else
 			keytype = KEYAGENT_AESKEY;
 
-		k_buffer_ptr KEYDATA = decode64_json_attr(transfer_data["data"], "payload");
 		SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
 		SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
 		SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);

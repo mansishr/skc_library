@@ -258,7 +258,6 @@ CK_RV do_aes_encrypt_decrypt(apimodule_uri_data *uri_data)
     RV_CHECK("C_FindObjects", rv);
     fprintf(stdout, "No.of Secret objects found: %ld \n", ulObjectCount);
 
-
     if(ulObjectCount != 1)
     {
         fprintf(stderr, "C_FindObjects object not found\n");
@@ -303,7 +302,7 @@ err:
 void* thread_aes_encrypt_decrypt_test(void *x)
 {
         apimodule_uri_data  *data = (apimodule_uri_data *)x;
-        CK_RV rv = do_aes_encrypt_decrypt(data);
+        do_aes_encrypt_decrypt(data);
         return NULL;
 }
                                              

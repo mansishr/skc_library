@@ -151,6 +151,8 @@ __keyagent_cache_loadkey_policy_attr(gint key_id, const char *attr_name, GError 
 	k_policy_buffer_ptr attr_value = k_policy_buffer_alloc();
 	k_debug_msg("Cache Key Policy attr:%s-%s\n", attr_name, policy_attr_str);
 	gboolean ret = g_time_val_from_iso8601(policy_attr_str, k_policy_buffer_data(attr_value));
+	if(ret == FALSE)
+		k_info_msg("could not convert iso 8601 encoded date/time  to timeval");
 	g_object_unref(model);
 	return attr_value;
 }

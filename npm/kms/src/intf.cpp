@@ -76,7 +76,6 @@ void json_print(Json::Value &val)
 		case Json::booleanValue: k_debug_msg("boolean %d", val.asBool()); break;
 		case Json::arrayValue: k_debug_msg("array of length %d", val.size()); break;
 		case Json::objectValue: k_debug_msg("object of length %d", val.size()); break;
-		default: k_critical_msg("wrong type"); break;
 	}
 }
 
@@ -480,14 +479,6 @@ npm_init(const char *config_directory, GError **err)
 	kms_npm::server_url = g_string_new(server);
 	kms_npm::debug = key_config_get_boolean_optional(config, "core", "debug", FALSE);
 	kms_npm::policy_support = key_config_get_boolean_optional(config, "core", "policy_support", FALSE);
-
-	if(*err) {
-		err_flag = TRUE;
-		npm_finalize(err);
-		goto cleanup;
-	}
-	goto cleanup;
-
 cleanup:
 	key_config_closefile(config);
 	return (err_flag) ? NULL : KMS_PREFIX_TOKEN;
