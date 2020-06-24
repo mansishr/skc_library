@@ -1,4 +1,5 @@
 #define G_LOG_DOMAIN "pkcs11-apimodule"
+#include <unistd.h>
 #include <gmodule.h>
 #include "config.h"
 #include "k_debug.h"
@@ -29,6 +30,68 @@ GHashTable *module_hash = NULL;
 CK_FUNCTION_LIST_PTR func_list = NULL;
 keyagent_apimodule_ops apimodule_ops;
 
+void
+apimodule_prepare_child(void)
+{
+	CK_RV rv = CKR_OK;
+	CK_SESSION_HANDLE hSession;
+	apimodule_uri_data uri_data;
+	gboolean is_present = FALSE;
+	FILE *fp = NULL;
+	char *uri = NULL;
+	size_t len = 0;
+	ssize_t read = 0;
+
+	//as we are starting in a new child process, re-initialize the cryptoki/CTK library
+	rv = C_Finalize(NULL);
+	rv = C_Initialize(NULL);
+
+	if((fp = fopen(pre_load_keyfile, "r")) == NULL) {
+		k_critical_msg("apimodule_prepare_child: Could not find file %s", pre_load_keyfile);
+		return;
+	}
+
+	read = getline(&uri, &len, fp);
+
+	if(read <= 0) {
+		k_critical_msg("apimodule_prepare_child: no pkcs11 url found in %s file", pre_load_keyfile);
+		return;
+	}
+
+	if(!apimodule_uri_to_uri_data(uri, &uri_data)) {
+		rv = CKR_ARGUMENTS_BAD;
+		k_critical_msg("apimodule_prepare_child: apimodule_uri_to_uri_data failed");
+		return;
+	}
+
+	//find the token which was created by the parent process
+	if((rv = apimodule_findtoken(&uri_data, &is_present)) != CKR_OK) {
+		k_critical_msg("apimodule_prepare_child: %s failed!: 0x%lx\n", "apimodule_findtoken", rv);
+		return;
+	}
+
+	if(is_present) {
+		// now that we found the token object, we need to open a session and login into the token
+		if((rv = func_list->C_OpenSession(uri_data.slot_id, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession)) != CKR_OK) {
+			k_critical_msg("apimodule_prepare_child: %s failed!: 0x%lx\n", "C_OpenSession", rv);
+			return;
+		}
+
+		rv = func_list->C_Login(hSession, CKU_USER, (unsigned char*)uri_data.pin->str, uri_data.pin->len);
+		if(rv == CKR_USER_ALREADY_LOGGED_IN)
+			rv = CKR_OK;
+
+		if(rv != CKR_OK) {
+			k_critical_msg("%s failed!: 0x%lx\n", "user C_Login", rv);
+			return;
+		}
+	}
+	else {
+		k_critical_msg("no token object is found. this should not happen");
+	}
+	return;
+}
+
 CK_RV
 C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 {
@@ -36,6 +99,10 @@ C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 	static gsize init = 0;
 	if(g_once_init_enter (&init)) {
 		rv = apimodule_init(ppFunctionList);
+		if(g_strcmp0(mode, "SGX") == 0) {
+			// define a handler which should be called before child process starts executing
+			pthread_atfork(NULL, NULL, apimodule_prepare_child);
+		}
 		g_once_init_leave (&init, 1);
 	}
 	*ppFunctionList = func_list;
