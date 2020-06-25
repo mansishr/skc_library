@@ -421,6 +421,9 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 			k_debug_msg("token created");
 			func_list->C_Logout(hSession);
 			func_list->C_CloseSession(hSession);
+			// re-initialize the cryptoki to get new slot Ids
+			func_list->C_Finalize(NULL_PTR);
+			func_list->C_Initialize(NULL_PTR);
 		}
 
 		if(((rv = apimodule_findtoken(uri_data, &is_present)) != CKR_OK) || !is_present) {

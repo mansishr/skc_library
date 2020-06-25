@@ -56,7 +56,7 @@ sgx_unwrap_rsa_key(keyagent_apimodule_loadkey_details *details, apimodule_token 
 	}
 
         CK_ATTRIBUTE nPrkAttribs[] = {
-		{ CKA_TOKEN, &bFalse, sizeof(bFalse) },
+		{ CKA_TOKEN, &bTrue, sizeof(bTrue) },
 		{ CKA_CLASS, &privateClass, sizeof(privateClass) },
 		{ CKA_KEY_TYPE, &keyType, sizeof(keyType) },
 		{ CKA_LABEL, uri_data->key_label->str, uri_data->key_label->len },
@@ -67,7 +67,8 @@ sgx_unwrap_rsa_key(keyagent_apimodule_loadkey_details *details, apimodule_token 
 		{ CKA_UNWRAP, &bTrue, sizeof(bTrue) },
 	};
 
-	SET_TOKEN_ATTRIBUTE(nPrkAttribs, 0);
+	nPrkAttribs[0].ulValueLen = sizeof(bTrue);
+	nPrkAttribs[0].pValue = &bTrue;
 
 	hPrk = CK_INVALID_HANDLE;
 	rv = func_list->C_UnwrapKey(atoken->session, &mechanism, atoken->wrappingkey_handle,
