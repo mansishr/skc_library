@@ -98,7 +98,7 @@ check_last_cmd_exec_status()
 	elif [ $last_exec_stat -ne 0 ] && [ $exec_rule -eq $EXEC_RULE_WARN ]; then
 		log_msg $LOG_WARN "$log_msg"
 	else
-		log_msg $LOG_DEBUG "$LOG_MSG : CMD:$exec_cmd"
+		log_msg $LOG_DEBUG "$log_msg : Last command executed successfully"
 	fi
 }
 
