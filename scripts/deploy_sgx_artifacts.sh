@@ -1,9 +1,10 @@
 #!/bin/bash
 
-SGX_DRIVER_VERSION=1.22
+SGX_DCAP_RPM_VER=1.6.100.2-1
+SGX_DRIVER_VERSION=1.33
 SYSLIB_PATH=/usr/lib64
 SGX_INSTALL_DIR=/opt/intel
-SGX_TOOLKIT_INSTALL_PREFIX=$SGX_INSTALL_DIR/sgxtoolkit
+SGX_TOOLKIT_INSTALL_PREFIX=$SGX_INSTALL_DIR/cryptoapitoolkit
 GIT_CLONE_PATH=/tmp/sgxstuff
 CENTRL_REPO=$PWD
 bold=$(tput bold)
@@ -30,7 +31,7 @@ uninstall_sgx()
 	if [[ -d $SGX_TOOLKIT_INSTALL_PREFIX ]]; then
 		echo "Uninstalling SGX Toolkit"
 		rm -rf $SGX_TOOLKIT_INSTALL_PREFIX
-		rm -rf $SGX_INSTALL_DIR/cryptoapitoolkit/
+		#rm -rf $SGX_INSTALL_DIR/cryptoapitoolkit/
 	fi
 
 	rpm -qa | grep 'sgx' | xargs rpm -e
@@ -39,7 +40,6 @@ uninstall_sgx()
 	find $SYSLIB_PATH -name 'libquote*' -exec rm -f {} \;
 	rm -rf /etc/yum.repos.d/*sgx_rpm_local_repo.repo
 	rm -rf /usr/local/bin/ld /usr/local/bin/as /usr/local/bin/ld.gold /usr/local/bin/objdump /usr/local/bin/PCKIDRetrievalTool /usr/local/bin/enclave.signed.so /usr/local/libdcap_quoteprov.so.1
-	#rm -rf $GIT_CLONE_PATH
 }
 
 install_sgxssl()
@@ -52,19 +52,15 @@ install_sgxssl()
 
 install_DCAP()
 {
-	mkdir -p /usr/src/sgx-$SGX_DRIVER_VERSION/
-        cp -rpf $CENTRL_REPO/DCAP/* /usr/src/sgx-$SGX_DRIVER_VERSION/
-
-        dkms add -m sgx -v $SGX_DRIVER_VERSION
-        dkms build -m sgx -v $SGX_DRIVER_VERSION
-        dkms install -m sgx -v $SGX_DRIVER_VERSION
-
-        modprobe intel_sgx
-
-        cp $CENTRL_REPO/DCAP/10-sgx.rules /etc/udev/rules.d
-        groupadd sgx_prv
-        usermod -a -G sgx_prv root
-        udevadm trigger
+	cd  $CENTRL_REPO/DCAP/
+	chmod +x *.bin
+        # install SGX DCAP Driver if SGX Support is not enabled in kernel
+        if [ -z "$INKERNEL_SGX" ]; then
+                echo "Installing dcap driver"
+                ./sgx_linux_x64_driver_${SGX_DRIVER_VERSION}.bin -prefix=$SGX_INSTALL_DIR || exit 1
+        else
+                echo "Found inbuilt sgx driver, skipping dcap driver installation"
+        fi
 }
 
 install_SDK()
@@ -83,13 +79,8 @@ install_SDK()
 
 install_QGL()
 {
-	cp -f $CENTRL_REPO/QGL/lib/*.so $SYSLIB_PATH
-	cp -f $CENTRL_REPO/QGL/header_files/*.h $SGX_INSTALL_DIR/sgxsdk/include/
-        ln -fs $SYSLIB_PATH/libsgx_dcap_ql.so $SYSLIB_PATH/libsgx_dcap_ql.so.1
-        ln -sf $SYSLIB_PATH/libsgx_default_qcnl_wrapper.so $SYSLIB_PATH/libsgx_default_qcnl_wrapper.so.1
-        ln -sf $SYSLIB_PATH/libdcap_quoteprov.so $SYSLIB_PATH/libdcap_quoteprov.so.1
-	
-	cp -p $CENTRL_REPO/QGL/conf/* /etc
+	pushd ${CENTRL_REPO}/QGL/rpm
+	rpm -ivh libsgx-ae-qve-${SGX_DCAP_RPM_VER}.el8.x86_64.rpm libsgx-dcap-ql-${SGX_DCAP_RPM_VER}.el8.x86_64.rpm libsgx-dcap-ql-devel-${SGX_DCAP_RPM_VER}.el8.x86_64.rpm libsgx-dcap-default-qpl-devel-${SGX_DCAP_RPM_VER}.el8.x86_64.rpm libsgx-dcap-default-qpl-${SGX_DCAP_RPM_VER}.el8.x86_64.rpm	
 	sed -i "s|PCCS_URL=.*|PCCS_URL=https://localhost:9000/scs/sgx/certification/v1/|g" /etc/sgx_default_qcnl.conf
         sed -i "s/USE_SECURE_CERT=.*/USE_SECURE_CERT=FALSE/g" /etc/sgx_default_qcnl.conf
 }
@@ -97,10 +88,11 @@ install_QGL()
 install_sgxtoolkit()
 {
 	mkdir $SGX_TOOLKIT_INSTALL_PREFIX/
+	mkdir $SGX_TOOLKIT_INSTALL_PREFIX/include
+	mkdir $SGX_TOOLKIT_INSTALL_PREFIX/lib
         cp -prf ${CENTRL_REPO}/sgxtoolkit/include $SGX_TOOLKIT_INSTALL_PREFIX/include/
         cp -prf ${CENTRL_REPO}/sgxtoolkit/lib $SGX_TOOLKIT_INSTALL_PREFIX/lib/
 
-	mkdir $SGX_INSTALL_DIR/cryptoapitoolkit
 	mkdir $SGX_INSTALL_DIR/cryptoapitoolkit/tokens
 	chmod -R 1777 $SGX_INSTALL_DIR/cryptoapitoolkit/tokens
 
@@ -109,7 +101,7 @@ install_sgxtoolkit()
 check_for_prerequisites()
 {
 	echo "CHECKING IF DEPENDENT PACKAGES ARE INSTALLED"
- 	pkg_list='yum-utils dkms ocaml protobuf'
+ 	pkg_list='yum-utils dkms ocaml protobuf curl openssl'
 	deps_installed='y'
 	for pkg in $pkg_list
 	do
@@ -122,6 +114,13 @@ check_for_prerequisites()
         	fi
 	done
 
+	command -v python3 >> /dev/null
+	if [ $? -ne 0 ]
+	then
+		echo "${bold}python3 NOT installed${normal}"
+		deps_installed='n'
+	fi 
+
 	if [ $deps_installed = 'n' ]
 	then
        		echo "${bold}Dependent packages are not installed. Please refer to install document"
@@ -130,20 +129,17 @@ check_for_prerequisites()
 	fi
 }
 
-uninstall_sgx
 check_for_prerequisites
+uninstall_sgx
 echo "DCAP install started"
 install_DCAP
 echo "DCAP install completed"
 echo "SDK install started"
 install_SDK
-echo "DCAP install completed"
+echo "SDK install completed"
 echo "QGL install started"
 install_QGL
-echo "DCAP install completed"
-echo "PCK install started"
-install_PCK
-echo "PCK install completed"
+echo "QGL install completed"
 echo "SGXSSL INSTALL started"
 install_sgxssl
 echo "SGXSSL install completed"
