@@ -31,6 +31,7 @@ cp ${script_dir}/*common*.sh* ${script_dir}/*uninstall* ${script_dir}/*.ini $SKC
 
 mkdir -p $build_dir/scripts/
 
+chmod go-rwx $SKCLIB_INSTALL_DIR
 tar -cvf $build_dir/skc_library.tar.gz $SKCLIB_INSTALL_DIR/
 if [ $? -ne 0 ]; then
 	exit_script $LOG_ERROR "Error while copying binaries from ${SKCLIB_INSTALL_DIR}" $CODE_EXEC_ERROR
@@ -73,7 +74,7 @@ echo \$SKCLIB_PRE_REQUISITES | tr \" \" \"\\n\" > \/$SKCLIB_DEVOPS_DIR/$SKCLIB_D
 fetch_installed_dependency_packages_version \/$SKCLIB_DEVOPS_DIR/$SKCLIB_DEPS_PACKAGES \/$SKCLIB_DEVOPS_DIR/$SKCLIB_INSTALLED_DEPS_PACKAGES_VER
 
 exit 0" > ${SKCLIB_DEPLOY_SCRIPT}
-chmod 755 ${SKCLIB_DEPLOY_SCRIPT}
+chmod 500 ${SKCLIB_DEPLOY_SCRIPT}
 cd -
 
 if [ -f $bin_name ]; then
