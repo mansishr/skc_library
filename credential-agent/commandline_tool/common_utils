@@ -52,7 +52,7 @@ set_log_file()
 	if [ ! -z "$1" -a "$1" != " " ]; then
 	    LOG_FILE=$1
 		touch $LOG_FILE
-		chmod 755 $LOG_FILE
+		chmod 600 $LOG_FILE
 		log_msg $LOG_DEBUG "LOG_FILE:$LOG_FILE"
 	fi
 }
