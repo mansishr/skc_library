@@ -4,7 +4,6 @@ SUBDIRS = \
 	credential-agent \
 	key-agent \
 	npm/kms \
-	npm/reference \
 	stm/sw \
 	stm/sgx \
 	api-module/pkcs11 \

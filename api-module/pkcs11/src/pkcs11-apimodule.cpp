@@ -55,26 +55,26 @@ apimodule_prepare_child(void)
 
 	if(read <= 0) {
 		k_critical_msg("apimodule_prepare_child: no pkcs11 url found in %s file", pre_load_keyfile);
-		return;
+		goto end;
 	}
 
 	if(!apimodule_uri_to_uri_data(uri, &uri_data)) {
 		rv = CKR_ARGUMENTS_BAD;
 		k_critical_msg("apimodule_prepare_child: apimodule_uri_to_uri_data failed");
-		return;
+		goto end;
 	}
 
 	//find the token which was created by the parent process
 	if((rv = apimodule_findtoken(&uri_data, &is_present)) != CKR_OK) {
 		k_critical_msg("apimodule_prepare_child: %s failed!: 0x%lx\n", "apimodule_findtoken", rv);
-		return;
+		goto end;
 	}
 
 	if(is_present) {
 		// now that we found the token object, we need to open a session and login into the token
 		if((rv = func_list->C_OpenSession(uri_data.slot_id, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession)) != CKR_OK) {
 			k_critical_msg("apimodule_prepare_child: %s failed!: 0x%lx\n", "C_OpenSession", rv);
-			return;
+			goto end;
 		}
 
 		rv = func_list->C_Login(hSession, CKU_USER, (unsigned char*)uri_data.pin->str, uri_data.pin->len);
@@ -83,12 +83,15 @@ apimodule_prepare_child(void)
 
 		if(rv != CKR_OK) {
 			k_critical_msg("%s failed!: 0x%lx\n", "user C_Login", rv);
-			return;
+			goto end;
 		}
 	}
 	else {
 		k_critical_msg("no token object is found. this should not happen");
 	}
+end:
+	if(fp)
+		fclose(fp);
 	return;
 }
 
@@ -97,7 +100,7 @@ C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 {
 	static CK_RV rv = CKR_GENERAL_ERROR;
 	static gsize init = 0;
-	if(g_once_init_enter (&init)) {
+	if(g_once_init_enter(&init)) {
 		rv = apimodule_init(ppFunctionList);
 		if(g_strcmp0(mode, "SGX") == 0) {
 			// define a handler which should be called before child process starts executing
@@ -474,7 +477,6 @@ apimodule_load_key(keyagent_apimodule_loadkey_details *details, void *extra, GEr
 
 		if(data->type == CKO_DATA) {
 			data->type = type;
-			k_debug_msg("type is NULL !!!");
 		}
 		if(data->type != type) {
 			k_critical_msg("Incompatible type in uri for key-id:%s", data->key_id->str);
@@ -497,15 +499,18 @@ apimodule_preload_keys(GError **err)
 	ssize_t read = 0;
 	gboolean ret = FALSE;
 
-	if(g_strcmp0(pre_load_keyfile, "NIL") == 0)
-		return TRUE;
+	if(g_strcmp0(pre_load_keyfile, "NIL") == 0) {
+		k_critical_msg("preload_keys directive missing in pkcs11-apimodule.ini");
+		return ret;
+	}
 
 	do {
 		if((fp = fopen(pre_load_keyfile, "r")) == NULL) {
+			k_critical_msg("could not open preload_keys file specified in pkcs11-apimodule.ini");
 			g_set_error(err, APIMODULE_ERROR, APIMODULE_ERROR_INVALID_CONF_VALUE,"Invalid File :%s", __func__);
 			break;
 		}
-    
+
 		while((read = getline(&uri, &len, fp)) > 0) {
 			k_debug_msg("loading key: %s", uri);
 			if(C_OnDemand_KeyLoad((const char *)uri) != CKR_OK) {
@@ -518,6 +523,8 @@ apimodule_preload_keys(GError **err)
 				ret = TRUE;
 			}
 		}
+		if(read <= 0)
+			k_critical_msg("preload_keys file specified in pkcs11-apimodule.ini is empty");
 	}while(FALSE);
 
 	if(fp)

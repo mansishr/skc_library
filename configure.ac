@@ -75,7 +75,6 @@ AC_CONFIG_FILES([
 	credential-agent/Makefile
 	credential-agent/commandline_tool/Makefile
 	credential-agent/tests/Makefile
-	testserver/Makefile
 	utils/Makefile
 ])
 
@@ -84,7 +83,6 @@ AC_CONFIG_SUBDIRS([
     key-agent
     stm/sw
     stm/sgx
-    npm/reference
     npm/kms
     api-module/pkcs11
     npm/tests/test_app

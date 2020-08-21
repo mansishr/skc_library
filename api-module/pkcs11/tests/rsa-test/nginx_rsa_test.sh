@@ -3,7 +3,7 @@
 current_dir=$(dirname "$(readlink -f "$0")")
 set -x
 . ${current_dir}/../config
-pkill -9 nginx
+pkill nginx
 OPENSSL_CONF=${DATADIR}/engines.cnf G_MESSAGES_DEBUG=all /usr/sbin/nginx
 
-wget https://localhost:443/ --no-check-certificate
+wget -k -v https://localhost:2443/ --no-check-certificate
