@@ -523,8 +523,6 @@ apimodule_preload_keys(GError **err)
 				ret = TRUE;
 			}
 		}
-		if(read <= 0)
-			k_critical_msg("preload_keys file specified in pkcs11-apimodule.ini is empty");
 	}while(FALSE);
 
 	if(fp)
