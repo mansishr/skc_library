@@ -135,11 +135,11 @@ install_pre_requisites()
 	local PRE_REQUISITES="none"
 
 	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-8.el8.noarch.rpm
-	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Everything/x86_64/os/Packages/s/softhsm-2.5.0-3.fc30.1.x86_64.rpm
-	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Everything/x86_64/os/Packages/m/makeself-2.4.0-3.fc30.noarch.rpm
-	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-5.2.8-4.fc30.x86_64.rpm
-	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-devel-5.2.8-4.fc30.x86_64.rpm
-	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.8-4.fc30.x86_64.rpm
+	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/s/softhsm-2.5.0-4.fc32.1.x86_64.rpm
+	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/m/makeself-2.4.0-5.fc32.noarch.rpm
+	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-5.2.9-4.fc32.x86_64.rpm
+	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-4.fc32.x86_64.rpm
+	$PAC_INSTALLER localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-4.fc32.x86_64.rpm
 	$PAC_INSTALLER update -y && $PAC_INSTALLER groupinstall "Development Tools" -y && $PAC_INSTALLER install ${SKCLIB_PRE_REQUISITES} -y
 
 	# download and build latest libp11
