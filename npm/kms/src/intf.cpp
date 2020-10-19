@@ -3,6 +3,7 @@
 #include "npm/kms/kms.h"
 #include "utils/utils.h"
 #include "k_debug.h"
+#include "iostream"
 
 using namespace std;
 
@@ -30,7 +31,7 @@ void get_session_id_from_header(gpointer data, gpointer user_data)
 	gchar *str = (gchar *)data;
 	gchar ***tokens_ptr = (gchar ***)user_data;
 	gchar **tokens =  NULL;
-	if(g_str_has_prefix(str,"Session-ID:") == TRUE)
+	if(g_str_has_prefix(str,"Session-Id:") == TRUE)
 	{
 		tokens = g_strsplit(str,":",-1);
 		*tokens_ptr = tokens;
@@ -318,7 +319,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 	if(session_ids != NULL && session_ids->len > 0)
 	{
-		session_ids_header = g_string_new("Session-ID: ");
+		session_ids_header = g_string_new("Session-Id: ");
 		g_string_append(session_ids_header, session_ids->str);
 		g_ptr_array_add(headers, (gpointer) session_ids_header->str);
 	}
