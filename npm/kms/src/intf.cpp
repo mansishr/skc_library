@@ -14,7 +14,6 @@ namespace kms_npm
 	GString *configfile;
 	GString *server_url;
 	gboolean debug;
-	gboolean policy_support	= FALSE;
 }
 
 std::string get_json_value(Json::Value value, const char *key)
@@ -371,12 +370,6 @@ __npm_loadkey(loadkey_info *info, GError **err)
 				keytype = KEYAGENT_AESKEY;
 
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
-#ifdef TEST_WAK_DATA
-		SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_DATA", STM_TEST_DATA);
-		SET_KEY_ATTR(transfer_data["data"], attrs, "STM_TEST_SIG", STM_TEST_SIG);
-#endif
-		if(kms_npm::policy_support == TRUE)
-			policy_url = g_string_new(get_json_value(transfer_data["data"]["policy"]["link"]["key-usage"], "href").c_str());
 		} catch (exception& e) {
 			k_set_error(err, NPM_ERROR_JSON_PARSE, "NPM JSON Parse error: %s\n", e.what());
 			goto cleanup;
@@ -395,39 +388,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 				"Session data not found for stm label:%s\n", session_id_tokens[1]);
 			goto cleanup;
 		}
-
-		if(policy_url != NULL && kms_npm::policy_support == TRUE)
-		{
-			policy_headers = g_ptr_array_new ();
-			g_ptr_array_add(policy_headers, (gpointer) "Accept: application/json");
-			g_ptr_array_add(policy_headers, (gpointer) "Content-Type: application/json");
-
-			policy_ret_data = k_buffer_alloc(NULL,0);
-			res_status = skc_https_send(policy_url, policy_headers, NULL, NULL, policy_ret_data,
-					&info->details->ssl_opts, NULL, kms_npm::debug);
-			if(res_status != 200)
-			{
-				k_set_error(err, NPM_ERROR_LOAD_KEY, "Error in policy fetching\n");
-				goto cleanup;
-			}
-			transfer_data = parse_data(policy_ret_data);
-
-			try {
-				policy_attrs = k_attributes_alloc();
-				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "not_after", NOT_AFTER);
-				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "not_before", NOT_BEFORE);
-				SET_KEY_POLICY_ATTR(transfer_data["data"], policy_attrs, "created_at", CREATED_AT);
-				if(KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->request_id, info->details->url, keytype, attrs, session_id, err))
-					ret = KEYAGENT_NPM_OP(&info->details->cbs, key_policy_add)(info->details->url, policy_attrs, -1, err);
-			} catch(exception& e) {
-				k_set_error(err, NPM_ERROR_JSON_PARSE, "NPM JSON Parse error: %s\n", e.what());
-				goto cleanup;
-			}
-		}
-		else
-		{
-			ret = (KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->request_id, info->details->url, keytype, attrs, session_id, err)?TRUE:FALSE);
-		}
+		ret = (KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->request_id, info->details->url, keytype, attrs, session_id, err)?TRUE:FALSE);
 	}
 	else {
 		k_critical_msg("Invalid Http response status received: %d", res_status);
@@ -479,7 +440,6 @@ npm_init(const char *config_directory, GError **err)
 	}
 	kms_npm::server_url = g_string_new(server);
 	kms_npm::debug = key_config_get_boolean_optional(config, "core", "debug", FALSE);
-	kms_npm::policy_support = key_config_get_boolean_optional(config, "core", "policy_support", FALSE);
 cleanup:
 	key_config_closefile(config);
 	return (err_flag) ? NULL : KMS_PREFIX_TOKEN;

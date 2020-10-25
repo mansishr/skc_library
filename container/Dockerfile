@@ -2,7 +2,7 @@ FROM centos:8
 
 # Set env variables
 ARG SGX_INSTALL_DIR /opt/intel
-ARG SKC_LIBRARY_BIN_NAME skc_library_v1.0.bin
+ARG SKC_LIBRARY_BIN_NAME skc_library_v3.2.bin
  
 # Copy binaries and SGX local repo
 COPY bin/pkcs11.so /usr/lib64/engines-1.1/
@@ -13,7 +13,7 @@ COPY sgxssl ${SGX_INSTALL_DIR}/sgxssl
 COPY cryptoapitoolkit ${SGX_INSTALL_DIR}/cryptoapitoolkit
 
 #Install dependencies and SGX components
-RUN dnf localinstall -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/s/softhsm-2.5.0-4.fc32.3.x86_64.rpm \
+RUN dnf install -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/s/softhsm-2.5.0-4.fc32.3.x86_64.rpm \
     https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-5.2.9-4.fc32.x86_64.rpm \
     https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-4.fc32.x86_64.rpm \
     https://download-ib01.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/j/jsoncpp-1.8.4-6.el8.x86_64.rpm \
