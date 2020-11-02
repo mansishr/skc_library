@@ -143,8 +143,9 @@ install_pre_requisites()
 
 	# download and build latest libp11
 	git clone https://github.com/OpenSC/libp11.git && cd libp11
+	git checkout libp11-0.4.11
 	./bootstrap
-	./configure --with-enginesdir=/usr/lib64/engines-1.1/
+	./configure --libdir=/usr/lib64/
 	make install
 	cd ..
 	rm -rf libp11
