@@ -197,7 +197,6 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	session_data["challenge_type"] = challenge_type->str;
 	session_data["challenge"] = session_id->str;
 	session_data["quote"] = g_base64_encode(k_buffer_data(challenge), k_buffer_length(challenge));
-	session_data["certificate_chain"] = "";//TODO need to fill
 
 	builder.settings_["indentation"] = "";
 	post_data = g_string_new(Json::writeString(builder, session_data).c_str());
