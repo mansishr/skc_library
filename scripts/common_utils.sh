@@ -141,8 +141,6 @@ install_pre_requisites()
 {
 	check_pre_condition
 
-       local PRE_REQUISITES="none"
-
        if [ "$OS" == "rhel" ]
         then
 # RHEL
@@ -186,12 +184,12 @@ fi
 	git checkout libp11-0.4.11
 	./bootstrap
 if [ "$OS" == "rhel" ]
-then	
+then
 	./configure --libdir=/usr/lib64/
 elif [ "$OS" == "ubuntu" ]
-then	
+then
 	./configure --libdir=/usr/lib/x86_64-linux-gnu/
-fi	
+fi
 	make install
 	cd ..
 	rm -rf libp11
@@ -203,7 +201,7 @@ then
 elif [ "$OS" == "ubuntu" ]
 then
         ln -sf /usr/lib/x86_64-linux-gnu/libjsoncpp.so /usr/lib/x86_64-linux-gnu/libjsoncpp.so.0
-fi	
+fi
 }
 
 # Extract version of the dependency packages installed

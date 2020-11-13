@@ -68,10 +68,10 @@ echo \"skc_library installation\"
 
 if [ "$OS" == "rhel" ]
 then
-source ${script_dir}/config_rhel.ini
+source scripts/config_rhel.ini
 elif [ "$OS" == "ubuntu" ]
 then
-source ${script_dir}/config_ubuntu.ini
+source scripts/config_ubuntu.ini
 fi
 
 if [ -f scripts/$UTILS_SOURCE ]; then
