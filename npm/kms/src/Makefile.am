@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) -std=c++11
+AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) -std=c++11 -I/usr/include/jsoncpp
 
 libdir = $(prefix)/lib/npm-modules
 

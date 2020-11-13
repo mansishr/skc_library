@@ -1,7 +1,20 @@
 #!/bin/bash
 
 script_dir=$(dirname "$(readlink -f "$0")")
-source ${script_dir}/config.ini
+
+# Check OS and VERSION
+OS=$(cat /etc/os-release | grep ^ID= | cut -d'=' -f2)
+temp="${OS%\"}"
+temp="${temp#\"}"
+OS="$temp"
+
+if [ "$OS" == "rhel" ]
+then
+source ${script_dir}/config_rhel.ini
+elif [ "$OS" == "ubuntu" ]
+then
+source ${script_dir}/config_ubuntu.ini
+fi
 
 if [ -f ${script_dir}/$UTILS_SOURCE ]; then
     source ${script_dir}/$UTILS_SOURCE
@@ -52,7 +65,14 @@ SKCLIB_DEPLOY_SCRIPT="skc_library_install.sh"
 
 echo "#!/bin/bash
 echo \"skc_library installation\"
-source scripts/config.ini
+
+if [ "$OS" == "rhel" ]
+then
+source scripts/config_rhel.ini
+elif [ "$OS" == "ubuntu" ]
+then
+source scripts/config_ubuntu.ini
+fi
 
 if [ -f scripts/$UTILS_SOURCE ]; then
 	source scripts/$UTILS_SOURCE

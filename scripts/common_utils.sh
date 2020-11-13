@@ -24,6 +24,14 @@ declare SELF_PID=$$
 declare EXIT_STAT_FILE=$(mktemp)
 declare LOG_PREFIX=""
 
+# Check OS and VERSION
+OS=$(cat /etc/os-release | grep ^ID= | cut -d'=' -f2)
+temp="${OS%\"}"
+temp="${temp#\"}"
+OS="$temp"
+VER=$(cat /etc/os-release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
+OS_FLAVOUR="$OS""$VER"
+
 to_stderr(){
 	(>&2 $*)
 }
@@ -133,6 +141,10 @@ install_pre_requisites()
 {
 	check_pre_condition
 
+       if [ "$OS" == "rhel" ]
+        then
+# RHEL
+
 	$PAC_INSTALLER install -y https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-8.el8.noarch.rpm
 	$PAC_INSTALLER install -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/s/softhsm-2.5.0-4.fc32.3.x86_64.rpm
 	$PAC_INSTALLER install -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/m/makeself-2.4.0-5.fc32.noarch.rpm
@@ -141,17 +153,55 @@ install_pre_requisites()
 	$PAC_INSTALLER install -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-4.fc32.x86_64.rpm
 	$PAC_INSTALLER update -y && $PAC_INSTALLER groupinstall "Development Tools" -y && $PAC_INSTALLER install ${SKCLIB_PRE_REQUISITES} -y
 
+        elif [ "$OS" == "ubuntu" ]
+        then
+# Ubuntu
+       apt update
+       apt install -y build-essential automake autoconf libtool
+       $PAC_INSTALLER install ${SKCLIB_PRE_REQUISITES} -y
+       apt install -y softhsm makeself libgda-5.0-4 libgda-5.0-dev
+
+# Download P11-Kit
+       wget http://archive.ubuntu.com/ubuntu/pool/main/libt/libtasn1-6/libtasn1-6_4.14-3_amd64.deb
+       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit0_0.23.17-2_amd64.deb
+       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/p11-kit-modules_0.23.17-2_amd64.deb
+       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/p11-kit_0.23.17-2_amd64.deb
+       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit-dev_0.23.17-2_amd64.deb
+
+# Install p11-kit and its dependencies
+       apt install -f ./libtasn1-6_4.14-3_amd64.deb
+       apt install -f ./libp11-kit0_0.23.17-2_amd64.deb
+       apt install -f ./p11-kit-modules_0.23.17-2_amd64.deb
+       apt install -f ./p11-kit_0.23.17-2_amd64.deb
+       apt install -f ./libp11-kit-dev_0.23.17-2_amd64.deb
+
+# remove the downloaded files
+       rm -rf *.deb
+fi
+
 	# download and build latest libp11
 	git clone https://github.com/OpenSC/libp11.git && cd libp11
 	git checkout libp11-0.4.11
 	./bootstrap
+if [ "$OS" == "rhel" ]
+then
 	./configure --libdir=/usr/lib64/
+elif [ "$OS" == "ubuntu" ]
+then
+	./configure --libdir=/usr/lib/x86_64-linux-gnu/
+fi
 	make install
 	cd ..
 	rm -rf libp11
 
 	# required for aes_test
+if [ "$OS" == "rhel" ]
+then
 	ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
+elif [ "$OS" == "ubuntu" ]
+then
+        ln -sf /usr/lib/x86_64-linux-gnu/libjsoncpp.so /usr/lib/x86_64-linux-gnu/libjsoncpp.so.0
+fi
 }
 
 # Extract version of the dependency packages installed

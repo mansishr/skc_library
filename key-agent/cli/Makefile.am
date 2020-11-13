@@ -7,4 +7,4 @@ keyagent_cli_SOURCES = \
     main.c
 
 keyagent_cli_LDFLAGS =  -ljsoncpp
-keyagent_cli_LDADD = $(top_srcdir)/../key-agent/src/libkey_agent.la
+keyagent_cli_LDADD = $(top_srcdir)/../key-agent/src/libkey_agent.la -lgmodule-2.0 -lglib-2.0

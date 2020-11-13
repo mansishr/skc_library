@@ -6,4 +6,4 @@ bin_PROGRAMS = \
 npm_tapp_SOURCES = \
     test_app.c
 
-npm_tapp_LDADD = ../../../key-agent/src/libkey_agent.la
+npm_tapp_LDADD = ../../../key-agent/src/libkey_agent.la -lgmodule-2.0 -lglib-2.0
