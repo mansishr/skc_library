@@ -188,7 +188,7 @@ then
 	./configure --libdir=/usr/lib64/
 elif [ "$OS" == "ubuntu" ]
 then
-	./configure --libdir=/usr/lib/x86_64-linux-gnu/
+	./configure --libdir=/usr/lib/
 fi
 	make install
 	cd ..
@@ -200,7 +200,7 @@ then
 	ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
 elif [ "$OS" == "ubuntu" ]
 then
-        ln -sf /usr/lib/x86_64-linux-gnu/libjsoncpp.so /usr/lib/x86_64-linux-gnu/libjsoncpp.so.0
+        ln -sf /usr/lib/libjsoncpp.so /usr/lib/libjsoncpp.so.0
 fi
 }
 
