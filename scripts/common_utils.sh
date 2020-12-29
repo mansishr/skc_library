@@ -162,18 +162,16 @@ install_pre_requisites()
        apt install -y softhsm makeself libgda-5.0-4 libgda-5.0-dev
 
 # Download P11-Kit
-       wget http://archive.ubuntu.com/ubuntu/pool/main/libt/libtasn1-6/libtasn1-6_4.14-3_amd64.deb
-       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit0_0.23.17-2_amd64.deb
-       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/p11-kit-modules_0.23.17-2_amd64.deb
-       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/p11-kit_0.23.17-2_amd64.deb
-       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit-dev_0.23.17-2_amd64.deb
+       wget http://archive.ubuntu.com/ubuntu/pool/main/libt/libtasn1-6/libtasn1-6_4.16.0-2_amd64.deb
+       wget http://archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi8ubuntu1_3.4~20200819gead65ca871-0ubuntu3_amd64.deb
+       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit0_0.23.22-1_amd64.deb
+       wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit-dev_0.23.22-1_amd64.deb
 
 # Install p11-kit and its dependencies
-       apt install -f ./libtasn1-6_4.14-3_amd64.deb
-       apt install -f ./libp11-kit0_0.23.17-2_amd64.deb
-       apt install -f ./p11-kit-modules_0.23.17-2_amd64.deb
-       apt install -f ./p11-kit_0.23.17-2_amd64.deb
-       apt install -f ./libp11-kit-dev_0.23.17-2_amd64.deb
+       apt install -f ./libtasn1-6_4.16.0-2_amd64.deb
+       apt install -f ./libffi8ubuntu1_3.4~20200819gead65ca871-0ubuntu3_amd64.deb
+       apt install -f ./libp11-kit0_0.23.22-1_amd64.deb
+       apt install -f ./libp11-kit-dev_0.23.22-1_amd64.deb
 
 # remove the downloaded files
        rm -rf *.deb
