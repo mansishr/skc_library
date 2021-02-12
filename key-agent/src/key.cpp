@@ -82,25 +82,6 @@ out:
 	return key_quark;
 }
 
-extern "C" gboolean DLL_LOCAL
-__keyagent_key_policy_add(keyagent_url url, k_attributes_ptr policy_attrs, gint cache_id, GError **error)
-{
-	gboolean ret = FALSE;
-	DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, __keyagent_key_lookup(url));
-	if(!key || !policy_attrs)
-	{
-		goto out;
-	}
-	key = (keyagent_key_real *)key;
-	key->policy_attributes = k_attributes_ref(policy_attrs);
-	ret=TRUE;
-out:
-	if((cache_id == -1)&&key)
-		__keyagent_cache_key_policy((keyagent_key *)key, error);
-
-	return ret;
-}
-
 extern "C" GQuark DLL_LOCAL
 __keyagent_key_create(const char *request_id, keyagent_url url, keyagent_keytype type, k_attributes_ptr attrs, const char *session_id, GError **error)
 {
@@ -173,68 +154,4 @@ __keyagent_key_remove_by_session(keyagent_session *session)
 	g_hash_table_foreach(keyagent::key_hash, __build_delete_key_list, &list);
 	g_list_foreach(list.l, __delete_key, NULL);
 	g_list_free(list.l);
-}
-
-extern "C" gboolean DLL_LOCAL
-__keyagent_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type)
-{
-	GTimeVal ctime;
-	gint status = -1;
-	gboolean ret = FALSE;
-	GDateTime *policy_time = NULL;
-	GDateTime *current_time = NULL;
-
-	policy_time = g_date_time_new_from_timeval_local(policy);
-	if(policy_time == NULL)
-	{
-		k_critical_msg("Error in converting date time struct\n");
-		return ret;
-	}
-	g_get_current_time (&ctime);
-	current_time = g_date_time_new_from_timeval_local(&ctime);
-	status = g_date_time_compare(policy_time, current_time);
-	if((strcmp(policy_type, "NOT_AFTER") ==0  && (status == 1)) || ((strcmp(policy_type, "NOT_BEFORE") == 0
-		|| strcmp(policy_type, "CREATED_AT") == 0 ) && (status == -1)))
-		ret = TRUE;
-	g_date_time_unref(policy_time);
-	g_date_time_unref(current_time);
-	return ret;
-}
-
-#define VALIDATE_KEY_POLICY_ATTR(KEY, VAL) do { \
-	gboolean RET = FALSE; \
-    k_policy_buffer_ptr tmp; \
-    KEYAGENT_KEY_GET_POLICY_ATTR((KEY)->policy_attributes, VAL, tmp); \
-    RET = __keyagent_key_validate_usage_policy(k_policy_buffer_data(tmp), #VAL); \
-	if(RET == FALSE) \
-		return RET; \
-}while(0)
-
-extern "C" gboolean  DLL_LOCAL
-__validate_key_usage_policy(keyagent_key_real *key)
-{
-	VALIDATE_KEY_POLICY_ATTR(key, NOT_BEFORE);
-	VALIDATE_KEY_POLICY_ATTR(key, NOT_AFTER);
-	VALIDATE_KEY_POLICY_ATTR(key, NOT_AFTER);
-	
-	return TRUE;
-}
-
-extern "C" gboolean 
-keyagent_key_checkpolicy(keyagent_url url, int op, gint size, GError **err)  
-{
-	gboolean ret = FALSE;
-	DECLARE_KEYAGENT_REAL_PTR(key, keyagent_key, __keyagent_key_lookup(url));
-	if(key == NULL)
-	{
-		k_critical_msg("Invalid key url:%s\n", url);
-		return ret;
-	}
-	ret = __validate_key_usage_policy(key);
-	if(ret != TRUE)
-	{   
-		k_critical_msg("Invalid key usage policy_date\n");
-		__keyagent_key_hash_value_free(key);
-	}
-	return ret;
 }

@@ -1,9 +1,7 @@
 #include <vector>       
 #include <openssl/bio.h>
-#include <openssl/pem.h>
 #include <gmodule.h>
 #include <unistd.h>
-#include <sys/wait.h> 
 #include "config.h"
 #include "api-module/pkcs11/src/internal.h"
 
@@ -214,7 +212,7 @@ CK_RV do_aes_encrypt_decrypt(apimodule_uri_data *uri_data)
 	    { CKA_CLASS, &privClass, sizeof(privClass) },
 	    { CKA_ID, (CK_UTF8CHAR_PTR)uri_data->key_id->str, strlen(uri_data->key_id->str) }
     };
-    CK_MECHANISM mechanism = { CKM_AES_CBC, NULL_PTR, 0 };
+    CK_MECHANISM mechanism = { CKM_AES_KEY_WRAP, NULL_PTR, 0 };
 
     memset(&initArgs, (size_t)sizeof(CK_C_INITIALIZE_ARGS), 0);
     initArgs.flags = CKF_OS_LOCKING_OK;
@@ -299,13 +297,6 @@ err:
     return rv;
 }
 
-void* thread_aes_encrypt_decrypt_test(void *x)
-{
-        apimodule_uri_data  *data = (apimodule_uri_data *)x;
-        do_aes_encrypt_decrypt(data);
-        return NULL;
-}
-                                             
 int main(int argc, char* argv[])
 {
     uri = argv[1];
@@ -337,32 +328,6 @@ int main(int argc, char* argv[])
     }    
    
     rv = do_aes_encrypt_decrypt(&uri_data);    
-
-#ifndef FORK_TEST
-    if(pthread_create(&thread, NULL, thread_aes_encrypt_decrypt_test, (void *)&uri_data)) {
-	fprintf(stderr, "Error creating thread\n");
-	return -1;
-    }
-	
-    if(pthread_join(thread, NULL)) {
-	fprintf(stderr, "Error joining thread\n");
-	return -1;
-    }
-
-    forkStatus = fork();
-
-    /* Child... */
-    if(forkStatus == 0) {
-	rv = do_aes_encrypt_decrypt(&uri_data);
-	/* Parent... */
-    } else if(forkStatus != -1) {
-	wait(NULL);
-	rv = do_aes_encrypt_decrypt(&uri_data);
-    } else {
-	perror("Error while calling the fork function");
-    }
-
-#endif
 
     clean_uri_data(&uri_data);
     return 0;

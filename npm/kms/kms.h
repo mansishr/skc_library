@@ -18,17 +18,7 @@ typedef struct {
 	k_buffer_unref(NAME); \
 }while(0)
 
-#define SET_KEY_POLICY_ATTR(DATA, ATTRS, JSON_KEY, NAME) do { \
-	k_policy_buffer_ptr NAME = get_time_val_from_json(DATA, JSON_KEY); \
-	gboolean ret = kms_key_validate_usage_policy(k_policy_buffer_data(NAME), #NAME); \
-	if(ret == FALSE) \
-		k_critical_msg("Invalid key usage policy:%s\n", #NAME); \
-	KEYAGENT_KEY_ADD_POLICY_ATTR((ATTRS), NAME); \
-	k_policy_buffer_unref(NAME); \
-}while(0)
-
-#define DT_FORMAT "%Y-%m-%dT%H:%M:%SZ"
 #define KMS_PREFIX_TOKEN "KMS"
-#define k_string_free(string, flag) { if(string) g_string_free((string), flag); }
+#define k_string_free(string) {if(string) g_string_free((string), TRUE);}
 
 #endif

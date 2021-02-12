@@ -6,13 +6,13 @@
 
 # Program version
 
-define([_VERSION_MAJOR], [2])
-define([_VERSION_MINOR], [0])
+define([_VERSION_MAJOR], [3])
+define([_VERSION_MINOR], [4])
 define([_VERSION_FIX], [0])
 define([PACKAGE_SUFFIX], [])
 
-define([_VERSION_CURRENT], [2])
-define([_VERSION_AGE], [1])
+define([_VERSION_CURRENT], [3])
+define([_VERSION_AGE], [3])
 define([_VERSION_REVISION], [0])
 define([AM_CXXFLAGS], [-std=c++0x])
 
@@ -58,7 +58,6 @@ AC_DEFINE_UNQUOTED(
 	[Use C++11 compiler]
 )
 
-
 AC_DEFINE_UNQUOTED(
 	[HAVE_CXX14],
 	[1],
@@ -74,7 +73,6 @@ AC_CONFIG_FILES([
 	Makefile
 	credential-agent/Makefile
 	credential-agent/commandline_tool/Makefile
-	credential-agent/tests/Makefile
 	utils/Makefile
 ])
 
@@ -85,7 +83,6 @@ AC_CONFIG_SUBDIRS([
     stm/sgx
     npm/kms
     api-module/pkcs11
-    npm/tests/test_app
 ])
 
 AC_OUTPUT

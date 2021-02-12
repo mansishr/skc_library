@@ -16,11 +16,7 @@ then
 source ${script_dir}/config_ubuntu.ini
 fi
 
-if [ -f ${script_dir}/$UTILS_SOURCE ]; then
-    source ${script_dir}/$UTILS_SOURCE
-else
-    echo -e "common-utils.sh not found." && exit 1
-fi
+source ${script_dir}/$UTILS_SOURCE
 
 set_log $FLAG_ENABLE "skc_library"
 
@@ -45,7 +41,7 @@ cp ${script_dir}/*common*.sh* ${script_dir}/*uninstall* ${script_dir}/*.ini $SKC
 mkdir -p $build_dir/scripts/
 
 chmod go-rwx $SKCLIB_INSTALL_DIR
-tar -cvf $build_dir/skc_library.tar.gz $SKCLIB_INSTALL_DIR/
+tar -cf $build_dir/skc_library.tar.gz $SKCLIB_INSTALL_DIR/
 if [ $? -ne 0 ]; then
 	exit_script $LOG_ERROR "Error while copying binaries from ${SKCLIB_INSTALL_DIR}" $CODE_EXEC_ERROR
 fi 
@@ -74,15 +70,11 @@ then
 source scripts/config_ubuntu.ini
 fi
 
-if [ -f scripts/$UTILS_SOURCE ]; then
-	source scripts/$UTILS_SOURCE
-else
-	echo -e \"common-utils.sh not found.\" && exit 1
-fi
+source scripts/$UTILS_SOURCE
 set_log $FLAG_ENABLE \"skc_library\"
 
 rm -rf $SKCLIB_INSTALL_DIR
-sudo tar -xvf skc_library.tar.gz -C /
+sudo tar -xf skc_library.tar.gz -C /
 exit_script $LOG_DEBUG \"skc_library installed\" $CODE_EXEC_SUCCESS
 
 sudo mkdir -p $SKCLIB_DEVOPS_DIR

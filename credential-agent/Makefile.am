@@ -1,1 +1,1 @@
-SUBDIRS = commandline_tool tests
+SUBDIRS = commandline_tool

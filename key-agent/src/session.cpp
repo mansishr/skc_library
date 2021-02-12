@@ -2,8 +2,7 @@
 
 static const char *supported_swk_types[] = {
 	"AES128-GCM", "AES192-GCM", "AES256-GCM", 
-	"AES128-CBC", "AES192-CBC", "AES256-CBC", 
-	"AES128-WRAP", "AES192-WRAP", "AES256-WRAP", 
+	"AES128-WRAP", "AES192-WRAP", "AES256-WRAP",
 	NULL};
 	
 void DLL_LOCAL

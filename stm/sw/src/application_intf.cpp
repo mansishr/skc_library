@@ -2,7 +2,7 @@
 #include "internal.h"
 
 extern "C" const char *
-stm_init(const char *config_directory, stm_mode mode, GError **err)
+stm_init(const char *config_directory, GError **err)
 {
 	return "SW";
 }

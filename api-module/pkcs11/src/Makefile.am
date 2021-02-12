@@ -28,7 +28,8 @@ libpkcs11_api_la_LDFLAGS = $(COMMON_LDFLAGS) -version-info @VERSION_INFO@ \
 	$(GLIB_LIBS) \
 	`pkg-config --libs p11-kit-1` \
 	$(GMODULE_LIBS) \
-	$(TOPDIR)/key-agent/src/libkey_agent.la
+	$(TOPDIR)/key-agent/src/libkey_agent.la \
+	$(TOPDIR)/SafeStringLibrary/libSafeStringRelease.a
 
 datadir=$(prefix)/etc
 conf_file=pkcs11-apimodule.ini

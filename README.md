@@ -15,7 +15,10 @@ The `SKC Library` enables secure transfer of application keys from KBS after per
 
 ## Software requirements
 
+- wget
 - git
+- make
+- gcc-c++
 - makeself
 
 # Step By Step Build Instructions
@@ -25,7 +28,7 @@ The `SKC Library` enables secure transfer of application keys from KBS after per
 ### Install tools from `dnf`
 
 ```{.shell}
-sudo dnf install -y git wget makeself
+sudo dnf install -y git wget make gcc-c++ makeself
 ```
 
 ## Build SKC Library
@@ -34,12 +37,12 @@ sudo dnf install -y git wget makeself
 - Run scripts to build the SKC Library
 
 ```shell
-git clone https://github.com/intel-secl/skc-tools.git
-cd skc-tools/skc_library/build_scripts
+git clone https://github.com/intel-secl/utils.git
+cd build/skc-tools/skc_library/build_scripts
 - To build SKC Library,
-# ./skc_library_build.sh
+#./skc_library_build.sh
 - This script will generate a tarball(skc_library.tar) and checksum file(skc_library.sha2)
-- Copy skc_library.tar, skc_library.sha2 and untar.sh(from skc_library directory) to a directory in the deployment machine
+- Copy skc_library.tar, skc_library.sha2 and untar.sh(from build/skc-tools/skc_library directory) to a directory in the deployment machine
 ```
 
 ## Third Party Dependencies
@@ -57,8 +60,6 @@ libgda        | dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86
 glib          | gitlab.gnome.org/GNOME/glib                                                       | v2.0.0
 libgda-sqlite | dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l | v5.2.9
 libjsoncpp    | github.com/open-source-parsers/jsoncpp                                            | v1.9.3
-
-_Note: All dependencies are listed in go.mod_
 
 ## Links
 

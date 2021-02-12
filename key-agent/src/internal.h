@@ -59,7 +59,6 @@ typedef struct {
 	ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,session_create); \
 	ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,session_lookup_swktype); \
 	ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,key_create); \
-	ASSIGN_KEYAGENT_INTERNAL_NPM_OP(OPS,keyagent,key_policy_add); \
 }while(0)
 
 #ifdef  __cplusplus
@@ -157,7 +156,7 @@ gboolean keyagent_session_create(const char *request_id, const char *name, const
 gboolean __keyagent_session_create(const char *request_id, const char *name, const char *session_id, k_buffer_ptr swk, const char *swk_type, GError **);
 gboolean __keyagent_stm_set_session(const char *request_id, keyagent_session *, GError **);
 GQuark __keyagent_session_lookup_swktype(const char *type);
-gboolean  __keyagent_stm_get_challenge(const char *name, const char *requesting_npm_name, k_buffer_ptr *challenge, GError **);
+gboolean  __keyagent_stm_get_challenge(const char *name, unsigned char *nonce, const char *requesting_npm_name, k_buffer_ptr *challenge, GError **);
 const char *keyagent_generate_request_id(void);
 void keyagent_request_id_destory(gpointer data);
 

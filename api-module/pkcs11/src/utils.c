@@ -1,6 +1,7 @@
 #define G_LOG_DOMAIN "pkcs11-util"
 
 #include "internal.h"
+#include "npm/kms/kms.h"
 
 #define MIN_PIN_LEN (4)
 #define MAX_PIN_LEN (255)
@@ -110,18 +111,27 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 			goto out;
 		}
 	}
+	else
+	{
+		k_critical_msg("type tag in pkcs11 uri cannot be empty");
+		goto out;
+	}
 	if((upin = (char*) p11_kit_uri_get_pin_value(key_uri)) == NULL) {
 		k_critical_msg("cannot read pin value from pkcs11 uri");
 		goto out;
 	}
-
 	if((strlen(upin) < MIN_PIN_LEN) || (strlen(upin) > MAX_PIN_LEN)) {
-		k_critical_msg("invalid pin length specified");
+		k_critical_msg("invalid pin length specified (Should be minimum 4 digits)");
 		goto out;
 	}
-
-	if((uri_data->token_label = apimodule_utf8_to_char(tokenInfo->label, sizeof(tokenInfo->label))) == NULL)
+	if((uri_data->token_label = apimodule_utf8_to_char(tokenInfo->label, sizeof(tokenInfo->label))) == NULL) {
+		k_critical_msg("token tag not found in pkcs11 uri");
 		goto out;
+	}
+	if(g_strcmp0(uri_data->token_label->str, KMS_PREFIX_TOKEN) != 0) {
+		k_critical_msg("token name should be KMS");
+		goto out;
+	}
 
 	uri_data->key_label = g_string_new(NULL);
 	uri_data->key_id = g_string_new(NULL);
@@ -281,33 +291,6 @@ get##ATTR(CK_SESSION_HANDLE sess, CK_OBJECT_HANDLE obj) \
  * Define attribute accessors
  */
 ATTR_METHOD(CLASS, CK_OBJECT_CLASS);
-
-void 
-apimodule_list_objects(CK_SESSION_HANDLE sess, CK_OBJECT_CLASS  object_class)
-{
-	CK_OBJECT_HANDLE object;
-	CK_ULONG count;
-	CK_RV rv;
-
-	rv = func_list->C_FindObjectsInit(sess, NULL, 0);
-	if(rv != CKR_OK) {
-		k_critical_msg("C_FindObjectsInit failed: 0x%lx", rv);
-		return;
-	}
-
-	while(1) {
-		rv = func_list->C_FindObjects(sess, &object, 1, &count);
-		if(rv != CKR_OK) {
-			k_critical_msg("C_FindObjects failed: 0x%lx", rv);
-			return;
-		}
-		if(count == 0)
-			break;
-		if((int) object_class == -1 || object_class == getCLASS(sess, object))
-			k_debug_msg("found an object %d", getCLASS(sess, object));
-	}
-	func_list->C_FindObjectsFinal(sess);
-}
 
 CK_RV 
 apimodule_findobject(CK_SESSION_HANDLE hSession, apimodule_uri_data *data, gboolean *is_present)

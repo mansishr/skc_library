@@ -235,20 +235,16 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 	CK_RSA_PUBLIC_KEY_PARAMS* rsaPublicKeyParams = NULL;
 	CK_ULONG quote_len = 0UL;
 	k_buffer_ptr quote_details = NULL;
-	k_buffer_ptr cert_information = NULL;
 
 	struct keyagent_sgx_challenge_request *challenge_request
 		= (struct keyagent_sgx_challenge_request *)request;
 	apimodule_uri_data *data = NULL;
 	apimodule_token *atoken = NULL;
-	CK_LONG launch_policy = 0;
 	CK_MECHANISM_TYPE mechanismType	= 0;
 	CK_MECHANISM mechanism = {0};
 	CK_MECHANISM_PTR pMechanism = NULL;
-	u_int32_t major_no = 1;
-	u_int32_t minor_no = 0;
 
-	if(strcmp(challenge_request->attestationType,"ECDSA") == 0) {
+	if(strcmp(challenge_request->attestationType, "ECDSA") == 0) {
 		mechanismType = CKM_EXPORT_ECDSA_QUOTE_RSA_PUBLIC_KEY;
 	}
 
@@ -276,11 +272,10 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 	}
 
 	if(strcmp(challenge_request->attestationType,"ECDSA") == 0) {
-		launch_policy = challenge_request->launch_policy;
-		static CK_ECDSA_QUOTE_RSA_PUBLIC_KEY_PARAMS
-			quoteRSAParams  = {
-				launch_policy
-			};
+		static CK_ECDSA_QUOTE_RSA_PUBLIC_KEY_PARAMS quoteRSAParams;
+
+		quoteRSAParams.qlPolicy = challenge_request->launch_policy;
+		memcpy_s(quoteRSAParams.nonce, NONCE_LENGTH, details->nonce, NONCE_LENGTH);
 		pMechanism->pParameter = &quoteRSAParams;
 		pMechanism->ulParameterLen = sizeof(quoteRSAParams);
 	} else {
@@ -318,72 +313,19 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 
 		rsaPublicKeyParams = (CK_RSA_PUBLIC_KEY_PARAMS*)k_buffer_data(quote_details);
 
-		if(mechanismType == CKM_EXPORT_ECDSA_QUOTE_RSA_PUBLIC_KEY) {
-			u_int32_t public_key_size = rsaPublicKeyParams->ulExponentLen + rsaPublicKeyParams->ulModulusLen;
-
-			sgx_ql_certification_data_t *cert_buffer = (sgx_ql_certification_data_t*)(k_buffer_data(quote_details)
-					+ sizeof(CK_RSA_PUBLIC_KEY_PARAMS) + public_key_size + sizeof(sgx_quote3_t)
-					+ sizeof(sgx_ql_ecdsa_sig_data_t) + sizeof(sgx_ql_auth_data_t)
-					+ REF_ECDSDA_AUTHENTICATION_DATA_SIZE);
-			///A Hexadevimal value 05 00 denotes certificate type
-			if(cert_buffer->cert_key_type != SGX_ECDSA_QUOTE_VERIFIABLE) {
-				k_critical_msg("pck certficate missing from quote!!!!");
-				k_set_error(err, -1, "quote is generated but cannot be verified");
-				break;
-			}
-			uint32_t certSize = cert_buffer->size;
-			cert_information = k_buffer_alloc(NULL, certSize);
-			memcpy_s(k_buffer_data(cert_information), k_buffer_length(cert_information), (unsigned char*)(cert_buffer->certification_data), certSize);
-			// Fetch PCK Certificate from PCK Cert chain. PCK is the 1st certificate in the chain.
-			// Hence we will fetch it by getting the position of the ending of PCK and copying it.
-			std::string pckCert;
-			std::size_t pckPos1, pckPos2;
-			const char* certificate_pattern = "-----BEGIN CERTIFICATE-----";
-			// Whole PCK chain in quote from which PCK cert will be fetched.
-			std::string certificate_str((const char*)(k_buffer_data(cert_information)));
-			pckPos1 = certificate_str.find(certificate_pattern);
-			if(pckPos1 != std::string::npos) {
-				pckPos2 = certificate_str.find(certificate_pattern, pckPos1 + 1);
-				if(pckPos2 != std::string::npos) {
-					pckCert = certificate_str.substr(pckPos1, pckPos2);
-				} else {
-					break;
-				}
-			} else {
-				k_critical_msg("pck certficate could not be fetched");
-				k_set_error(err, -1, "pck certificate couldn't be fetched");
-				break;
-			}
-			const uint pckCertSize = pckPos2;
-
-			struct keyagent_sgx_quote_info quote_info = {
-				.major_num = major_no,
-				.minor_num = minor_no,
-				.quote_size = quote_len - sizeof(CK_RSA_PUBLIC_KEY_PARAMS),
-				.quote_type = KEYAGENT_SGX_QUOTE_TYPE_ECDSA,
-				.keytype = KEYAGENT_RSAKEY,
-				.keydetails = {
-					.rsa = {
-						.exponent_len = rsaPublicKeyParams->ulExponentLen,
-						.modulus_len = rsaPublicKeyParams->ulModulusLen,
-					},
+		struct keyagent_sgx_quote_info quote_info = {
+			.rsa = {
+				.exponent_len = rsaPublicKeyParams->ulExponentLen,
+				.modulus_len = rsaPublicKeyParams->ulModulusLen,
 				},
-				.quote_details = {
-					.ecdsa_quote_details = {
-						.pckCert_size =  pckCertSize,
-					},
-				}
-			};
-
-			atoken->challenge = k_buffer_alloc(NULL,0);
-			k_buffer_append(atoken->challenge, (guint8*)&quote_info, sizeof(quote_info));
-			k_buffer_append(atoken->challenge,(char *)(pckCert.c_str()), pckCertSize);
-		} else {
-			k_critical_msg("Invalid ECDSA Key Quote");
-			k_set_error(err, -1, "Invalid quote type\n");
-			break;
-		}
-
+			.quote_details = {
+				.ecdsa_quote_details = {
+					.quote_size =  quote_len,
+				},
+			}
+		};
+		atoken->challenge = k_buffer_alloc(NULL,0);
+		k_buffer_append(atoken->challenge, (guint8*)&quote_info, sizeof(quote_info));
 		k_buffer_append(atoken->challenge, k_buffer_data(quote_details) + sizeof(CK_RSA_PUBLIC_KEY_PARAMS),
 				quote_len - sizeof(CK_RSA_PUBLIC_KEY_PARAMS));
 		result = TRUE;
@@ -391,8 +333,6 @@ gboolean sgx_get_challenge(keyagent_apimodule_get_challenge_details *details, vo
 
 end:
 	k_buffer_unref(quote_details);
-	if(cert_information)
-		k_buffer_unref(cert_information);
 	return result;
 }
 

@@ -6,8 +6,7 @@ SUBDIRS = \
 	npm/kms \
 	stm/sw \
 	stm/sgx \
-	api-module/pkcs11 \
-	npm/tests/test_app
+	api-module/pkcs11
 
 conf_dir:=./configs
 datadir=$(prefix)/etc
