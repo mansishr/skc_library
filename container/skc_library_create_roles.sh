@@ -4,7 +4,7 @@ CURL_OPTS="-s -k"
 mkdir -p /tmp/skclib
 tmpdir=$(mktemp -d -p /tmp/skclib)
 
-aas_url=https://$AAS_IP:$AAS_PORT/aas
+aas_url=https://$AAS_IP:$AAS_PORT/aas/v1
 
 cat > $tmpdir/aasadmin.json << EOF
 {
