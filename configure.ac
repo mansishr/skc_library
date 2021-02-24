@@ -86,3 +86,5 @@ AC_CONFIG_SUBDIRS([
 ])
 
 AC_OUTPUT
+VERSION := $(or ${GITTAG}, v0.0.0)
+AM_CONDITIONAL([PROXY_EXISTS], [test "${http_proxy}" -o "${https_proxy}"])
