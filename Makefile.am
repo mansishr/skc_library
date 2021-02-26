@@ -6,8 +6,12 @@ SUBDIRS = \
 	npm/kms \
 	stm/sw \
 	stm/sgx \
-	api-module/pkcs11 \
-	npm/tests/test_app
+	api-module/pkcs11
+
+GITCOMMIT := $(shell git describe --always)
+if PROXY_EXISTS
+DOCKER_PROXY_FLAGS := --build-arg http_proxy=${http_proxy} --build-arg https_proxy=${https_proxy}
+endif
 
 conf_dir:=./configs
 datadir=$(prefix)/etc
@@ -26,3 +30,10 @@ install-data-hook:$(dest_conf_files)
                 $(dest_conf_files)
 
 include_HEADERS = include/k_errors.h include/k_types.h
+
+docker:
+	docker build ${DOCKER_PROXY_FLAGS} -f dist/image/Dockerfile -t isecl/skc-lib:$(VERSION) .
+	docker save isecl/skc-lib:$(VERSION) > skc-lib-$(VERSION)-$(GITCOMMIT).tar
+
+oci-archive: docker
+	skopeo copy docker-daemon:isecl/skc-lib:$(VERSION) oci-archive:out/skc-lib-$(VERSION)-$(GITCOMMIT).tar

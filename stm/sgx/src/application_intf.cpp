@@ -3,6 +3,9 @@
 #include <sgx_pce.h>
 #include "config-file/key_configfile.h"
 #include "internal.h"
+extern "C" {
+#include "safe_lib.h"
+}
 
 namespace sgx_application_sgx_stm {
 	GString *configfile;
@@ -13,7 +16,7 @@ namespace sgx_application_sgx_stm {
 
 __attribute__ ((visibility("default")))
 const char *
-stm_init(const char *config_directory, stm_mode mode, GError **err)
+stm_init(const char *config_directory, GError **err)
 {
 	application_stm_init(config_directory, err);
 
@@ -78,6 +81,7 @@ stm_create_challenge(keyagent_stm_create_challenge_details *details, GError **er
 		return FALSE;
 	}
 	sgx_challenge_request.attestationType = strdup(sgx_application_sgx_stm::attestation_type);
+	memcpy_s(sgx_challenge_request.nonce, NONCE_LENGTH, details->apimodule_details.nonce, NONCE_LENGTH);
 
 	ret = (*details->apimodule_get_challenge_cb)(&details->apimodule_details, &sgx_challenge_request, err);
 

@@ -194,9 +194,6 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 	apimodule_uri_data *data = NULL;
 	apimodule_token *atoken = NULL;
 
-	u_int32_t major_no = 1;
-	u_int32_t minor_no = 0;
-
 	if(!details || !err || !details->module_data) {
 		k_critical_msg("sw_get_challenge: Invalid Input Parameters");
 		k_set_error(err, -1, "Input parameters are invalid!");
@@ -256,17 +253,10 @@ sw_get_challenge(keyagent_apimodule_get_challenge_details *details, void *dummy,
 		}
 
 		struct keyagent_sgx_quote_info quote_info = {
-			.major_num = major_no,
-			.minor_num = minor_no,
-			.quote_size = 0,
-			.quote_type = KEYAGENT_SW_QUOTE_TYPE,
-			.keytype = KEYAGENT_RSAKEY,
-			.keydetails = {
-				.rsa = {
-					.exponent_len = attribs[EXPONENT_INDEX].ulValueLen,
-					.modulus_len = attribs[MODULUS_INDEX].ulValueLen,
+			.rsa = {
+				.exponent_len = attribs[EXPONENT_INDEX].ulValueLen,
+				.modulus_len = attribs[MODULUS_INDEX].ulValueLen,
 				}
-			},
 		};
 
 		atoken->challenge = k_buffer_alloc(NULL,0);

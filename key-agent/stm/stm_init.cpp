@@ -2,6 +2,9 @@
 
 #include "../src/internal.h"
 #include "k_debug.h"
+extern "C" {
+#include "safe_lib.h"
+}
 
 using namespace keyagent;
 
@@ -25,7 +28,7 @@ __initialize_stm(gpointer data, gpointer user_data)
 	}
 	LOOKUP_STM_INTERFACES(stm, KEYAGENT_ERROR_STMLOAD);
 
-	name = STM_MODULE_OP(stm,init)(keyagent::configdirectory->str, APPLICATION_STM_MODE, &tmp_error);
+	name = STM_MODULE_OP(stm,init)(keyagent::configdirectory->str, &tmp_error);
 	if(!name)
 		goto errexit;
 	keyagent_set_module_label(stm, name);
@@ -170,7 +173,7 @@ errexit:
 }
 
 extern "C" gboolean DLL_LOCAL
-__keyagent_stm_get_challenge(const char *request_id, const char *name, k_buffer_ptr *challenge, GError **error)
+__keyagent_stm_get_challenge(const char *request_id, unsigned char *nonce, const char *name, k_buffer_ptr *challenge, GError **error)
 {
 	keyagent_stm_create_challenge_details details;
 	gboolean ret = FALSE;
@@ -196,6 +199,7 @@ __keyagent_stm_get_challenge(const char *request_id, const char *name, k_buffer_
 	details.request_id = request_id;
 	details.apimodule_get_challenge_cb = keyagent::apimodule_ops.get_challenge;
 	details.apimodule_details.challenge = NULL;
+	memcpy_s(details.apimodule_details.nonce, NONCE_LENGTH, nonce, NONCE_LENGTH);
 	details.apimodule_details.label = name;
 	details.apimodule_details.module_data = request->module_data;
 

@@ -44,13 +44,6 @@ key_config_get_string(void *config, const char *section, const char *key, GError
 	return g_key_file_get_string((GKeyFile *)config, section, key, err);
 }
 
-char **
-key_config_get_string_list(void *config, const char *section, const char *key, GError **err)
-{
-	g_return_val_if_fail(err == NULL || *err == NULL , NULL);
-	return g_key_file_get_string_list((GKeyFile *)config, section, key, NULL, err);
-}
-
 char *
 key_config_get_string_optional(void *config, const char *section, const char *key, const char *default_val)
 {
@@ -66,16 +59,6 @@ key_config_get_integer(void *config, const char *section, const char *key, GErro
 {
 	g_return_val_if_fail(err == NULL || *err == NULL , -1);
 	return g_key_file_get_integer((GKeyFile *)config, section, key, err);
-}
-
-int
-key_config_get_integer_optional(void *config, const char *section, const char *key, int default_val)
-{
-	g_autoptr(GError) err = NULL;
-	int val = key_config_get_integer(config, section, key, &err);
-	if(err != NULL)
-		val = default_val;
-	return val;
 }
 
 int

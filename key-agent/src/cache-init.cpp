@@ -136,7 +136,7 @@ __keyagent_cache_init(GError **err)
 	if(keyagent::localcache::cache_keys && !__keyagent_cache_loadkeys(err))
 		return FALSE;
 
-	if(keyagent::localcache::cache_keys && !__keyagent_cache_loadkeys_policy_attr(err))
+	if(keyagent::localcache::cache_keys)
 		return FALSE;
 
 	return TRUE;

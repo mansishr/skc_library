@@ -1,5 +1,5 @@
-HOME			= .
-RANDFILE		= $ENV::HOME/.rnd
+HOME = .
+RANDFILE = $ENV::HOME/.rnd
 
 openssl_conf = openssl_def
 

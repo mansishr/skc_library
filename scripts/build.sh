@@ -16,11 +16,7 @@ then
 source ${script_dir}/config_ubuntu.ini
 fi
 
-if [ -f ${script_dir}/$UTILS_SOURCE ]; then
-	source ${script_dir}/$UTILS_SOURCE
-else
-	echo -e "Utils Script not found Error, Exit." && exit 1
-fi
+source ${script_dir}/$UTILS_SOURCE
 
 set_log $FLAG_ENABLE "skc_library"
 

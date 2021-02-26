@@ -20,8 +20,6 @@ SOFTWARE_MODULE=$SOFTHSM_LIB
 TOOLKIT_MODULE=$TOOLKIT_INSTALLDIR/lib/libp11sgx.so
 TOOLKIT_TOKEN_DIR="/opt/intel/cryptoapitoolkit"
 
-MODULE=$SOFTHSM_MODULE
-
 cp ${CURRENT_DIR}/pkcs11-apimodule.ini.in $DATADIR/pkcs11-apimodule.ini
 if [ "x$SGX" != "x" ]
 then

@@ -38,33 +38,6 @@ void get_session_id_from_header(gpointer data, gpointer user_data)
 	}
 }
 
-gboolean kms_key_validate_usage_policy(GTimeVal *policy, const gchar* policy_type)
-{
-	GTimeVal ctime;
-	gint status = -1;
-	gboolean ret = FALSE;
-	GDateTime *policy_time = NULL;
-	GDateTime *current_time = NULL;
-
-	policy_time = g_date_time_new_from_timeval_local(policy);
-	if(policy_time == NULL)
-	{
-		k_critical_msg("Error in converting date time struct\n");
-		return ret;
-	}
-	g_get_current_time (&ctime);
-	current_time = g_date_time_new_from_timeval_local(&ctime);
-	status = g_date_time_compare(policy_time, current_time);
-	if((strcmp(policy_type, "NOT_AFTER") == 0  && (status == 1)) || ((strcmp(policy_type, "NOT_BEFORE") == 0 ||
-		strcmp(policy_type, "CREATED_AT") == 0 ) && (status == -1)))
-	{
-		ret = TRUE;
-	}
-	g_date_time_unref(policy_time);
-	g_date_time_unref(current_time);
-	return ret;
-}
-
 void json_print(Json::Value &val)
 {
 	switch(val.type()) {
@@ -116,34 +89,6 @@ decode64_json_attr(Json::Value json_data, const char *name)
 	return k_buffer_alloc(NULL, 0);
 }
 
-static k_policy_buffer_ptr
-get_time_val_from_json( Json::Value json_data, const char *name)
-{
-	k_policy_buffer_ptr \
-		policy_attr = NULL;
-	try {
-		std::string json_val = get_json_value(json_data, name);
-		policy_attr = k_policy_buffer_alloc();
-		gboolean ret = g_time_val_from_iso8601((const gchar *)json_val.c_str(), k_policy_buffer_data(policy_attr));
-		if(ret == FALSE)
-		{
-			k_critical_msg("Invalid time stamp information:%s\n", json_val.c_str());
-			return NULL;
-		}
-		return policy_attr;
-	} catch (exception  e) {
-		k_critical_msg("%s\n", e.what());
-	}
-	return policy_attr;
-}
-
-k_buffer_ptr decode_base64_data(k_buffer_ptr ptr)
-{
-	gsize len = 0;
-	guchar *tmp = g_base64_decode((char *)k_buffer_data(ptr), &len);
-	return k_buffer_alloc(tmp, len);
-}
-
 static gboolean
 start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 {
@@ -169,6 +114,9 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	long res_status	= -1;
 	gboolean ret_status = FALSE;
 
+	unsigned char* decoded_nonce = NULL;
+	unsigned char nonce[NONCE_LENGTH];
+
 	try
 	{
 		session_url = g_string_new(get_json_value(transfer_data["link"]["challenge-replyto"],(const char *)"href").c_str());
@@ -189,7 +137,15 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	if(strcmp(session_method->str, "post") != 0)
 		goto cleanup;
 
-	if(!KEYAGENT_NPM_OP(&info->details->cbs,stm_get_challenge)(info->details->request_id, challenge_type->str, &challenge, error))
+	decoded_nonce = g_base64_decode(session_id->str, &len);
+	for(int i = 0, j = 0; i < len; i++)
+	{
+		if (decoded_nonce[i] != '-')
+		{
+			nonce[j++] = decoded_nonce[i];
+		}
+	}
+	if(!KEYAGENT_NPM_OP(&info->details->cbs,stm_get_challenge)(info->details->request_id, nonce, challenge_type->str, &challenge, error))
 		goto cleanup;
 
 	k_debug_generate_checksum("NPM:CHALLENGEl:REAL", k_buffer_data(challenge), k_buffer_length(challenge));
@@ -204,7 +160,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	res_status = skc_https_send(session_url, headers, post_data, NULL, return_data,&info->details->ssl_opts, NULL, kms_npm::debug);
 	if(res_status == -1 || res_status == 0)
 	{
-		k_set_error(error, NPM_ERROR_KEYSERVER_ERROR, "Error in connecting key server, url:%s, Invalid http status:%d\n",
+		k_set_error(error, NPM_ERROR_KEYSERVER_ERROR, "Error in connecting to key broker service, url:%s, Invalid http status:%d\n",
 				session_url->str, res_status);
 		goto cleanup;
 	}
@@ -240,12 +196,12 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	goto cleanup;
 
 cleanup:
-	k_string_free(post_data, TRUE);
-	k_string_free(session_url, TRUE);
-	k_string_free(swktype, TRUE);
-	k_string_free(session_method, TRUE);
-	k_string_free(session_id, TRUE);
-	k_string_free(status, TRUE);
+	k_string_free(post_data);
+	k_string_free(session_url);
+	k_string_free(swktype);
+	k_string_free(session_method);
+	k_string_free(session_id);
+	k_string_free(status);
 	g_ptr_array_free(headers, TRUE);
 	k_buffer_unref(challenge);
 	k_buffer_unref(return_data);
@@ -269,20 +225,16 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	long res_status	= -1;
 
 	GPtrArray *headers = NULL;
-	GPtrArray *policy_headers = NULL;
 	GPtrArray *res_headers = NULL;
 
 	k_buffer_ptr return_data = NULL;
-	k_buffer_ptr policy_ret_data = NULL;
 
 	k_attributes_ptr attrs = NULL;
-	k_attributes_ptr policy_attrs= NULL;
 
 	GString *accept_challenge_header = NULL;
 	GString *session_ids_header = NULL;
 	GString *session_ids = NULL;
 	GString *url = NULL;
-	GString *policy_url = NULL;
 
 	std::string status;
 	std::string session_id_str;
@@ -363,8 +315,6 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 			if(g_strcmp0((const char*)keytype_str, (const char*)"RSA") == 0)
 				keytype =  KEYAGENT_RSAKEY;
-			else if(g_strcmp0((const char*)keytype_str, (const char*)"EC") == 0)
-				keytype = KEYAGENT_ECKEY;
                         else if(g_strcmp0((const char*)keytype_str, (const char*)"AES") == 0)
 				keytype = KEYAGENT_AESKEY;
 
@@ -399,17 +349,13 @@ __npm_loadkey(loadkey_info *info, GError **err)
 cleanup:
 	g_strfreev(url_tokens);
 	g_strfreev(session_id_tokens);
-	k_string_free(accept_challenge_header, TRUE);
-	k_string_free(session_ids_header, TRUE);
-	k_string_free(session_ids, TRUE);
-	k_string_free(url, TRUE);
-	k_string_free(policy_url, TRUE);
+	k_string_free(accept_challenge_header);
+	k_string_free(session_ids_header);
+	k_string_free(session_ids);
+	k_string_free(url);
 	k_buffer_unref(return_data);
-	k_buffer_unref(policy_ret_data);
 	if(headers)
 		g_ptr_array_free(headers, TRUE);
-	if(policy_headers)
-		g_ptr_array_free(policy_headers, TRUE);
 	if(res_headers)
 		g_ptr_array_free(res_headers, TRUE);
 	return ret;
@@ -447,8 +393,8 @@ cleanup:
 extern "C" void
 npm_finalize(GError **err)
 {
-	k_string_free(kms_npm::configfile, TRUE);
-	k_string_free(kms_npm::server_url, TRUE);
+	k_string_free(kms_npm::configfile);
+	k_string_free(kms_npm::server_url);
 }
 
 extern "C" gboolean

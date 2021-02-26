@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I$(top_srcdir) $(COMMON_FLAGS) $(LIBCURL_CPPFLAGS) -std=c++11 -fvisibility=hidden
+AM_CPPFLAGS = -I$(top_srcdir) -I$(TOPDIR)/SafeStringLibrary/include/ $(COMMON_FLAGS) $(LIBCURL_CPPFLAGS) -std=c++11 -fvisibility=hidden
 AM_CPPFLAGS +=  \
 	-I$(SGXSDK_INCDIR)
 
@@ -14,4 +14,5 @@ stm_sgx_la_LDFLAGS = \
 	-module -version-info @VERSION_INFO@ \
 	$(COMMON_LDFLAGS) \
 	$(TOPDIR)/utils/libskc_utils.la \
-	$(TOPDIR)/config-file/src/libkey_configfile.la
+	$(TOPDIR)/config-file/src/libkey_configfile.la \
+	$(TOPDIR)/SafeStringLibrary/libSafeStringRelease.a
