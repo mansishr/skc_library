@@ -5,7 +5,7 @@ KMS_NPM_PATH=$SKCLIB_INST_PATH/etc/kms_npm.ini
 CREDENTIAL_PATH=$SKCLIB_INST_PATH/etc/credential_agent.ini
 
 echo "################ Install Admin user token....  #################"
-INSTALL_ADMIN_TOKEN=`curl --noproxy "*" -k -X POST https://$AAS_IP:8444/aas/token -d '{"username": "superadmin", "password": "superAdminPass" }'`
+INSTALL_ADMIN_TOKEN=`curl --noproxy "*" -k -X POST https://$AAS_IP:$AAS_PORT/aas/v1/token -d '{"username": "'"$INSTALL_ADMIN_USERNAME"'", "password": "'"$INSTALL_ADMIN_PASSWORD"'" }'`
 if [ $? -ne 0 ]; then
  echo "############ Could not get token for Install Admin User ####################"
  exit 1
