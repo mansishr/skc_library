@@ -147,7 +147,7 @@ install_pre_requisites()
 	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-5.2.9-4.fc32.x86_64.rpm
 	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-4.fc32.x86_64.rpm
 	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-4.fc32.x86_64.rpm
-	$PAC_INSTALLER update -qy && $PAC_INSTALLER groupinstall "Development Tools" -qy && $PAC_INSTALLER install -qy ${SKCLIB_PRE_REQUISITES}
+	$PAC_INSTALLER groupinstall "Development Tools" -qy && $PAC_INSTALLER install -qy ${SKCLIB_PRE_REQUISITES}
 	echo "Prerequisite Packages installed for skc_library"
 
 	elif [ "$OS" == "ubuntu" ]; then
