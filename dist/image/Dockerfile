@@ -14,8 +14,8 @@ COPY dist/image/bin/sgx_rpm_local_repo ${PWD}/sgx_rpm_local_repo
 COPY dist/image/bin/${SKC_LIBRARY_BIN_NAME} $PWD
 COPY dist/image/entrypoint.sh $PWD
 RUN chmod 700 /entrypoint.sh
-COPY dist/image/configure_skc.sh $PWD
-RUN chmod 700 /configure_skc.sh
+COPY dist/image/credential_agent.sh $PWD
+RUN chmod 700 /credential_agent.sh
 COPY dist/image/sgxssl ${SGX_INSTALL_DIR}/sgxssl
 COPY dist/image/cryptoapitoolkit ${SGX_INSTALL_DIR}/cryptoapitoolkit
 
