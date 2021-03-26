@@ -5,7 +5,7 @@ FROM centos:8
 
 # Set env variables
 ENV SGX_INSTALL_DIR /opt/intel
-ENV SKC_LIBRARY_BIN_NAME skc_library_v3.4.bin
+ENV SKC_LIBRARY_BIN_NAME skc_library_v3.5.bin
  
 # Copy binaries and SGX local repo
 COPY dist/image/bin/pkcs11.so /usr/lib64/engines-1.1/
