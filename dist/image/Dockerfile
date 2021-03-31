@@ -25,7 +25,7 @@ RUN dnf install -y https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Eve
     https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-4.fc32.x86_64.rpm \
     https://download-ib01.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/j/jsoncpp-1.8.4-6.el8.x86_64.rpm \
     https://download-ib01.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/j/jsoncpp-devel-1.8.4-6.el8.x86_64.rpm
-RUN dnf install -y yum-utils jq protobuf opensc nginx cronie sudo
+RUN dnf install -y yum-utils jq protobuf opensc nginx cronie sudo ncurses
 RUN groupadd intel && \
     usermod -G intel nginx && \
     ln -sf /usr/lib64/libp11.so.3.4.3 /usr/lib64/libp11.so && \
