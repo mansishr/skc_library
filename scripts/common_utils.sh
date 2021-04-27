@@ -7,10 +7,10 @@ readonly CODE_EXEC_SUCCESS=0
 readonly CODE_EXEC_ERROR=1
 readonly CODE_CONFIG_ERROR=2
 readonly CODE_OS_ERROR=3
-readonly CODE_ERROR='\033[0;31m' #RED_COLOR
-readonly CODE_OK='\033[0;32m'  #GREEN_COLOR
-readonly CODE_WARNING='\033[0;33m' #BROWN/ORANGE_COLOR   
-readonly CODE_NC='\033[0m' #NO_COLOR`
+readonly CODE_ERROR='\033[0;31m'
+readonly CODE_OK='\033[0;32m'
+readonly CODE_WARNING='\033[0;33m'
+readonly CODE_NC='\033[0m'
 readonly LOG_OK=0
 readonly LOG_ERROR=1
 readonly LOG_WARN=2
@@ -139,59 +139,53 @@ install_pre_requisites()
 	check_pre_condition
 
 	if [ "$OS" == "rhel" ]; then
-# RHEL
-	echo "Installing Prerequisite Packages for skc_library"
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-10.el8.noarch.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/s/softhsm-2.5.0-4.fc32.3.x86_64.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/m/makeself-2.4.0-5.fc32.noarch.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-5.2.9-4.fc32.x86_64.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-4.fc32.x86_64.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-4.fc32.x86_64.rpm
-	$PAC_INSTALLER groupinstall "Development Tools" -qy && $PAC_INSTALLER install -qy ${SKCLIB_PRE_REQUISITES}
-	echo "Prerequisite Packages installed for skc_library"
+		echo "Installing Prerequisite Packages for skc_library"
+		dnf install -qy https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-10.el8.noarch.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/s/softhsm-2.6.1-3.fc33.4.x86_64.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/m/makeself-2.4.2-2.fc33.noarch.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-5.2.9-6.fc33.x86_64.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-6.fc33.x86_64.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-6.fc33.x86_64.rpm | exit 1
+		dnf groupinstall "Development Tools" -qy || exit 1
+		dnf install -qy ${SKCLIB_PRE_REQUISITES} || exit 1
+		ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
+		echo "RHEL Prerequisite Packages installed for skc_library"
 
 	elif [ "$OS" == "ubuntu" ]; then
-# Ubuntu
-	apt update -y
-	apt install -y build-essential automake autoconf libtool
-	$PAC_INSTALLER install ${SKCLIB_PRE_REQUISITES} -y
-	apt install -y softhsm makeself libgda-5.0-4 libgda-5.0-dev
+		apt update -y
+		apt install -y build-essential automake autoconf libtool || exit 1
+		apt install ${SKCLIB_PRE_REQUISITES} -y || exit 1
+		apt install -y softhsm makeself libgda-5.0-4 libgda-5.0-dev || exit 1
 
-# Download P11-Kit
-	wget http://archive.ubuntu.com/ubuntu/pool/main/libt/libtasn1-6/libtasn1-6_4.16.0-2_amd64.deb
-	wget http://archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi8ubuntu1_3.4~20200819gead65ca871-0ubuntu3_amd64.deb
-	wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit0_0.23.22-1_amd64.deb
-	wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit-dev_0.23.22-1_amd64.deb
+		# Download P11-Kit
+		wget http://archive.ubuntu.com/ubuntu/pool/main/libt/libtasn1-6/libtasn1-6_4.16.0-2_amd64.deb || exit 1
+		wget http://archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi8ubuntu1_3.4~20200819gead65ca871-0ubuntu3_amd64.deb || exit 1
+		wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit0_0.23.22-1_amd64.deb || exit 1
+		wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit-dev_0.23.22-1_amd64.deb || exit 1
 
-# Install p11-kit and its dependencies
-	apt install -f ./libtasn1-6_4.16.0-2_amd64.deb
-	apt install -f ./libffi8ubuntu1_3.4~20200819gead65ca871-0ubuntu3_amd64.deb
-	apt install -f ./libp11-kit0_0.23.22-1_amd64.deb
-	apt install -f ./libp11-kit-dev_0.23.22-1_amd64.deb
+		# Install p11-kit and its dependencies
+		apt install -f ./libtasn1-6_4.16.0-2_amd64.deb || exit 1
+		apt install -f ./libffi8ubuntu1_3.4~20200819gead65ca871-0ubuntu3_amd64.deb || exit 1
+		apt install -f ./libp11-kit0_0.23.22-1_amd64.deb || exit 1
+		apt install -f ./libp11-kit-dev_0.23.22-1_amd64.deb || exit 1
 
-# remove the downloaded files
-	rm -rf *.deb
-fi
+	        ln -sf /usr/lib/libjsoncpp.so /usr/lib/libjsoncpp.so.0
+		# remove the downloaded files
+		rm -rf *.deb
+		echo "Ubuntu Prerequisite Packages installed for skc_library"
+	fi
 
 	# download and build latest libp11
 	git clone https://github.com/OpenSC/libp11.git && cd libp11
-	git checkout libp11-0.4.11
 	./bootstrap
-if [ "$OS" == "rhel" ]; then
-	./configure --libdir=/usr/lib64/
-elif [ "$OS" == "ubuntu" ]; then
-	./configure --libdir=/usr/lib/
-fi
+	if [ "$OS" == "rhel" ]; then
+		./configure --libdir=/usr/lib64/
+	elif [ "$OS" == "ubuntu" ]; then
+		./configure --libdir=/usr/lib/
+	fi
 	make install
 	cd ..
 	rm -rf libp11
-
-	# required for aes_test
-if [ "$OS" == "rhel" ]; then
-	ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
-elif [ "$OS" == "ubuntu" ]; then
-        ln -sf /usr/lib/libjsoncpp.so /usr/lib/libjsoncpp.so.0
-fi
 }
 
 # Extract version of the dependency packages installed

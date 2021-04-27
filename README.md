@@ -56,9 +56,9 @@ cd build/skc-tools/skc_library/build_scripts
 Name          | Repo URL                                                                          | Minimum Version Required
 ------------- | --------------------------------------------------------------------------------- | ------------------------
 libcurl       | github.com/curl/curl                                                              | v7.72.0
-libgda        | dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l | v5.2.9
+libgda        | dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l | v5.2.9
 glib          | gitlab.gnome.org/GNOME/glib                                                       | v2.0.0
-libgda-sqlite | dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l | v5.2.9
+libgda-sqlite | dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l | v5.2.9
 libjsoncpp    | github.com/open-source-parsers/jsoncpp                                            | v1.9.3
 
 ## Links

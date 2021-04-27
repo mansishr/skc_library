@@ -1,5 +1,5 @@
-#ifndef _CURL_H_
-#define _CURL_H_
+#ifndef _UTILS_H_
+#define _UTILS_H_
 
 #ifdef  __cplusplus
 extern "C" {
