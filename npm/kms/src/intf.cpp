@@ -416,7 +416,7 @@ npm_register(keyagent_url url, GError **err)
 		goto cleanup;
 	}
 	ret = TRUE;
-	k_debug_msg("%s NPM Registered successfully...\n", KMS_PREFIX_TOKEN);
+	k_info_msg("%s NPM Registered successfully...\n", KMS_PREFIX_TOKEN);
 cleanup:
 	g_strfreev(url_tokens);
 	return ret;

@@ -401,7 +401,7 @@ init_apimodule_token(apimodule_uri_data *uri_data, gboolean create, GError **err
 				k_set_error(err, -1, "failed to create token");
 				break;
 			}
-			k_debug_msg("token created");
+			k_info_msg("token created");
 			func_list->C_Logout(hSession);
 			func_list->C_CloseSession(hSession);
 			// re-initialize the cryptoki to get new slot Ids

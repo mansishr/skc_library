@@ -242,19 +242,19 @@ apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 	if((rv = apimodule_load_module(loadable_module, ppFunctionList)) != CKR_OK)
 		return rv;
 	func_list = *ppFunctionList;
-	k_debug_msg("Loaded: \"%s\"\n", loadable_module);
+	k_info_msg("Loaded: \"%s\"\n", loadable_module);
 	if(!keyagent_init(keyagent_config_filename, &error)) {
 		k_critical_error(error);
 		return CKR_GENERAL_ERROR;
 	}
-	k_debug_msg("keyagent_init is successful !!!");
+	k_info_msg("keyagent_init is successful !!!");
 
 	if(!keyagent_apimodule_register(mode, &apimodule_ops, &error)) {
 		k_critical_msg(error->message);
 		return FALSE;
 	}
 
-	k_debug_msg("keyagent_apimodule_register is successful !!!");
+	k_info_msg("keyagent_apimodule_register is successful !!!");
 	return rv;
 }
 
@@ -296,7 +296,7 @@ C_OnDemand_KeyLoad (const char *uri_string)
 		// Call the Key Agent API to get key details
 		if(keyagent_loadkey_with_moduledata(url, (void*)&uri_data, &err)) {
 			rv = CKR_OK;
-			k_debug_msg("key transfer successful");
+			k_info_msg("key transfer is successful");
 		} else
 			k_critical_msg("C_OnDemand_KeyLoad: pkcs11 uri values are not correct");
 
@@ -512,7 +512,7 @@ apimodule_preload_keys(GError **err)
 		}
 
 		while((read = getline(&uri, &len, fp)) > 0) {
-			k_debug_msg("loading key: %s", uri);
+			k_info_msg("loading key: %s", uri);
 			if(C_OnDemand_KeyLoad((const char *)uri) != CKR_OK) {
 				ret = FALSE;
 				if(!*err)

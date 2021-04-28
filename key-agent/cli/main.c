@@ -101,7 +101,7 @@ main (int argc, char *argv[])
 			k_critical_msg("API Module Load URI failed\n");
 			goto end;
 		}
-		k_debug_msg("Key:%s successfully loaded in api_module:%s\n", keyurl, api_module);
+		k_info_msg("Key:%s successfully loaded in api_module:%s\n", keyurl, api_module);
 	} else if(keyurl && !api_module) {
 		k_critical_msg("--api-module <api_module_path> missing\n");
 		goto end;
