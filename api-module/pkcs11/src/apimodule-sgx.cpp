@@ -1,16 +1,9 @@
 #define G_LOG_DOMAIN "apimodule-sgx"
-#include <sgx_quote_3.h>
 #include "internal.h"
-#include "key-agent/stm/stm.h"
-#include "include/k_debug.h"
 #include "QuoteGeneration.h"
 extern "C" {
 #include "safe_lib.h"
 }
-
-using namespace std;
-#define SGX_ECDSA_QUOTE_VERIFIABLE 5
-#define REF_ECDSDA_AUTHENTICATION_DATA_SIZE 32
 
 typedef CK_RSA_PUBLIC_KEY_PARAMS * CK_RSA_PUBLIC_KEY_PARAMS_PTR;
 

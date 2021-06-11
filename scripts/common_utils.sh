@@ -141,7 +141,6 @@ install_pre_requisites()
 	if [ "$OS" == "rhel" ]; then
 		echo "Installing Prerequisite Packages for skc_library"
 		dnf install -qy https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-10.el8.noarch.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/s/softhsm-2.6.1-3.fc33.4.x86_64.rpm || exit 1
 		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/m/makeself-2.4.2-2.fc33.noarch.rpm || exit 1
 		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-5.2.9-6.fc33.x86_64.rpm || exit 1
 		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-6.fc33.x86_64.rpm || exit 1
@@ -155,7 +154,7 @@ install_pre_requisites()
 		apt update -y
 		apt install -y build-essential automake autoconf libtool || exit 1
 		apt install ${SKCLIB_PRE_REQUISITES} -y || exit 1
-		apt install -y softhsm makeself libgda-5.0-4 libgda-5.0-dev || exit 1
+		apt install -y makeself libgda-5.0-4 libgda-5.0-dev || exit 1
 
 		# Download P11-Kit
 		wget http://archive.ubuntu.com/ubuntu/pool/main/libt/libtasn1-6/libtasn1-6_4.16.0-2_amd64.deb || exit 1

@@ -313,17 +313,23 @@ apimodule_findobject(CK_SESSION_HANDLE hSession, apimodule_uri_data *data, gbool
 	attribs[0].pValue = data->key_label->str;
 	attribs[1].ulValueLen = data->key_id->len;
 	attribs[1].pValue = data->key_id->str;
-	rv = func_list->C_FindObjectsInit(hSession,&attribs[0],2);
-	rv = func_list->C_FindObjects(hSession,&hObjects[0],16,&ulObjectCount);
+	rv = func_list->C_FindObjectsInit(hSession, &attribs[0], 2);
+	if(rv != CKR_OK)
+		return rv;
+	rv = func_list->C_FindObjects(hSession, &hObjects[0], 16, &ulObjectCount);
+	if(rv != CKR_OK)
+		return rv;
 	rv = func_list->C_FindObjectsFinal(hSession);
+	if(rv != CKR_OK)
+		return rv;
 
 	if(ulObjectCount > 0) {
-		k_debug_msg("Object Found: Label %s, count %d",  data->key_label->str, ulObjectCount);
-		*is_present = TRUE;
 		CK_ULONG obj_class;
 		CK_ATTRIBUTE tmpl[] = {
 			{CKA_CLASS, &obj_class, sizeof(obj_class) }
 		};
+		*is_present = TRUE;
+		k_debug_msg("Object Found: Label %s, key_id %s, count %d",  data->key_label->str, data->key_id->str, ulObjectCount);
 		rv = func_list->C_GetAttributeValue(hSession, hObjects[0], tmpl, 1);
 
 		k_debug_msg("C_GetAttributeValue %d %s", rv,

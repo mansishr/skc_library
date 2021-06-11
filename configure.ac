@@ -6,13 +6,13 @@
 
 # Program version
 
-define([_VERSION_MAJOR], [3])
-define([_VERSION_MINOR], [4])
+define([_VERSION_MAJOR], [4])
+define([_VERSION_MINOR], [0])
 define([_VERSION_FIX], [0])
 define([PACKAGE_SUFFIX], [])
 
-define([_VERSION_CURRENT], [3])
-define([_VERSION_AGE], [3])
+define([_VERSION_CURRENT], [4])
+define([_VERSION_AGE], [0])
 define([_VERSION_REVISION], [0])
 define([AM_CXXFLAGS], [-std=c++0x])
 
@@ -79,7 +79,6 @@ AC_CONFIG_FILES([
 AC_CONFIG_SUBDIRS([
     config-file
     key-agent
-    stm/sw
     stm/sgx
     npm/kms
     api-module/pkcs11

@@ -4,7 +4,5 @@ keyagent_conf=__SKC_INSTALL__/etc/key-agent.ini
 mode=__SKC_MODE__
 debug=true
 preload_keys=/tmp/keys.txt
-[SW]
-module=__SOFTWARE_MODULE__
 [SGX]
 module=__TOOLKIT_MODULE__

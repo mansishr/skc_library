@@ -194,10 +194,7 @@ apimodule_init(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 	apimodule_token_hash = g_hash_table_new(g_str_hash, g_str_equal);
 	apimodule_api_hash = g_hash_table_new(g_str_hash, g_str_equal);
 	module_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
-	g_hash_table_insert(apimodule_api_hash, (gpointer)"SW", sw_apimodule_ops);
-#ifdef SGXTOOLKIT
 	g_hash_table_insert(apimodule_api_hash, (gpointer)"SGX", sgx_apimodule_ops);
-#endif
 	memset(&apimodule_ops, 0, sizeof(apimodule_ops));
 	apimodule_ops.load_key = apimodule_load_key;
 	apimodule_ops.get_challenge = apimodule_get_challenge;

@@ -1,26 +1,12 @@
 AM_CPPFLAGS = -I$(top_srcdir) -I$(TOPDIR)/SafeStringLibrary/include/ $(COMMON_FLAGS) \
 	`pkg-config --cflags p11-kit-1` `pkg-config --cflags p11-kit-1 | sed "s| ||g"`/p11-kit \
-	$(GMODULE_CFLAGS)  -std=c++11
+	$(GMODULE_CFLAGS) -std=c++11
 
-if SGXTOOLKIT
-AM_CPPFLAGS += \
-	-DSGXTOOLKIT \
-	-I$(SGXTOOLKIT)/include \
-	-I$(SGXSDK_INCDIR)
-endif
+AM_CPPFLAGS += -DSGXTOOLKIT -I$(SGXTOOLKIT)/include -I$(SGXSDK_INCDIR)
 
-lib_LTLIBRARIES = \
-    libpkcs11-api.la
+lib_LTLIBRARIES = libpkcs11-api.la
 
-SOURCES = \
-	utils.c \
-	pkcs11-apimodule.cpp \
-	apimodule-sw.cpp
-
-if SGXTOOLKIT
-SOURCES += \
-	apimodule-sgx.cpp
-endif
+SOURCES = utils.c pkcs11-apimodule.cpp apimodule-sgx.cpp
 
 libpkcs11_api_la_SOURCES = $(SOURCES)
 
