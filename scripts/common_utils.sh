@@ -141,7 +141,7 @@ install_pre_requisites()
 	if [ "$OS" == "rhel" ]; then
 # RHEL
 	echo "Installing Prerequisite Packages for skc_library"
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/e/epel-release-8-10.el8.noarch.rpm
+	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm || exit 1
 	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/s/softhsm-2.5.0-4.fc32.3.x86_64.rpm
 	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/m/makeself-2.4.0-5.fc32.noarch.rpm
 	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-5.2.9-4.fc32.x86_64.rpm
