@@ -10,6 +10,10 @@ SUBDIRS = \
 GITCOMMIT := $(shell git describe --always)
 VERSION=4.0.0
 
+if PROXY_EXISTS
+DOCKER_PROXY_FLAGS := --build-arg http_proxy=${http_proxy} --build-arg https_proxy=${https_proxy}
+endif
+
 conf_dir:=./configs
 datadir=$(prefix)/etc
 storedir=$(prefix)/store
