@@ -139,16 +139,17 @@ install_pre_requisites()
 	check_pre_condition
 
 	if [ "$OS" == "rhel" ]; then
-# RHEL
-	echo "Installing Prerequisite Packages for skc_library"
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm || exit 1
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/s/softhsm-2.5.0-4.fc32.3.x86_64.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/m/makeself-2.4.0-5.fc32.noarch.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-5.2.9-4.fc32.x86_64.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-4.fc32.x86_64.rpm
-	$PAC_INSTALLER install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/32/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-4.fc32.x86_64.rpm
-	$PAC_INSTALLER groupinstall "Development Tools" -qy && $PAC_INSTALLER install -qy ${SKCLIB_PRE_REQUISITES}
-	echo "Prerequisite Packages installed for skc_library"
+		echo "Installing Prerequisite Packages for skc_library"
+		dnf install -qy https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/s/softhsm-2.6.1-3.fc33.4.x86_64.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/m/makeself-2.4.2-2.fc33.noarch.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-5.2.9-6.fc33.x86_64.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-6.fc33.x86_64.rpm || exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-6.fc33.x86_64.rpm | exit 1
+		dnf groupinstall "Development Tools" -qy || exit 1
+		dnf install -qy ${SKCLIB_PRE_REQUISITES} || exit 1
+		ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
+		echo "RHEL Prerequisite Packages installed for skc_library"
 
 	elif [ "$OS" == "ubuntu" ]; then
 		apt update -y
