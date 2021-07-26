@@ -8,7 +8,7 @@ SUBDIRS = \
 	api-module/pkcs11
 
 GITCOMMIT := $(shell git describe --always)
-VERSION=4.0.0
+VERSION=4.1.0
 
 if PROXY_EXISTS
 DOCKER_PROXY_FLAGS := --build-arg http_proxy=${http_proxy} --build-arg https_proxy=${https_proxy}
