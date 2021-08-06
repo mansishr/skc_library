@@ -29,6 +29,11 @@ OS="$temp"
 VER=$(cat /etc/os-release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
 OS_FLAVOUR="$OS""$VER"
 
+if [ $VER == "20.04" ]; then
+	SKCLIB_INSTALL_OS_VER=$VER
+	SKCLIB_PRE_REQUISITES=$SKCLIB_PRE_REQUISITES_UB_UPGRADED_VER
+fi
+
 to_stderr(){
 	(>&2 $*)
 }

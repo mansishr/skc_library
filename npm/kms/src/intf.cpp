@@ -30,7 +30,7 @@ void get_session_id_from_header(gpointer data, gpointer user_data)
 	gchar *str = (gchar *)data;
 	gchar ***tokens_ptr = (gchar ***)user_data;
 	gchar **tokens =  NULL;
-	if(g_str_has_prefix(str,"Session-Id:") == TRUE)
+	if(g_str_has_prefix(str,"Session-Id:") == TRUE || (g_str_has_prefix(str,"session-id:") == TRUE))
 	{
 		tokens = g_strsplit(str,":",-1);
 		*tokens_ptr = tokens;

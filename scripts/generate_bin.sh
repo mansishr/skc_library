@@ -7,6 +7,7 @@ OS=$(cat /etc/os-release | grep ^ID= | cut -d'=' -f2)
 temp="${OS%\"}"
 temp="${temp#\"}"
 OS="$temp"
+VER=$(cat /etc/os-release | grep ^VERSION_ID | tr -d 'VERSION_ID="')
 
 if [ "$OS" == "rhel" ]
 then
@@ -68,6 +69,10 @@ source scripts/config_rhel.ini
 elif [ "$OS" == "ubuntu" ]
 then
 source scripts/config_ubuntu.ini
+fi
+
+if [ $VER == "20.04" ]; then
+        SKCLIB_PRE_REQUISITES=$SKCLIB_PRE_REQUISITES_UB_UPGRADED_VER
 fi
 
 source scripts/$UTILS_SOURCE
