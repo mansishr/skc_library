@@ -36,5 +36,12 @@ docker:
 	docker build ${DOCKER_PROXY_FLAGS} -f dist/image/Dockerfile -t isecl/skc-lib:$(VERSION) .
 	docker save isecl/skc-lib:$(VERSION) > skc-lib-$(VERSION)-$(GITCOMMIT).tar
 
+docker_stacks:
+	docker build ${DOCKER_PROXY_FLAGS} -f dist/image/Dockerfile_stacks -t isecl/skc-lib:$(VERSION) .
+	docker save isecl/skc-lib:$(VERSION) > skc-lib-$(VERSION)-$(GITCOMMIT).tar
+
 oci-archive: docker
+	skopeo copy docker-daemon:isecl/skc-lib:$(VERSION) oci-archive:out/skc-lib-$(VERSION)-$(GITCOMMIT).tar
+
+oci-archive_stacks: docker_stacks
 	skopeo copy docker-daemon:isecl/skc-lib:$(VERSION) oci-archive:out/skc-lib-$(VERSION)-$(GITCOMMIT).tar
