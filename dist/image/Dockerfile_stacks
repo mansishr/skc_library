@@ -3,6 +3,11 @@
 
 FROM centos:8
 
+LABEL org.label-schema.name="SKC Library" \
+      org.label-schema.vendor="Intel Corporation" \
+      org.label-schema.license="BSD-3-Clause" \
+      org.label-schema.url="https://github.com/intel-secl/intel-secl"
+
 # Set env variables
 ENV SGX_INSTALL_DIR /opt/intel
 ENV SKC_LIBRARY_BIN_NAME skc_library_*.bin

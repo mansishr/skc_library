@@ -9,6 +9,7 @@ SUBDIRS = \
 
 GITCOMMIT := $(shell git describe --always)
 VERSION=4.1.0
+BUILDDATE := $(shell TZ=UTC date +%Y-%m-%dT%H:%M:%S%z)
 
 if PROXY_EXISTS
 DOCKER_PROXY_FLAGS := --build-arg http_proxy=${http_proxy} --build-arg https_proxy=${https_proxy}
@@ -33,11 +34,11 @@ install-data-hook:$(dest_conf_files)
 include_HEADERS = include/k_errors.h include/k_types.h
 
 docker:
-	docker build ${DOCKER_PROXY_FLAGS} -f dist/image/Dockerfile -t isecl/skc-lib:$(VERSION) .
+	docker build ${DOCKER_PROXY_FLAGS} --label org.label-schema.build-date=$(BUILDDATE) -f dist/image/Dockerfile -t isecl/skc-lib:$(VERSION) .
 	docker save isecl/skc-lib:$(VERSION) > skc-lib-$(VERSION)-$(GITCOMMIT).tar
 
 docker_stacks:
-	docker build ${DOCKER_PROXY_FLAGS} -f dist/image/Dockerfile_stacks -t isecl/skc-lib:$(VERSION) .
+	docker build ${DOCKER_PROXY_FLAGS} --label org.label-schema.build-date=$(BUILDDATE) -f dist/image/Dockerfile_stacks -t isecl/skc-lib:$(VERSION) .
 	docker save isecl/skc-lib:$(VERSION) > skc-lib-$(VERSION)-$(GITCOMMIT).tar
 
 oci-archive: docker
