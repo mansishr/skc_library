@@ -70,30 +70,30 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 
 	/* Parse the PKCS11 URI */
 	if((rv = p11_kit_uri_parse(uri, P11_KIT_URI_FOR_ANY, key_uri)) != P11_KIT_URI_OK) {
-		k_critical_msg("p11_kit_uri_parse failed: 0x%lx",  rv);
+		k_critical_msg("Invalid pkcs11 url, p11_kit_uri_parse failed: 0x%lx",  rv);
 		goto out;
 	}
 
 	/* we expect token label must be present */
 	tokenInfo = p11_kit_uri_get_token_info(key_uri);
 	if(!tokenInfo || (!tokenInfo->label[0])) {
-		k_critical_msg("failed to get token label from pkcs11 uri");
+		k_critical_msg("Invalid pkcs11 url, failed to get token label from pkcs11 uri");
 		goto out;
 	}
 
 	// We expect Key Label and Key ID
 	if((label_attr = p11_kit_uri_get_attribute(key_uri, CKA_LABEL)) == NULL) {
-		k_critical_msg("cannot find proper object tag in pkcs11 uri");
+		k_critical_msg("Invalid pkcs11 url, cannot find proper object tag in pkcs11 uri");
 		goto out;
 	}
 
 	if((id_attr = p11_kit_uri_get_attribute(key_uri, CKA_ID)) == NULL) {
-		k_critical_msg("cannot find proper id tag in pkcs11 uri");
+		k_critical_msg("Invalid pkcs11 url, cannot find proper id tag in pkcs11 uri");
 		goto out;
 	}
 
 	if(id_attr->ulValueLen < MIN_KEYID_LEN) {
-		k_critical_msg("proper key id not specified in pkcs11 uri");
+		k_critical_msg("Invalid pkcs11 url, proper key id not specified in pkcs11 uri");
 		goto out;
 	}
 
@@ -101,35 +101,35 @@ apimodule_uri_to_uri_data(const char *uri, apimodule_uri_data *uri_data)
 	if(typestr != NULL)
 	{
 		if((priv_class = p11_kit_uri_get_attribute(key_uri, CKA_CLASS)) == NULL) {
-			k_critical_msg("cannot find proper type tag in pkcs11 uri");
+			k_critical_msg("Invalid pkcs11 url, cannot find proper type tag in pkcs11 uri");
 			goto out;
 		}
 		uri_data->type = *((CK_ULONG *)priv_class->pValue);
 		if(uri_data->type != CKO_SECRET_KEY && uri_data->type != CKO_PRIVATE_KEY )
 		{
-			k_critical_msg("type tag in pkcs11 uri should be either private/secret");
+			k_critical_msg("Invalid pkcs11 url, type tag in pkcs11 uri should be either private/secret");
 			goto out;
 		}
 	}
 	else
 	{
-		k_critical_msg("type tag in pkcs11 uri cannot be empty");
+		k_critical_msg("Invalid pkcs11 url, type tag in pkcs11 uri cannot be empty");
 		goto out;
 	}
 	if((upin = (char*) p11_kit_uri_get_pin_value(key_uri)) == NULL) {
-		k_critical_msg("cannot read pin value from pkcs11 uri");
+		k_critical_msg("Invalid pkcs11 url, cannot read pin value from pkcs11 uri");
 		goto out;
 	}
 	if((strlen(upin) < MIN_PIN_LEN) || (strlen(upin) > MAX_PIN_LEN)) {
-		k_critical_msg("invalid pin length specified (Should be minimum 4 digits)");
+		k_critical_msg("Invalid pkcs11 url, invalid pin length specified (Should be minimum 4 digits)");
 		goto out;
 	}
 	if((uri_data->token_label = apimodule_utf8_to_char(tokenInfo->label, sizeof(tokenInfo->label))) == NULL) {
-		k_critical_msg("token tag not found in pkcs11 uri");
+		k_critical_msg("Invalid pkcs11 url, token tag not found in pkcs11 uri");
 		goto out;
 	}
 	if(g_strcmp0(uri_data->token_label->str, KMS_PREFIX_TOKEN) != 0) {
-		k_critical_msg("token name should be KMS");
+		k_critical_msg("Invalid token name in pkcs11 url, token name should be KMS");
 		goto out;
 	}
 

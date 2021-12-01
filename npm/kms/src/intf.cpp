@@ -126,7 +126,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	}
 	catch(exception& e)
 	{
-		k_set_error(error, NPM_ERROR_JSON_PARSE, "NPM JSON Parse error: %s\n", e.what());
+		k_set_error(error, NPM_ERROR_JSON_PARSE, "Error while parsing challenge request received from KBS :%s", e.what());
 		goto cleanup;
 	}
 
@@ -160,14 +160,14 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	res_status = skc_https_send(session_url, headers, post_data, NULL, return_data,&info->details->ssl_opts, NULL, kms_npm::debug);
 	if(res_status == -1 || res_status == 0)
 	{
-		k_set_error(error, NPM_ERROR_KEYSERVER_ERROR, "Error in connecting to key broker service, url:%s, Invalid http status:%d\n",
+		k_set_error(error, NPM_ERROR_KEYSERVER_ERROR, "Error in connecting KBS, url:%s, Invalid http status:%d\n",
 				session_url->str, res_status);
 		goto cleanup;
 	}
 
 	if(res_status != 201)
 	{
-		k_set_error(error, NPM_ERROR_INVALID_STATUS, "Invalid http status:%d\n", res_status);
+		k_set_error(error, NPM_ERROR_INVALID_STATUS, "Could not send Challenge Response to KBS, received HTTP Status:%d\n", res_status);
 		goto cleanup;
 	}
 
@@ -181,7 +181,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 	}
 	catch(exception& e)
 	{
-		k_set_error(error, NPM_ERROR_JSON_PARSE, "NPM JSON Parse error: %s\n", e.what());
+		k_set_error(error, NPM_ERROR_JSON_PARSE, "Error while parsing session response received from KBS, JSON Parse error: %s", e.what());
 		goto cleanup;
 	}
 
@@ -190,7 +190,7 @@ start_session(loadkey_info *info, Json::Value &transfer_data, GError **error)
 			protected_swk, (const char *)swktype->str, error);
 	if(ret_status == FALSE && *error == NULL)
 	{
-		k_set_error(error, NPM_ERROR_INVALID_STATUS, "NPM Session creation failed\n");
+		k_set_error(error, NPM_ERROR_INVALID_STATUS, "Session creation failed");
 		goto cleanup;
 	}
 	goto cleanup;
@@ -213,7 +213,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 {
 	if(info->tries > 1)
 	{
-		k_set_error(err, NPM_ERROR_LOAD_KEY, "NPM Load Key tried more than once\n");
+		k_set_error(err, NPM_ERROR_LOAD_KEY, "Load Key tried more than once\n");
 		return FALSE;
 	}
 	info->tries += 1;
@@ -249,7 +249,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	url_tokens = g_strsplit(info->url, ":", -1);
 	if(!g_strcmp0((const char*) url_tokens[0], (const char*)KMS_PREFIX_TOKEN) == 0)
 	{
-		k_critical_msg("Invalid key url token, url:%s\n", url_tokens[0]);
+		k_set_error(err, NPM_ERROR_LOAD_KEY, "Error invalid key url token, url:%s", url_tokens[0]);
 		goto cleanup;
 	}
 	session_ids = KEYAGENT_NPM_OP(&info->details->cbs,session_get_ids)();
@@ -281,7 +281,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 	if(res_status == -1 || res_status == 0)
 	{
 		k_set_error(err, NPM_ERROR_KEYSERVER_ERROR,
-			"Error in connecting key server, url:%s, Invalid http status:%d\n", url->str, res_status);
+			"Cannot connect to KBS, HTTP Error code received: %d\n", res_status);
 		goto cleanup;
 	}
 
@@ -294,7 +294,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 			type = get_json_value(transfer_data["faults"][0], (const char *)"type");
 		} catch (exception& e) {
 			k_set_error(err, NPM_ERROR_JSON_PARSE,
-					"NPM JSON Parse error: %s\n", e.what());
+					"Error while parsing challenge request received from KBS, JSON Parse error: %s", e.what());
 			goto cleanup;
 		}
 
@@ -320,13 +320,13 @@ __npm_loadkey(loadkey_info *info, GError **err)
 
 			SET_KEY_ATTR(transfer_data["data"], attrs, "payload", KEYDATA);
 		} catch (exception& e) {
-			k_set_error(err, NPM_ERROR_JSON_PARSE, "NPM JSON Parse error: %s\n", e.what());
+			k_set_error(err, NPM_ERROR_JSON_PARSE, "JSON Parse error: %s while parsing key transfer response", e.what());
 			goto cleanup;
 		}
 
 		if(session_id_tokens == NULL)
 		{
-			k_set_error(err, NPM_ERROR_INVALID_SESSION_DATA, "NPM Invalid session data\n");
+			k_set_error(err, NPM_ERROR_INVALID_SESSION_DATA, "Invalid session data received from KBS");
 			goto cleanup;
 		}
 		session_id = g_strstrip((gchar*)session_id_tokens[2]);
@@ -340,8 +340,7 @@ __npm_loadkey(loadkey_info *info, GError **err)
 		ret = (KEYAGENT_NPM_OP(&info->details->cbs,key_create)(info->details->request_id, info->details->url, keytype, attrs, session_id, err)?TRUE:FALSE);
 	}
 	else {
-		k_critical_msg("Invalid Http response status received: %d", res_status);
-		k_set_error(err, NPM_ERROR_INVALID_STATUS, "Invalid http response:%d", res_status);
+		k_set_error(err, NPM_ERROR_INVALID_STATUS, "Invalid HTTP response received from KBS during key transfer, expected status code 200/401 but received:%d", res_status);
 		goto cleanup;
 	}
 	goto cleanup;

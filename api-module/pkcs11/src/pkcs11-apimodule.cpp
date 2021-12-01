@@ -123,7 +123,6 @@ C_Initialize(CK_VOID_PTR pInitArgs)
 	if((ret == CKR_OK) || (ret == CKR_CRYPTOKI_ALREADY_INITIALIZED)) {
 		if(!g_atomic_int_add(&preload_keys_flag, 1)) {
 			if(!apimodule_preload_keys(&error)) {
-				k_critical_msg("apimodule_preload_keys failed");
 				k_critical_error(error);
 			}
 		}
@@ -294,8 +293,11 @@ C_OnDemand_KeyLoad (const char *uri_string)
 		if(keyagent_loadkey_with_moduledata(url, (void*)&uri_data, &err)) {
 			rv = CKR_OK;
 			k_info_msg("key transfer is successful");
-		} else
-			k_critical_msg("C_OnDemand_KeyLoad: pkcs11 uri values are not correct");
+		}
+		else
+		{
+			k_critical_error(err);
+		}
 
 		g_free(url);
 		url = NULL;

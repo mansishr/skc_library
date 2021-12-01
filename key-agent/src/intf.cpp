@@ -319,7 +319,6 @@ keyagent_loadkey_with_moduledata(keyagent_url url, void *module_data, GError **e
 
 	if((key = __keyagent_key_lookup(url)) == NULL)
 	{
-		k_critical_msg("Not able to load key %s!", url);
 	        goto out;
 	}
 	ret = TRUE;
