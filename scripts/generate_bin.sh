@@ -74,10 +74,10 @@ source scripts/$UTILS_SOURCE
 set_log $FLAG_ENABLE \"skc_library\"
 
 rm -rf $SKCLIB_INSTALL_DIR
-sudo tar -xf skc_library.tar.gz -C /
+tar -xf skc_library.tar.gz -C /
 exit_script $LOG_DEBUG \"skc_library installed\" $CODE_EXEC_SUCCESS
 
-sudo mkdir -p $SKCLIB_DEVOPS_DIR
+mkdir -p $SKCLIB_DEVOPS_DIR
 
 #Copy the packages to be installed to dependency_packages.txt file
 echo \$SKCLIB_PRE_REQUISITES | tr \" \" \"\\n\" > \/$SKCLIB_DEVOPS_DIR/$SKCLIB_DEPS_PACKAGES
