@@ -103,17 +103,12 @@ check_linux_version()
 	local os_arr_size=`expr ${#SKCLIB_INSTALL_OS[*]} - 1`;
 	local ver_arr_size=`expr ${#SKCLIB_INSTALL_OS_VER[*]} - 1`;
 
-	if [ ${os_arr_size} -ne ${ver_arr_size} ]; then
-		log_msg $LOG_ERROR "OS distribution ${OS} version ${VER} Array data\n"
-		return $CODE_OS_ERROR
-	fi
-
-	for i in $(seq 0 ${os_arr_size}); do
-		PARAM_OS="${SKCLIB_INSTALL_OS[$i]}";
+	PARAM_OS="${SKCLIB_INSTALL_OS[$i]}";
+	for i in $(seq 0 ${ver_arr_size}); do
 		PARAM_VER="${SKCLIB_INSTALL_OS_VER[$i]}";
 		
 		if [[ "${OS}" = "${PARAM_OS}" ]]; then
-			compare_os_version=`echo "$VER >= $PARAM_VER" | bc`
+			compare_os_version=`echo "$VER == $PARAM_VER" | bc`
 			if [ $compare_os_version ]; then
 				log_msg $LOG_DEBUG "OS distribution ${OS} version ${VER} matched"
 				return $CODE_EXEC_SUCCESS
@@ -168,10 +163,10 @@ install_pre_requisites()
 		wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit-dev_0.23.22-1_amd64.deb || exit 1
 
 		# Install p11-kit and its dependencies
-		apt install -f ./libtasn1-6_4.16.0-2_amd64.deb || exit 1
-		apt install -f ./libffi8ubuntu1_3.4~20200819gead65ca871-0ubuntu5_amd64.deb || exit 1
-		apt install -f ./libp11-kit0_0.23.22-1_amd64.deb || exit 1
-		apt install -f ./libp11-kit-dev_0.23.22-1_amd64.deb || exit 1
+		apt install -f ./libtasn1*.deb || exit 1
+		apt install -f ./libffi8ubuntu1*.deb || exit 1
+		apt install -f ./libp11-kit*.deb || exit 1
+		apt install -f ./libp11-kit-dev*.deb || exit 1
 
 	        ln -sf /usr/lib/libjsoncpp.so /usr/lib/libjsoncpp.so.0
 		# remove the downloaded files
@@ -201,5 +196,9 @@ fetch_installed_dependency_packages_version()
 	log_msg $LOG_DEBUG "Dependency Packages: $in"
 	log_msg $LOG_DEBUG "Dependency Packages Version: $out"
 	
-	grep "^" "$in" | xargs rpm -q | tee "$out"
+	if [ "$OS" == "rhel" ]; then
+		grep "^" "$in" | xargs rpm -q | tee "$out"
+	elif [ "$OS" == "ubuntu" ]; then
+		grep "^" "$in" | xargs apt list -a | tee "$out"
+	fi
 }
