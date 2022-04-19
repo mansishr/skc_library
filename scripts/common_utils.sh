@@ -103,7 +103,7 @@ check_linux_version()
 	local os_arr_size=`expr ${#SKCLIB_INSTALL_OS[*]} - 1`;
 	local ver_arr_size=`expr ${#SKCLIB_INSTALL_OS_VER[*]} - 1`;
 
-	PARAM_OS="${SKCLIB_INSTALL_OS[$i]}";
+	PARAM_OS="${SKCLIB_INSTALL_OS[0]}";
 	for i in $(seq 0 ${ver_arr_size}); do
 		PARAM_VER="${SKCLIB_INSTALL_OS_VER[$i]}";
 		
