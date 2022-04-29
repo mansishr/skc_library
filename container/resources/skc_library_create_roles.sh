@@ -17,7 +17,7 @@ reset=`tput sgr0`
 
 source create_roles.conf
 if [ $? -ne 0 ]; then
-	echo " ${red} please set correct values in skc_library.conf ${reset}"
+	echo " ${red} please set correct values in create_roles.conf ${reset}"
 	exit 1
 fi
 
