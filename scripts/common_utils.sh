@@ -141,10 +141,10 @@ install_pre_requisites()
 	if [ "$OS" == "rhel" ]; then
 		echo "Installing Prerequisite Packages for skc_library"
 		dnf install -qy https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/m/makeself-2.4.2-2.fc33.noarch.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-5.2.9-6.fc33.x86_64.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-6.fc33.x86_64.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-6.fc33.x86_64.rpm | exit 1
+		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/34/Everything/x86_64/os/Packages/m/makeself-2.4.3-2.fc34.noarch.rpm || exit 1
+		dnf install -qy https://pkgs.dyn.su/el8/base/x86_64/libgda-5.2.8-4.el8.x86_64.rpm || exit 1
+		dnf install -qy https://pkgs.dyn.su/el8/base/x86_64/libgda-devel-5.2.8-4.el8.x86_64.rpm || exit 1
+		dnf install -qy https://pkgs.dyn.su/el8/base/x86_64/libgda-sqlite-5.2.8-4.el8.x86_64.rpm | exit 1
 		dnf groupinstall "Development Tools" -qy || exit 1
 		dnf install -qy ${SKCLIB_PRE_REQUISITES} || exit 1
 		ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
