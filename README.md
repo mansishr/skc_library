@@ -9,8 +9,7 @@ The `SKC Library` enables secure transfer of application keys from KBS after per
 
 ## System Requirements
 
-- RHEL 8.2
-- Epel 8 Repo
+- ubuntu 20.04
 - Proxy settings if applicable
 
 ## Software requirements
@@ -37,12 +36,10 @@ sudo dnf install -y git wget make gcc-c++ makeself
 - Run scripts to build the SKC Library
 
 ```shell
-git clone https://github.com/intel-secl/utils.git
-cd build/skc-tools/skc_library/build_scripts
-- To build SKC Library,
-#./skc_library_build.sh
-- This script will generate a tarball(skc_library.tar) and checksum file(skc_library.sha2)
-- Copy skc_library.tar, skc_library.sha2 and untar.sh(from build/skc-tools/skc_library directory) to a directory in the deployment machine
+repo init -u  https://github.com/intel-secl/build-manifest.git -b refs/tags/v5.0.0 -m manifest/skc.xml
+repo sync
+make skc_library_k8s 
+- Skc Library container image will be generated. Use: `docker images` to list 
 ```
 
 ## Third Party Dependencies
@@ -55,11 +52,11 @@ cd build/skc-tools/skc_library/build_scripts
 
 Name          | Repo URL                                                                          | Minimum Version Required
 ------------- | --------------------------------------------------------------------------------- | ------------------------
-libcurl       | github.com/curl/curl                                                              | v7.72.0
-libgda        | dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l | v5.2.9
-glib          | gitlab.gnome.org/GNOME/glib                                                       | v2.0.0
-libgda-sqlite | dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l | v5.2.9
-libjsoncpp    | github.com/open-source-parsers/jsoncpp                                            | v1.9.3
+libcurl       | github.com/curl/curl                                                              | v7.68.0
+glib          |                                                                                   | v2.0.0
+libgda        |                                                                                   | v5.0
+libgda-sqlite |                                                                                   | v5.0
+libjsoncpp    |                                                                                   | v1.7.4     
 
 ## Links
 

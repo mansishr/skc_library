@@ -8,7 +8,7 @@ SUBDIRS = \
 	api-module/pkcs11
 
 GITCOMMIT := $(shell git describe --always)
-VERSION=4.2
+VERSION=v5.0.0
 BUILDDATE := $(shell TZ=UTC date +%Y-%m-%dT%H:%M:%S%z)
 
 if PROXY_EXISTS

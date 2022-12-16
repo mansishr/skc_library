@@ -204,15 +204,37 @@ CK_RV do_aes_encrypt_decrypt(apimodule_uri_data *uri_data)
     gboolean present = false;
     CK_SLOT_ID slot_id;
 
-    CK_BYTE iv[]= {  0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+    CK_BYTE gcmIV[] = {
+        0xCA, 0xFE, 0xBA, 0xBE, 0xFA, 0xCE,
+        0xDB, 0xAD, 0xDE, 0xCA, 0xF8, 0x88
+    };
+
+
+    CK_BYTE gcmAAD[] = {   hKey,
+
+        0xFE, 0xED, 0xFA, 0xCE, 0xDE, 0xAD, 0xBE, 0xEF,
+        0xFE, 0xED, 0xFA, 0xCE, 0xDE, 0xAD, 0xBE, 0xEF,
+        0xAB, 0xAD, 0xDA, 0xD2
+    };
+    CK_ULONG tagBits = 128;
+    CK_GCM_PARAMS gcmParams =
+    {
+        &gcmIV[0],
+        sizeof(gcmIV),
+        sizeof(gcmIV) * 8,
+        &gcmAAD[0],
+        sizeof(gcmAAD),
+        tagBits
+    };
+
+
 
     CK_OBJECT_CLASS privClass = CKO_SECRET_KEY;
     CK_ATTRIBUTE attribs[] = {
 	    { CKA_CLASS, &privClass, sizeof(privClass) },
 	    { CKA_ID, (CK_UTF8CHAR_PTR)uri_data->key_id->str, strlen(uri_data->key_id->str) }
     };
-    CK_MECHANISM mechanism = { CKM_AES_KEY_WRAP, NULL_PTR, 0 };
+    CK_MECHANISM mechanism = { CKM_AES_GCM, NULL_PTR, 0 };
 
     memset(&initArgs, (size_t)sizeof(CK_C_INITIALIZE_ARGS), 0);
     initArgs.flags = CKF_OS_LOCKING_OK;
@@ -265,8 +287,8 @@ CK_RV do_aes_encrypt_decrypt(apimodule_uri_data *uri_data)
     rv = func_list->C_FindObjectsFinal(hSession);
     hKey = hObjects;
 
-    mechanism.pParameter = iv;
-    mechanism.ulParameterLen = sizeof(iv);
+    mechanism.pParameter = &gcmParams;
+    mechanism.ulParameterLen = sizeof(gcmParams);
 
     print_CK_BYTE("Plain text:", plainText, sizeof(plainText)-1);
     // Single-part encryption
@@ -290,8 +312,8 @@ CK_RV do_aes_encrypt_decrypt(apimodule_uri_data *uri_data)
     vDecryptedData.resize(ulDataLen);
     print_vector("Decrypted data:", vDecryptedData);
 
-    func_list->C_CloseSession(hSession);
     func_list->C_Logout(hSession);
+    func_list->C_CloseSession(hSession);
 
 err:
     return rv;
