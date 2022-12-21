@@ -36,7 +36,7 @@ sudo dnf install -y git wget make gcc-c++ makeself
 - Run scripts to build the SKC Library
 
 ```shell
-repo init -u  https://github.com/intel-secl/build-manifest.git -b refs/tags/v5.0.0 -m manifest/skc.xml
+repo init -u  https://github.com/intel-secl/build-manifest.git -b refs/tags/v5.1.0 -m manifest/skc.xml
 repo sync
 make skc_library_k8s 
 - Skc Library container image will be generated. Use: `docker images` to list 
