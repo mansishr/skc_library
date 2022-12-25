@@ -139,16 +139,8 @@ install_pre_requisites()
 	check_pre_condition
 
 	if [ "$OS" == "rhel" ]; then
-		echo "Installing Prerequisite Packages for skc_library"
-		dnf install -qy https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/m/makeself-2.4.2-2.fc33.noarch.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-5.2.9-6.fc33.x86_64.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-devel-5.2.9-6.fc33.x86_64.rpm || exit 1
-		dnf install -qy https://dl.fedoraproject.org/pub/fedora/linux/releases/33/Everything/x86_64/os/Packages/l/libgda-sqlite-5.2.9-6.fc33.x86_64.rpm | exit 1
-		dnf groupinstall "Development Tools" -qy || exit 1
-		dnf install -qy ${SKCLIB_PRE_REQUISITES} || exit 1
-		ln -sf /usr/lib64/libjsoncpp.so /usr/lib64/libjsoncpp.so.0
-		echo "RHEL Prerequisite Packages installed for skc_library"
+		echo "${red} Unsupported OS. Please use Ubuntu 20.04 ${reset}"
+		exit 1
 
 	elif [ "$OS" == "ubuntu" ]; then
 		apt update -y
@@ -158,17 +150,17 @@ install_pre_requisites()
 
 		# Download P11-Kit
 		wget http://archive.ubuntu.com/ubuntu/pool/main/libt/libtasn1-6/libtasn1-6_4.16.0-2_amd64.deb || exit 1
-		wget http://archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi8ubuntu1_3.4~20200819gead65ca871-0ubuntu5_amd64.deb || exit 1
-		wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit0_0.23.22-1_amd64.deb || exit 1
-		wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit-dev_0.23.22-1_amd64.deb || exit 1
+		wget http://archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi8_3.4.2-4_amd64.deb || exit 1
+		wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit0_0.23.20-1ubuntu0.1_amd64.deb || exit 1
+		wget http://archive.ubuntu.com/ubuntu/pool/main/p/p11-kit/libp11-kit-dev_0.23.20-1ubuntu0.1_amd64.deb || exit 1
 
 		# Install p11-kit and its dependencies
 		apt install -f ./libtasn1*.deb || exit 1
-		apt install -f ./libffi8ubuntu1*.deb || exit 1
+		apt install -f ./libffi8_3.4.2-4_amd64.deb || exit 1
 		apt install -f ./libp11-kit*.deb || exit 1
 		apt install -f ./libp11-kit-dev*.deb || exit 1
 
-	        ln -sf /usr/lib/libjsoncpp.so /usr/lib/libjsoncpp.so.0
+		ln -sf /usr/lib/libjsoncpp.so /usr/lib/libjsoncpp.so.0
 		# remove the downloaded files
 		rm -rf *.deb
 		echo "Ubuntu Prerequisite Packages installed for skc_library"
@@ -178,7 +170,8 @@ install_pre_requisites()
 	git clone https://github.com/OpenSC/libp11.git && cd libp11
 	./bootstrap
 	if [ "$OS" == "rhel" ]; then
-		./configure --libdir=/usr/lib64/
+		echo "${red} Unsupported OS. Please use Ubuntu 20.04 ${reset}"
+		exit 1
 	elif [ "$OS" == "ubuntu" ]; then
 		./configure --libdir=/usr/lib/
 	fi
@@ -197,7 +190,8 @@ fetch_installed_dependency_packages_version()
 	log_msg $LOG_DEBUG "Dependency Packages Version: $out"
 	
 	if [ "$OS" == "rhel" ]; then
-		grep "^" "$in" | xargs rpm -q | tee "$out"
+		echo "${red} Unsupported OS. Please use Ubuntu 20.04 ${reset}"
+		exit 1
 	elif [ "$OS" == "ubuntu" ]; then
 		grep "^" "$in" | xargs apt list -a | tee "$out"
 	fi

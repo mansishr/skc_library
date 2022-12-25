@@ -10,7 +10,8 @@ OS="$temp"
 
 if [ "$OS" == "rhel" ]
 then
-source ${script_dir}/config_rhel.ini
+echo "${red} Unsupported OS. Please use Ubuntu 20.04 ${reset}"
+exit 1
 elif [ "$OS" == "ubuntu" ]
 then
 source ${script_dir}/config_ubuntu.ini

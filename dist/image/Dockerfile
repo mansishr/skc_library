@@ -37,7 +37,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -yqq install libsgx-launch libsgx-uae
 
 RUN groupadd intel && \
     usermod -G intel www-data && \
-    ln -sf /usr/lib/x86_64-linux-gnu/libp11.so.3.4.3 /usr/lib/x86_64-linux-gnu/libp11.so 
+    ln -sf /usr/lib/x86_64-linux-gnu/libp11.so.3.5.0 /usr/lib/x86_64-linux-gnu/libp11.so 
 
 RUN apt-get clean && apt-get autoclean
 
