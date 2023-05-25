@@ -7,6 +7,7 @@ SUBDIRS = \
 	stm/sgx \
 	api-module/pkcs11
 
+SHELL := /bin/bash
 GITCOMMIT := $(shell git describe --always)
 VERSION=v5.1.0
 BUILDDATE := $(shell TZ=UTC date +%Y-%m-%dT%H:%M:%S%z)
