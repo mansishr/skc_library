@@ -8,6 +8,7 @@ SUBDIRS = \
 	stm/sgx \
 	api-module/pkcs11
 
+SHELL := /bin/bash
 GITCOMMIT := $(shell git describe --always)
 VERSION=3.6.0
 
